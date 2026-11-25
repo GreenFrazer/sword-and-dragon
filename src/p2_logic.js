@@ -304,7 +304,7 @@ function killEnemy(e) {
   const coin = Math.round((e.type === 'dragon' ? 100 : (e.type === 'brute' || e.type === 'shield' ? 20 : (e.type === 'archer' || e.type === 'bomber' ? 15 : 10))) * mult);
   pickups.push({ x: e.x, y: e.y, type: 'gold', val: coin, bob: 0 });
   if (Math.random() < 0.25 || e.type === 'dragon') pickups.push({ x: e.x + 22, y: e.y, type: 'potion', bob: 1 });
-  if (e.type !== 'dragon' && Math.random() < (e.elite ? 0.3 : 0.04)) pickups.push({ x: e.x, y: e.y + 20, type: 'shield', bob: 2 });
+  if (e.type !== 'dragon' && Math.random() < (e.elite ? 0.35 : 0.1)) pickups.push({ x: e.x, y: e.y + 20, type: 'shield', bob: 2 });
   if (e.elite) {
     spawnLoot(e.x - 20, e.y + 8, 0.45); addFloatText(e.x, e.y - 70, e.eName + ' SLAIN', ELITE_AFFIX[e.eAff].col, 16);
     if (e.eAff === 'explosive' && !e.exploded) { e.exploded = true; explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }

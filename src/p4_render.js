@@ -307,11 +307,16 @@ function drawPickup(pk) {
     ctx.fillStyle = '#fa5252'; ctx.beginPath(); ctx.arc(pk.x, pk.y - 9 + yo, 9, 0, TAU); ctx.fill();
     ctx.fillStyle = '#e9ecef'; ctx.fillRect(pk.x - 3, pk.y - 21 + yo, 6, 5);
   } else if (pk.type === 'shield') {
-    const sx = pk.x, sy = pk.y - 12 + yo;
-    drawGlow(sx, sy, 26, '#ffe066', 0.5);
-    ctx.beginPath(); ctx.moveTo(sx - 10, sy - 11); ctx.lineTo(sx + 10, sy - 11); ctx.lineTo(sx + 10, sy); ctx.quadraticCurveTo(sx + 9, sy + 9, sx, sy + 13); ctx.quadraticCurveTo(sx - 9, sy + 9, sx - 10, sy); ctx.closePath();
+    const sx = pk.x, sy = pk.y - 16 + yo, pulse = 0.5 + 0.5 * Math.sin(time * 5);
+    drawGlow(sx, sy, 40 + 6 * pulse, '#ffe066', 0.55 + 0.25 * pulse);
+    ctx.save(); ctx.globalAlpha = 0.35 + 0.35 * pulse; ctx.strokeStyle = '#fff3bf'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sx, sy, 22 + 4 * pulse, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.translate(sx, sy); ctx.scale(1.5, 1.5);
+    ctx.beginPath(); ctx.moveTo(-10, -11); ctx.lineTo(10, -11); ctx.lineTo(10, 0); ctx.quadraticCurveTo(9, 9, 0, 13); ctx.quadraticCurveTo(-9, 9, -10, 0); ctx.closePath();
     ctx.fillStyle = '#4c6ef5'; ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.fillStyle = '#ffd43b'; ctx.fillRect(sx - 1.5, sy - 8, 3, 17); ctx.fillRect(sx - 7, sy - 3, 14, 3);
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(-1.5, -8, 3, 17); ctx.fillRect(-7, -3, 14, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-8, -9, 6, 3);
+    ctx.restore();
   } else {
     drawGlow(pk.x, pk.y - 12 + yo, 24, '#74c0fc', 0.5);
     ctx.save(); ctx.translate(pk.x, pk.y - 12 + yo); ctx.rotate(-0.6);

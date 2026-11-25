@@ -105,7 +105,7 @@ function lightingPass() {
   for (const g of glows) add(g.x, g.y, g.r * 1.1, g.life / g.maxLife);
   for (const m of meteors) if (m.delay < 0.3) add(m.x, m.y - (m.delay / 0.3) * 520, 220, 1);
   for (const p of props) if (p.type === 'tnt') add(p.x, p.y - 30, 90, 0.7);
-  for (const pk of pickups) add(pk.x, pk.y - 10, pk.type === 'loot' ? 70 + pk.item.rarity * 25 : 46, pk.type === 'loot' ? 0.9 : 0.55);
+  for (const pk of pickups) add(pk.x, pk.y - 10, pk.type === 'loot' ? 70 + pk.item.rarity * 25 : (pk.type === 'shield' ? 80 : 46), pk.type === 'loot' || pk.type === 'shield' ? 0.9 : 0.55);
   if (biomeIdx === 3) for (const L of lavaLights) add(L.x, L.y, 95 + 12 * Math.sin(time * 3 + L.x), 0.55);
   for (const f of flies) add(f.x, f.y - 14, 60, 0.65);
   for (const n of novas) add(n.x, n.y, n.r + 40, 0.5);

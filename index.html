@@ -66,7 +66,7 @@
   .card-title { font-weight: 800; font-size: 16px; color: #ffd43b; margin-bottom: 6px; }
   .card-desc { font-size: 13px; color: #dee2e6; line-height: 1.35; }
   .card-lvl { font-size: 11px; color: #8ce99a; margin-top: 6px; font-weight: 700; }
-  #buff-hud { position: absolute; top: 100px; right: 14px; z-index: 10; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; pointer-events: none; }
+  #buff-hud { position: absolute; top: 178px; right: 14px; z-index: 10; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; pointer-events: none; }
   .buff-chip { background: rgba(20,16,26,0.82); border: 1px solid #8a7346; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; color: #ffe066; }
   .shop-sec { margin: 14px 0 6px; color: #b8a77a; font-size: 12px; font-weight: 800; letter-spacing: 2px; }
   .shop-title { margin-top: 22px; margin-bottom: 8px; color: #e9c46a; font-weight: 800; font-size: 14px; letter-spacing: 1px; }
@@ -1019,8 +1019,9 @@ function destroyProp(idx) {
   } else {
     spawnBurst(p.x, p.y - 10, '#b08968', 14, 'dot');
     const roll = Math.random();
-    if (roll < 0.45) pickups.push({ x: p.x, y: p.y, type: 'potion', bob: 0 });
-    else if (roll < 0.72) pickups.push({ x: p.x, y: p.y, type: 'sword', bob: 0 });
+    if (roll < 0.4) pickups.push({ x: p.x, y: p.y, type: 'potion', bob: 0 });
+    else if (roll < 0.52) pickups.push({ x: p.x, y: p.y, type: 'shield', bob: 0 });
+    else if (roll < 0.74) pickups.push({ x: p.x, y: p.y, type: 'sword', bob: 0 });
     else pickups.push({ x: p.x, y: p.y, type: 'gold', val: 15, bob: 0 });
   }
 }
@@ -1074,6 +1075,7 @@ function killEnemy(e) {
   const coin = Math.round((e.type === 'dragon' ? 100 : (e.type === 'brute' || e.type === 'shield' ? 20 : (e.type === 'archer' || e.type === 'bomber' ? 15 : 10))) * mult);
   pickups.push({ x: e.x, y: e.y, type: 'gold', val: coin, bob: 0 });
   if (Math.random() < 0.25 || e.type === 'dragon') pickups.push({ x: e.x + 22, y: e.y, type: 'potion', bob: 1 });
+  if (e.type !== 'dragon' && Math.random() < (e.elite ? 0.3 : 0.04)) pickups.push({ x: e.x, y: e.y + 20, type: 'shield', bob: 2 });
   if (e.elite) {
     spawnLoot(e.x - 20, e.y + 8, 0.45); addFloatText(e.x, e.y - 70, e.eName + ' SLAIN', ELITE_AFFIX[e.eAff].col, 16);
     if (e.eAff === 'explosive' && !e.exploded) { e.exploded = true; explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }
@@ -1099,6 +1101,12 @@ function killEnemy(e) {
 
 function damagePlayer(amount, fromX, fromY) {
   if (player.invuln > 0 || state !== 'play') return;
+  if (player.shieldT > 0) {
+    player.invuln = 0.35; sfx('block');
+    const ang = Math.atan2(fromY - player.y, fromX - player.x);
+    spawnBurst(player.x + Math.cos(ang) * 34, player.y - 24 + Math.sin(ang) * 34, '#ffe066', 10, 'spark');
+    addFloatText(player.x, player.y - 46, 'BLOCKED', '#ffe066', 16); return;
+  }
   let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);
@@ -1189,6 +1197,7 @@ const HIRE_WAVES = 3;
 function renderBuffHud() {
   const parts = [];
   for (const id in BUFFS) if (hasBuff(id)) parts.push(`<div class="buff-chip">${BUFFS[id].icon} ${BUFFS[id].name} · ${activeBuffs[id]}w</div>`);
+  if (player && player.shieldT > 0) parts.push(`<div class="buff-chip">🛡️ Guardian Shield · ${Math.ceil(player.shieldT)}s</div>`);
   $('buff-hud').innerHTML = parts.join('');
 }
 function tickWaveTimers() {
@@ -1524,6 +1533,11 @@ function stepSimulation(dt) {
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);
+  if (player.shieldT > 0) {
+    const sec = Math.ceil(player.shieldT); player.shieldT = Math.max(0, player.shieldT - dt);
+    if (Math.ceil(player.shieldT) !== sec) renderBuffHud();
+    if (player.shieldT <= 0) { addFloatText(player.x, player.y - 70, 'Shield faded', '#adb5bd', 16); spawnBurst(player.x, player.y - 24, '#ffe066', 12, 'dot'); }
+  }
   player.warpT = Math.max(0, (player.warpT || 0) - dt);
   const edt = player.warpT > 0 ? dt * 0.4 : dt; // enemy-side timestep (Hourglass slow)
   if (player.cast < 3) { player.castT -= dt; if (player.castT <= 0) { player.cast++; player.castT = player.cast < 3 ? 4 * cdrMul() : 0; } }
@@ -1614,6 +1628,7 @@ function stepSimulation(dt) {
       if (pk.type === 'loot') offerItem(pk.item);
       else if (pk.type === 'gold') { gold += pk.val; addFloatText(player.x, player.y - 40, `+${pk.val}G`, '#ffd43b'); sfx('coin'); }
       else if (pk.type === 'potion') { player.hp = Math.min(player.maxHp, player.hp + 45); addFloatText(player.x, player.y - 40, '+45 HP', '#69db7c'); sfx('potion'); spawnBurst(player.x, player.y - 20, '#69db7c', 10, 'ember'); }
+      else if (pk.type === 'shield') { player.shieldT = SHIELD_TIME; renderBuffHud(); addFloatText(player.x, player.y - 40, `SHIELD ${SHIELD_TIME}s!`, '#ffe066'); sfx('block'); sfx('potion'); addRing(player.x, player.y - 24, 70, '#ffe066', 0.4, 5); }
       else { player.swordTier++; player.damage += 8; addFloatText(player.x, player.y - 40, `SWORD LV.${player.swordTier}!`, '#74c0fc'); sfx('potion'); }
       pickups.splice(i, 1);
     }
@@ -1959,7 +1974,7 @@ function render() {
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
-  dr.push({ y: player.y, f: () => drawHumanoid(player, true) });
+  dr.push({ y: player.y, f: () => { drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
@@ -2144,6 +2159,19 @@ function drawProp(p) {
     ctx.beginPath(); ctx.moveTo(p.x - 16, p.y - 30); ctx.lineTo(p.x + 16, p.y + 2); ctx.moveTo(p.x + 16, p.y - 30); ctx.lineTo(p.x - 16, p.y + 2); ctx.stroke();
   }
 }
+const SHIELD_TIME = 8;
+function drawPlayerShield() {
+  const t = player.shieldT, blink = t < 2 && Math.floor(t * 8) % 2 === 0;
+  if (blink) return;
+  const x = player.x, y = player.y - 24, r = 40 + 2 * Math.sin(time * 5);
+  ctx.save();
+  drawGlow(x, y, r + 14, '#ffe066', 0.25);
+  ctx.globalAlpha = 0.14; ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 0.75; ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = 0.9; ctx.lineWidth = 3.5; const a = time * 2.5;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, r, a + i * TAU / 3, a + i * TAU / 3 + 0.6); ctx.stroke(); }
+  ctx.restore();
+}
 function drawPickup(pk) {
   const yo = Math.sin(pk.bob) * 4;
   if (pk.type === 'loot') { drawLootPickup(pk, yo); return; }
@@ -2157,6 +2185,12 @@ function drawPickup(pk) {
     drawGlow(pk.x, pk.y - 10 + yo, 22, '#ff6b6b', 0.4);
     ctx.fillStyle = '#fa5252'; ctx.beginPath(); ctx.arc(pk.x, pk.y - 9 + yo, 9, 0, TAU); ctx.fill();
     ctx.fillStyle = '#e9ecef'; ctx.fillRect(pk.x - 3, pk.y - 21 + yo, 6, 5);
+  } else if (pk.type === 'shield') {
+    const sx = pk.x, sy = pk.y - 12 + yo;
+    drawGlow(sx, sy, 26, '#ffe066', 0.5);
+    ctx.beginPath(); ctx.moveTo(sx - 10, sy - 11); ctx.lineTo(sx + 10, sy - 11); ctx.lineTo(sx + 10, sy); ctx.quadraticCurveTo(sx + 9, sy + 9, sx, sy + 13); ctx.quadraticCurveTo(sx - 9, sy + 9, sx - 10, sy); ctx.closePath();
+    ctx.fillStyle = '#4c6ef5'; ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(sx - 1.5, sy - 8, 3, 17); ctx.fillRect(sx - 7, sy - 3, 14, 3);
   } else {
     drawGlow(pk.x, pk.y - 12 + yo, 24, '#74c0fc', 0.5);
     ctx.save(); ctx.translate(pk.x, pk.y - 12 + yo); ctx.rotate(-0.6);
@@ -2438,7 +2472,7 @@ function initPlayerExtras(p) {
   const w = WEAPONS[selectedWeapon] || WEAPONS.sword;
   p.weapon = selectedWeapon; p.atkRate = w.rate; p.range = w.range; p.damage = Math.round(28 * w.dmg); p.crit = w.crit; p.cone = w.cone;
   p.maxHp = 150 + 12 * meta.vit; p.hp = p.maxHp;
-  p.cast = 3; p.castT = 0; p.g = zeroG(); p.gearHp = 0; p.barrier = 0; p.windUsed = false; p.phoenixUsed = false; p.swings = 0; p.evo = {};
+  p.cast = 3; p.castT = 0; p.g = zeroG(); p.gearHp = 0; p.barrier = 0; p.shieldT = 0; p.windUsed = false; p.phoenixUsed = false; p.swings = 0; p.evo = {};
   return p;
 }
 const gM = () => player.g || zeroG();

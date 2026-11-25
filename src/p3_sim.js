@@ -38,6 +38,11 @@ function stepSimulation(dt) {
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);
+  if (player.shieldT > 0) {
+    const sec = Math.ceil(player.shieldT); player.shieldT = Math.max(0, player.shieldT - dt);
+    if (Math.ceil(player.shieldT) !== sec) renderBuffHud();
+    if (player.shieldT <= 0) { addFloatText(player.x, player.y - 70, 'Shield faded', '#adb5bd', 16); spawnBurst(player.x, player.y - 24, '#ffe066', 12, 'dot'); }
+  }
   player.warpT = Math.max(0, (player.warpT || 0) - dt);
   const edt = player.warpT > 0 ? dt * 0.4 : dt; // enemy-side timestep (Hourglass slow)
   if (player.cast < 3) { player.castT -= dt; if (player.castT <= 0) { player.cast++; player.castT = player.cast < 3 ? 4 * cdrMul() : 0; } }
@@ -128,6 +133,7 @@ function stepSimulation(dt) {
       if (pk.type === 'loot') offerItem(pk.item);
       else if (pk.type === 'gold') { gold += pk.val; addFloatText(player.x, player.y - 40, `+${pk.val}G`, '#ffd43b'); sfx('coin'); }
       else if (pk.type === 'potion') { player.hp = Math.min(player.maxHp, player.hp + 45); addFloatText(player.x, player.y - 40, '+45 HP', '#69db7c'); sfx('potion'); spawnBurst(player.x, player.y - 20, '#69db7c', 10, 'ember'); }
+      else if (pk.type === 'shield') { player.shieldT = SHIELD_TIME; renderBuffHud(); addFloatText(player.x, player.y - 40, `SHIELD ${SHIELD_TIME}s!`, '#ffe066'); sfx('block'); sfx('potion'); addRing(player.x, player.y - 24, 70, '#ffe066', 0.4, 5); }
       else { player.swordTier++; player.damage += 8; addFloatText(player.x, player.y - 40, `SWORD LV.${player.swordTier}!`, '#74c0fc'); sfx('potion'); }
       pickups.splice(i, 1);
     }

@@ -95,7 +95,7 @@ function render() {
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
-  dr.push({ y: player.y, f: () => drawHumanoid(player, true) });
+  dr.push({ y: player.y, f: () => { drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
@@ -280,6 +280,19 @@ function drawProp(p) {
     ctx.beginPath(); ctx.moveTo(p.x - 16, p.y - 30); ctx.lineTo(p.x + 16, p.y + 2); ctx.moveTo(p.x + 16, p.y - 30); ctx.lineTo(p.x - 16, p.y + 2); ctx.stroke();
   }
 }
+const SHIELD_TIME = 8;
+function drawPlayerShield() {
+  const t = player.shieldT, blink = t < 2 && Math.floor(t * 8) % 2 === 0;
+  if (blink) return;
+  const x = player.x, y = player.y - 24, r = 40 + 2 * Math.sin(time * 5);
+  ctx.save();
+  drawGlow(x, y, r + 14, '#ffe066', 0.25);
+  ctx.globalAlpha = 0.14; ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 0.75; ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = 0.9; ctx.lineWidth = 3.5; const a = time * 2.5;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, r, a + i * TAU / 3, a + i * TAU / 3 + 0.6); ctx.stroke(); }
+  ctx.restore();
+}
 function drawPickup(pk) {
   const yo = Math.sin(pk.bob) * 4;
   if (pk.type === 'loot') { drawLootPickup(pk, yo); return; }
@@ -293,6 +306,12 @@ function drawPickup(pk) {
     drawGlow(pk.x, pk.y - 10 + yo, 22, '#ff6b6b', 0.4);
     ctx.fillStyle = '#fa5252'; ctx.beginPath(); ctx.arc(pk.x, pk.y - 9 + yo, 9, 0, TAU); ctx.fill();
     ctx.fillStyle = '#e9ecef'; ctx.fillRect(pk.x - 3, pk.y - 21 + yo, 6, 5);
+  } else if (pk.type === 'shield') {
+    const sx = pk.x, sy = pk.y - 12 + yo;
+    drawGlow(sx, sy, 26, '#ffe066', 0.5);
+    ctx.beginPath(); ctx.moveTo(sx - 10, sy - 11); ctx.lineTo(sx + 10, sy - 11); ctx.lineTo(sx + 10, sy); ctx.quadraticCurveTo(sx + 9, sy + 9, sx, sy + 13); ctx.quadraticCurveTo(sx - 9, sy + 9, sx - 10, sy); ctx.closePath();
+    ctx.fillStyle = '#4c6ef5'; ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(sx - 1.5, sy - 8, 3, 17); ctx.fillRect(sx - 7, sy - 3, 14, 3);
   } else {
     drawGlow(pk.x, pk.y - 12 + yo, 24, '#74c0fc', 0.5);
     ctx.save(); ctx.translate(pk.x, pk.y - 12 + yo); ctx.rotate(-0.6);

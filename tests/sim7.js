@@ -42,5 +42,5 @@ for(let i=0;i<FRAMES;i++){
   }catch(e){errors++;console.log('ERR frame',i,e.stack.split('\n').slice(0,5).join(' | '));break;}
 }
 console.log([...sb.__SEEN].join(','));console.log(W,{maxWave,merchants,upgrades,evos,loots,casts,errors,state:run('state'),kills:run('kills'),gear:run('JSON.stringify(Object.values(gear).map(g=>g&&g.name))'),evo:run('JSON.stringify(player.evo)'),weather:run('weather'),parts:run('particles.length')});
-run('state="play";player.invuln=0;player.windUsed=true;player.phoenixUsed=true;damagePlayer(99999,0,0)');console.log('gameover',run('state'),els['gameover-stats']._t,run('meta.embers'));
+run('state="play";player.invuln=0;player.shieldT=0;player.windUsed=true;player.phoenixUsed=true;damagePlayer(99999,0,0)');console.log('gameover',run('state'),els['gameover-stats']._t,run('meta.embers'));
 run('showTitle()');console.log('title',run('state'));

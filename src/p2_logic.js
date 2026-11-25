@@ -248,8 +248,9 @@ function destroyProp(idx) {
   } else {
     spawnBurst(p.x, p.y - 10, '#b08968', 14, 'dot');
     const roll = Math.random();
-    if (roll < 0.45) pickups.push({ x: p.x, y: p.y, type: 'potion', bob: 0 });
-    else if (roll < 0.72) pickups.push({ x: p.x, y: p.y, type: 'sword', bob: 0 });
+    if (roll < 0.4) pickups.push({ x: p.x, y: p.y, type: 'potion', bob: 0 });
+    else if (roll < 0.52) pickups.push({ x: p.x, y: p.y, type: 'shield', bob: 0 });
+    else if (roll < 0.74) pickups.push({ x: p.x, y: p.y, type: 'sword', bob: 0 });
     else pickups.push({ x: p.x, y: p.y, type: 'gold', val: 15, bob: 0 });
   }
 }
@@ -303,6 +304,7 @@ function killEnemy(e) {
   const coin = Math.round((e.type === 'dragon' ? 100 : (e.type === 'brute' || e.type === 'shield' ? 20 : (e.type === 'archer' || e.type === 'bomber' ? 15 : 10))) * mult);
   pickups.push({ x: e.x, y: e.y, type: 'gold', val: coin, bob: 0 });
   if (Math.random() < 0.25 || e.type === 'dragon') pickups.push({ x: e.x + 22, y: e.y, type: 'potion', bob: 1 });
+  if (e.type !== 'dragon' && Math.random() < (e.elite ? 0.3 : 0.04)) pickups.push({ x: e.x, y: e.y + 20, type: 'shield', bob: 2 });
   if (e.elite) {
     spawnLoot(e.x - 20, e.y + 8, 0.45); addFloatText(e.x, e.y - 70, e.eName + ' SLAIN', ELITE_AFFIX[e.eAff].col, 16);
     if (e.eAff === 'explosive' && !e.exploded) { e.exploded = true; explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }
@@ -328,6 +330,12 @@ function killEnemy(e) {
 
 function damagePlayer(amount, fromX, fromY) {
   if (player.invuln > 0 || state !== 'play') return;
+  if (player.shieldT > 0) {
+    player.invuln = 0.35; sfx('block');
+    const ang = Math.atan2(fromY - player.y, fromX - player.x);
+    spawnBurst(player.x + Math.cos(ang) * 34, player.y - 24 + Math.sin(ang) * 34, '#ffe066', 10, 'spark');
+    addFloatText(player.x, player.y - 46, 'BLOCKED', '#ffe066', 16); return;
+  }
   let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);
@@ -418,6 +426,7 @@ const HIRE_WAVES = 3;
 function renderBuffHud() {
   const parts = [];
   for (const id in BUFFS) if (hasBuff(id)) parts.push(`<div class="buff-chip">${BUFFS[id].icon} ${BUFFS[id].name} · ${activeBuffs[id]}w</div>`);
+  if (player && player.shieldT > 0) parts.push(`<div class="buff-chip">🛡️ Guardian Shield · ${Math.ceil(player.shieldT)}s</div>`);
   $('buff-hud').innerHTML = parts.join('');
 }
 function tickWaveTimers() {

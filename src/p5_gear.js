@@ -26,7 +26,7 @@ function initPlayerExtras(p) {
   const w = WEAPONS[selectedWeapon] || WEAPONS.sword;
   p.weapon = selectedWeapon; p.atkRate = w.rate; p.range = w.range; p.damage = Math.round(28 * w.dmg); p.crit = w.crit; p.cone = w.cone;
   p.maxHp = 150 + 12 * meta.vit; p.hp = p.maxHp;
-  p.cast = 3; p.castT = 0; p.g = zeroG(); p.gearHp = 0; p.barrier = 0; p.windUsed = false; p.phoenixUsed = false; p.swings = 0; p.evo = {};
+  p.cast = 3; p.castT = 0; p.g = zeroG(); p.gearHp = 0; p.barrier = 0; p.shieldT = 0; p.windUsed = false; p.phoenixUsed = false; p.swings = 0; p.evo = {};
   return p;
 }
 const gM = () => player.g || zeroG();

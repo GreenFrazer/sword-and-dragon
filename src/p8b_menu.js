@@ -114,7 +114,7 @@ function menuKey(e) {
 }
 function beginRun() {
   if (beginning || state !== 'title') return;
-  beginning = true; initAudio(); sfx('roar'); sfx('wave');
+  beginning = true; initAudio(); sfx('roar'); // the wave horn plays once in startGame()
   const m = $('title-modal'); m.classList.add('leaving');
   setTimeout(() => { m.classList.remove('leaving'); beginning = false; startGame(); }, 720);
 }

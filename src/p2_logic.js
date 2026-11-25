@@ -393,7 +393,7 @@ function deflectProjectiles(cx, cy, rad) {
     const a = tgt ? Math.atan2(tgt.y - p.y, tgt.x - p.x) : p.ang + Math.PI;
     const sp = Math.hypot(p.vx, p.vy) * 1.3;
     p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.ang = a; p.friendly = true; p.life = 2;
-    p.dmg = Math.round(player.damage * 1.2);
+    p.dmg = Math.round(atkDmg() * 1.2); // include Might, brews and gear like other attacks
     spawnBurst(p.x, p.y - 20, '#ffffff', 8, 'spark'); sfx('block'); gainUlt(3);
     addFloatText(p.x, p.y - 40, 'REFLECT!', '#74c0fc', 14);
   }

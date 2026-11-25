@@ -67,7 +67,7 @@ function stepSimulation(dt) {
     player.dashTime -= dt; player.x += player.dashVx * dt; player.y += player.dashVy * dt;
     ghosts.push({ x: player.x, y: player.y, facing: player.facing, walkPhase: player.walkPhase, life: 0.26 });
   } else {
-    const spdm = player.speed * (1 + gM().spd);
+    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0));
     player.vx = player.vx * 0.8 + inp.ix * spdm * 0.2; player.vy = player.vy * 0.8 + inp.iy * spdm * 0.2;
     player.x += player.vx * dt; player.y += player.vy * dt;
   }
@@ -183,7 +183,14 @@ function stepSimulation(dt) {
     if (m.delay <= 0) {
       explosionFx(m.x, m.y, m.r, '#ffa94d', true); sfx('meteor');
       suppressUlt = true;
-      forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - m.x, e.y - m.y) <= m.r + e.r) { e.hasShield = false; damageEnemy(e, m.dmg, Math.atan2(e.y - m.y, e.x - m.x), 380, true); } });
+      forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - m.x, e.y - m.y) <= m.r + e.r) { e.hasShield = false;
+    let md = m.dmg;
+    if (e.type === 'dragon') { // dragons shrug off most of a storm: 40% per meteor, and a storm can take at most 30% of max HP
+      if (e.stormId !== m.storm) { e.stormId = m.storm; e.stormDmg = 0; }
+      md = Math.min(Math.round(md * 0.4), Math.max(0, Math.round(e.maxHp * 0.3) - e.stormDmg)); e.stormDmg += md;
+      if (md <= 0) return;
+    }
+    damageEnemy(e, md, Math.atan2(e.y - m.y, e.x - m.x), 380, true); } });
       suppressUlt = false;
       checkPropsInRadius(m.x, m.y, m.r);
       meteors.splice(i, 1);

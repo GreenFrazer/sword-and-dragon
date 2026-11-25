@@ -73,8 +73,12 @@ function metaCode() { try { return btoa(JSON.stringify({ m: meta, b: bestWave })
 function loadCode(str) {
   try {
     const o = JSON.parse(atob((str || '').trim())); if (!o || !o.m) return false;
-    meta = Object.assign(meta, o.m); meta.unlocked = Object.assign({ sword: true }, o.m.unlocked || {});
-    if (o.b > bestWave) { bestWave = o.b; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
+    const num = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0));
+    meta.embers = num(o.m.embers, 1e7);
+    for (const f of FORGE) meta[f.id] = num(o.m[f.id], f.max);
+    meta.unlocked = { sword: true };
+    for (const k of Object.keys(WEAPONS)) if (o.m.unlocked && o.m.unlocked[k] === true) meta.unlocked[k] = true;
+    if (Number.isFinite(o.b) && o.b > bestWave) { bestWave = Math.min(9999, Math.floor(o.b)); try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
     saveMeta(); return true;
   } catch (e) { return false; }
 }
@@ -117,7 +121,7 @@ function beginRun() {
 }
 function renderTitleMenu() { renderMenu(); }
 function showTitle() {
-  ['gameover-modal', 'upgrade-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
+  ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   state = 'title'; panelFocus = false; menuIdx = 0; subIdx = 0; beginning = false;
   $('title-modal').style.display = 'flex'; renderMenu();
 }

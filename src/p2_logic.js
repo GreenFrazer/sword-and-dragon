@@ -33,7 +33,8 @@ function newPlayer() {
 }
 
 function resetGame() {
-  ['gameover-modal', 'upgrade-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
+  ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
+  activeBuffs = {}; renderBuffHud();
   wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0;
   shake = hitStop = slowT = zoomKick = flashA = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
@@ -125,7 +126,7 @@ function spawnEnemy(type) {
   const base = { x: ex, y: ey, vx: 0, vy: 0, facing: 0, walkPhase: 0, hasShield: false, windup: 0, atkCd: 0, hitFlash: 0, stun: 0 };
   let en;
   if (type === 'dragon') {
-    const hp = Math.round(420 * (1 + (wave / 3 - 1) * 0.4));
+    const hp = Math.round(1300 * (1 + (wave / 3 - 1) * 0.7) * dragonPowerMul());
     en = { ...base, type, hp, maxHp: hp, speed: 125, r: 52, damage: 24, aiState: 'chase', aiTimer: 2.2, targetX: player.x, targetY: player.y,
       flying: false, wingPhase: 0, enraged: false, volley: 0, skin: DRAGON_SKINS[biomeIdx], tail: [] };
     for (let i = 0; i < 8; i++) en.tail.push({ x: ex - i * 15, y: ey });
@@ -167,7 +168,7 @@ function triggerDash() {
 function triggerSpin() {
   if (state !== 'play' || player.spinCd > 0) return;
   player.spinCd = player.spinMaxCd; player.spinTime = 0.34; shake = 7;
-  const R = player.range * 1.45, base = Math.round(player.damage * 1.55);
+  const R = player.range * 1.45, base = Math.round(atkDmg() * 1.55);
   let hits = 0;
   forEachEnemy(e => {
     if (e.flying) return;
@@ -177,7 +178,7 @@ function triggerSpin() {
         e.hasShield = false; e.stun = 1.1;
         addFloatText(e.x, e.y - 38, 'SHIELD SHATTERED!', '#ffd43b'); spawnBurst(e.x, e.y, '#adb5bd', 14);
       }
-      const crit = Math.random() < player.crit;
+      const crit = Math.random() < critCh();
       damageEnemy(e, Math.round(base * (crit ? 2 : 1)), Math.atan2(e.y - player.y, e.x - player.x), 340, true, crit);
     }
   });
@@ -188,25 +189,31 @@ function triggerSpin() {
   glows.push({ x: player.x, y: player.y - 14, r: R * 1.1, life: 0.3, maxLife: 0.3, color: '#ffe066' });
   sfx('spin');
 }
+// Dragons toughen up against offence-heavy builds so a strong build still gets a real fight.
+function dragonPowerMul() {
+  const u = player.upg || {}, evos = Object.keys(player.evo || {}).length;
+  return 1 + 0.2 * (u.dmg || 0) + 0.15 * (u.arcane || 0) + 0.1 * (u.crit || 0) + 0.35 * evos + 0.05 * (u.lightning || 0);
+}
+let stormId = 0;
 function triggerUlt() {
   if (state !== 'play' || player.ult < 100) return;
   player.ult = 0; ultReadyShown = false;
   const n = (10 + 3 * (player.upg.arcane || 0)) * (player.evo && player.evo.comet ? 2 : 1), dmg = Math.round(60 + atkDmg() * 1.4);
-  const targets = enemies.filter(e => !e.flying);
+  const targets = enemies.filter(e => !e.flying); stormId++;
   for (let i = 0; i < n; i++) {
     let x, y;
     if (targets.length) { const t = targets[i % targets.length]; x = t.x + rand(-60, 60); y = t.y + rand(-40, 40); }
     else { x = player.x + rand(-300, 300); y = player.y + rand(-220, 220); }
     x = Math.max(60, Math.min(WORLD_W - 60, x)); y = Math.max(70, Math.min(WORLD_H - 60, y));
     const d = 0.55 + i * 0.11;
-    meteors.push({ x, y, delay: d, total: d, dmg, r: 105, trail: 0 });
+    meteors.push({ x, y, delay: d, total: d, dmg, r: 105, trail: 0, storm: stormId });
   }
   sfx('ult'); flash('#ffb347', 0.4); shake = 12; zoomKick = 0.06;
   addFloatText(player.x, player.y - 70, 'METEOR STORM!', '#ffb347', 22);
 }
 function gainUlt(n) {
   if (suppressUlt) return;
-  player.ult = Math.min(100, player.ult + n * player.ultGain * (1 + gM().ult) * (player.evo && player.evo.comet ? 1.5 : 1));
+  player.ult = Math.min(100, player.ult + n * player.ultGain * (1 + gM().ult) * (player.evo && player.evo.comet ? 1.5 : 1) * (enemies.some(e => e.type === 'dragon') ? 0.5 : 1));
   if (player.ult >= 100 && !ultReadyShown) {
     ultReadyShown = true; sfx('ready'); addFloatText(player.x, player.y - 70, 'METEOR READY! [Q]', '#ffd43b', 18);
   }
@@ -299,7 +306,7 @@ function killEnemy(e) {
   if (Math.random() < 0.25 || e.type === 'dragon') pickups.push({ x: e.x + 22, y: e.y, type: 'potion', bob: 1 });
   if (e.elite) {
     spawnLoot(e.x - 20, e.y + 8, 0.45); addFloatText(e.x, e.y - 70, e.eName + ' SLAIN', ELITE_AFFIX[e.eAff].col, 16);
-    if (e.eAff === 'explosive' && !e.exploded) { explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }
+    if (e.eAff === 'explosive' && !e.exploded) { e.exploded = true; explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }
   } else if (e.type !== 'dragon' && Math.random() < 0.035 * (1 + gM().luck)) spawnLoot(e.x - 16, e.y + 8, 0);
   if (player.evo && player.evo.aegis) { healPlayer(Math.round(player.maxHp * 0.06)); player.barrier = 1.5; }
   if (e.type === 'dragon') { bossKills++; spawnLoot(e.x - 40, e.y + 14, 1); spawnLoot(e.x + 40, e.y + 14, 0.8); }
@@ -322,7 +329,7 @@ function killEnemy(e) {
 
 function damagePlayer(amount, fromX, fromY) {
   if (player.invuln > 0 || state !== 'play') return;
-  let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr) * (player.barrier > 0 ? 0.5 : 1)));
+  let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);
   const ang = Math.atan2(player.y - fromY, player.x - fromX);
@@ -344,6 +351,12 @@ function damagePlayer(amount, fromX, fromY) {
     $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers`;
     $('gameover-modal').style.display = 'flex';
   }
+}
+function cashOutRun() {
+  if (!player || state === 'gameover' || kills < 1) return;
+  const earned = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  meta.embers += earned; saveMeta();
+  if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
 }
 function normalizeAngle(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
 
@@ -388,55 +401,71 @@ function deflectProjectiles(cx, cy, rad) {
 }
 
 // ======================= UPGRADES & SHOP =======================
-function openUpgradeModal() {
-  state = 'upgrade'; sfx('upgrade');
-  const box = $('card-container'); box.innerHTML = '';
-  const pool = UPGRADES.filter(u => (player.upg[u.id] || 0) < u.max && (u.id !== 'squad' || companions.length > 0)).sort(() => Math.random() - 0.5).slice(0, 3);
-  pool.forEach(u => {
-    const taken = player.upg[u.id] || 0;
-    const card = document.createElement('div'); card.className = 'card';
-    const lvl = u.max < 99 ? `Level ${taken} → ${taken + 1} / ${u.max}` : `Taken ×${taken}`;
-    card.innerHTML = `<div class="card-icon">${u.icon}</div><div class="card-title">${u.title}</div><div class="card-desc">${u.desc}</div><div class="card-lvl">${lvl}</div>`;
-    card.onclick = () => {
-      applyUpgrade(u.id); $('upgrade-modal').style.display = 'none';
-      wave++; state = 'play'; startWave(wave); sfx('wave');
-    };
-    box.appendChild(card);
+var activeBuffs = {};
+const hasBuff = id => !!(activeBuffs[id] > 0);
+const BUFFS = {
+  brew:  { icon: '🍺', name: "Berserker Brew", desc: '+25% damage', waves: 2, cost: 60, per: 8 },
+  tonic: { icon: '💨', name: 'Fleetfoot Tonic', desc: '+20% move speed', waves: 2, cost: 40, per: 6 },
+  salve: { icon: '🛡️', name: 'Ironhide Salve', desc: '-20% damage taken', waves: 2, cost: 55, per: 7 },
+  charm: { icon: '🍀', name: 'Lucky Charm', desc: '+50% gold from kills', waves: 2, cost: 35, per: 5 },
+  mark:  { icon: '🎯', name: "Hunter's Mark", desc: '+15% crit chance', waves: 2, cost: 50, per: 7 }
+};
+const HIRES = {
+  squire: { name: 'Hired Sellsword', cost: 90, per: 12 },
+  ranger: { name: 'Hired Archer', cost: 80, per: 10 },
+  cleric: { name: 'Hired Healer', cost: 85, per: 10 }
+};
+const HIRE_WAVES = 3;
+function renderBuffHud() {
+  const parts = [];
+  for (const id in BUFFS) if (hasBuff(id)) parts.push(`<div class="buff-chip">${BUFFS[id].icon} ${BUFFS[id].name} · ${activeBuffs[id]}w</div>`);
+  $('buff-hud').innerHTML = parts.join('');
+}
+function tickWaveTimers() {
+  for (const id in activeBuffs) {
+    if (activeBuffs[id] > 0 && --activeBuffs[id] <= 0) { delete activeBuffs[id]; addFloatText(player.x, player.y - 70, `${BUFFS[id].name} faded`, '#adb5bd', 16); }
+  }
+  let gone = false;
+  companions = companions.filter(c => {
+    if (!c.hired) return true;
+    if (--c.wavesLeft > 0) return true;
+    spawnBurst(c.x, c.y - 20, '#ffd43b', 14, 'ember'); addFloatText(c.x, c.y - 60, `${c.name} departs`, '#ffd43b', 16); gone = true; return false;
   });
-  const title = villageResult === 'saved' ? 'VILLAGE SAVED!' : (villageResult === 'lost' ? 'THE VILLAGE BURNED' : 'WAVE CLEARED!');
-  $('up-title').textContent = title;
-  $('up-sub').textContent = villageResult === 'saved' ? `Grateful villagers reward you with ${village.bonus} gold.${pendingRecruit ? ' One of them offers to fight at your side!' : ''} Then choose a blessing.`
-    : (villageResult === 'lost' ? 'No one is left to thank you. Choose a blessing and press on.' : 'Choose a blessing before the next battle');
-  const rb = $('recruit-box'); rb.innerHTML = '';
-  if (pendingRecruit && companions.length < 3) {
-    rb.style.display = 'block';
-    rb.innerHTML = '<h3>RECRUIT A COMPANION</h3><div class="recruit-row"></div>';
-    const row = rb.querySelector('.recruit-row');
-    Object.keys(CTYPES).forEach(k => {
-      const t = CTYPES[k], b = document.createElement('button'); b.className = 'recruit-btn';
-      b.innerHTML = `<b>${t.icon} ${t.name}</b>${t.desc}`;
-      b.onclick = () => { recruitCompanion(k); pendingRecruit = false; rb.style.display = 'none'; };
-      row.appendChild(b);
-    });
-  } else rb.style.display = 'none';
-  renderShop(); $('upgrade-modal').style.display = 'flex';
+  if (gone) { companions.forEach((c, i) => c.slot = i); rebuildParty(); }
+  renderBuffHud();
 }
 function renderShop() {
-  const row = $('shop-row'); $('shop-gold').textContent = gold; row.innerHTML = '';
-  const items = [
-    { label: '🧪 Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
-    { label: '🪨 Whetstone', desc: '+6 damage, +1 sword tier', cost: 50 + wave * 8, ok: () => true, fn: () => { player.damage += 6; player.swordTier++; } },
-    { label: '🩹 Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } },
-    { label: '☄️ Arcane Elixir', desc: 'Fully charge Meteor Storm', cost: 40 + wave * 5, ok: () => player.ult < 100, fn: () => gainUlt(100 / player.ultGain) }
+  const box = $('shop-box'); $('shop-gold').textContent = gold; box.innerHTML = '';
+  const sections = [
+    ['HIRE A SWORD · ' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k];
+      return { label: `${t.icon} ${h.name}`, desc: `${t.desc} (${HIRE_WAVES} waves)`, cost: h.cost + wave * h.per, ok: () => companions.length < 3,
+        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: HIRE_WAVES }); } }; })],
+    ['BREWS & CHARMS · 2 WAVES', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
+      return { label: `${b.icon} ${b.name}`, desc: b.desc + (hasBuff(k) ? ` (refresh: ${activeBuffs[k]}w left)` : ` (${b.waves} waves)`), cost: b.cost + wave * b.per, ok: () => true,
+        fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
+    ['SUPPLIES', [
+      { label: '🧪 Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
+      { label: '🩹 Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
+    ]]
   ];
-  items.forEach(it => {
-    const b = document.createElement('button'); b.className = 'shop-btn';
-    b.disabled = gold < it.cost || !it.ok();
-    b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
-    b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
-    row.appendChild(b);
+  sections.forEach(([title, items]) => {
+    const h = document.createElement('div'); h.className = 'shop-sec'; h.textContent = title; box.appendChild(h);
+    const row = document.createElement('div'); row.className = 'shop-row'; box.appendChild(row);
+    items.forEach(it => {
+      const b = document.createElement('button'); b.className = 'shop-btn';
+      b.disabled = gold < it.cost || !it.ok();
+      b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
+      b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
+      row.appendChild(b);
+    });
   });
 }
+function openMerchant() { renderShop(); $('merchant-modal').style.display = 'flex'; }
+function closeMerchant() {
+  if ($('merchant-modal').style.display === 'none') return;
+  $('merchant-modal').style.display = 'none'; wave++; state = 'play'; startWave(wave); sfx('wave');
+}
+$('merchant-go').addEventListener('click', closeMerchant);
 function applyUpgrade(id) {
   player.upg[id] = (player.upg[id] || 0) + 1;
   if (id === 'dmg') { player.damage = Math.round(player.damage * 1.25); player.swordTier++; }

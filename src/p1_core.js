@@ -242,7 +242,7 @@ $('mute').addEventListener('click', () => toggleMute());
 $('start-btn').addEventListener('click', () => beginRun());
 $('again-btn').addEventListener('click', () => restartGame());
 $('resume-btn').addEventListener('click', () => togglePause());
-$('quit-btn').addEventListener('click', () => { $('pause-modal').style.display = 'none'; showTitle(); });
+$('quit-btn').addEventListener('click', () => { $('pause-modal').style.display = 'none'; cashOutRun(); showTitle(); });
 $('pausebtn').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); togglePause(); });
 $('go-code').addEventListener('keydown', e => e.stopPropagation());
 $('go-copy').addEventListener('click', () => {

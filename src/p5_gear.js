@@ -19,34 +19,6 @@ const FORGE = [
   { id: 'fort', name: 'Fortune', desc: '+10% gold', max: 5, cost: l => 40 + 30 * l },
   { id: 'wind', name: 'Second Wind', desc: 'Once per run, rise at 40% HP', max: 1, cost: () => 150 }
 ];
-function renderTitleMenu() {
-  $('embers-text').textContent = meta.embers;
-  const wb = $('weapon-box'); wb.innerHTML = '';
-  Object.keys(WEAPONS).forEach(k => {
-    const w = WEAPONS[k], unlocked = !!meta.unlocked[k];
-    const c = document.createElement('div'); c.className = 'wcard' + (selectedWeapon === k ? ' sel' : '') + (unlocked ? '' : ' locked');
-    c.innerHTML = `<div class="wi">${w.icon}</div><div class="wt">${w.name}</div><div class="wd">${w.desc}</div>` + (unlocked ? '' : `<div class="wc">🔥 ${w.cost} embers to unlock</div>`);
-    c.onclick = () => {
-      if (!unlocked) { if (meta.embers >= w.cost) { meta.embers -= w.cost; meta.unlocked[k] = true; saveMeta(); selectedWeapon = k; sfx('upgrade'); } }
-      else selectedWeapon = k;
-      renderTitleMenu();
-    };
-    wb.appendChild(c);
-  });
-  const fb = $('forge-box'); fb.innerHTML = '';
-  FORGE.forEach(f => {
-    const lvl = meta[f.id] || 0, maxed = lvl >= f.max, cost = f.cost(lvl);
-    const b = document.createElement('button'); b.className = 'forge-btn'; b.disabled = maxed || meta.embers < cost;
-    b.innerHTML = `<b>${f.name}</b> ${lvl}/${f.max}<br><small>${f.desc}${maxed ? ' — MAX' : ` · 🔥 ${cost}`}</small>`;
-    b.onclick = () => { if (maxed || meta.embers < cost) return; meta.embers -= cost; meta[f.id] = lvl + 1; saveMeta(); sfx('upgrade'); renderTitleMenu(); };
-    fb.appendChild(b);
-  });
-  $('title-best').textContent = bestWave > 1 ? `Best run: Wave ${bestWave}` : '';
-}
-function showTitle() {
-  ['gameover-modal', 'upgrade-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
-  state = 'title'; $('title-modal').style.display = 'flex'; renderTitleMenu();
-}
 
 // ---------- player extras ----------
 function zeroG() { return { dmg: 0, crit: 0, atkspd: 0, vamp: 0, hp: 0, dr: 0, spd: 0, regen: 0, cdr: 0, gold: 0, ult: 0, luck: 0, exec: false, phoenix: false, warp: false }; }
@@ -58,11 +30,11 @@ function initPlayerExtras(p) {
   return p;
 }
 const gM = () => player.g || zeroG();
-function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might * 0.05)); }
-function critCh() { return Math.min(0.85, player.crit + gM().crit); }
+function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might * 0.05) * (hasBuff('brew') ? 1.25 : 1)); }
+function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }
-function goldMul() { return 1 + gM().gold + meta.fort * 0.1; }
+function goldMul() { return 1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0); }
 
 // ---------- gear / loot ----------
 let gear = { weapon: null, armor: null, trinket: null };
@@ -180,7 +152,7 @@ function triggerCast() {
 
 // ---------- level-up cards (blessings + evolutions) ----------
 function openUpgradeModal() {
-  state = 'upgrade'; sfx('upgrade');
+  state = 'upgrade'; sfx('upgrade'); tickWaveTimers();
   const box = $('card-container'); box.innerHTML = '';
   const evo = availableEvos()[0];
   const pool = UPGRADES.filter(u => (player.upg[u.id] || 0) < u.max && (u.id !== 'squad' || companions.length > 0)).sort(() => Math.random() - 0.5).slice(0, evo ? 2 : 3);
@@ -192,13 +164,13 @@ function openUpgradeModal() {
     card.innerHTML = `<div class="card-icon">${u.icon}</div><div class="card-title">${u.title}</div><div class="card-desc">${u.desc}</div><div class="card-lvl">${lvl}</div>`;
     card.onclick = () => {
       if (u.evo) { player.evo[u.id] = true; sfx('legend'); flash('#ffd43b', 0.4); } else applyUpgrade(u.id);
-      $('upgrade-modal').style.display = 'none'; wave++; state = 'play'; startWave(wave); sfx('wave');
+      $('upgrade-modal').style.display = 'none'; openMerchant();
     };
     box.appendChild(card);
   });
   const title = villageResult === 'saved' ? 'VILLAGE SAVED!' : (villageResult === 'lost' ? 'THE VILLAGE BURNED' : 'WAVE CLEARED!');
   $('up-title').textContent = title;
-  $('up-sub').textContent = villageResult === 'saved' ? `Grateful villagers reward you with ${village.bonus} gold.${pendingRecruit ? ' One of them offers to fight at your side!' : ''} Then choose a blessing.`
+  $('up-sub').textContent = villageResult === 'saved' ? `Grateful villagers reward you with ${village.bonus} gold.${pendingRecruit ? ' One of them offers to fight at your side!' : ''} Then choose a blessing, then visit the merchant.`
     : (villageResult === 'lost' ? 'No one is left to thank you. Choose a blessing and press on.' : (evo ? 'Your build has reached its potential — an EVOLUTION awaits!' : 'Choose a blessing before the next battle'));
   const rb = $('recruit-box'); rb.innerHTML = '';
   if (pendingRecruit && companions.length < 3) {
@@ -212,5 +184,5 @@ function openUpgradeModal() {
       row.appendChild(b);
     });
   } else rb.style.display = 'none';
-  renderShop(); $('upgrade-modal').style.display = 'flex';
+  $('upgrade-modal').style.display = 'flex';
 }

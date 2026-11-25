@@ -64,6 +64,9 @@
   .card-title { font-weight: 800; font-size: 16px; color: #ffd43b; margin-bottom: 6px; }
   .card-desc { font-size: 13px; color: #dee2e6; line-height: 1.35; }
   .card-lvl { font-size: 11px; color: #8ce99a; margin-top: 6px; font-weight: 700; }
+  #buff-hud { position: absolute; top: 100px; right: 14px; z-index: 10; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; pointer-events: none; }
+  .buff-chip { background: rgba(20,16,26,0.82); border: 1px solid #8a7346; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; color: #ffe066; }
+  .shop-sec { margin: 14px 0 6px; color: #b8a77a; font-size: 12px; font-weight: 800; letter-spacing: 2px; }
   .shop-title { margin-top: 22px; margin-bottom: 8px; color: #e9c46a; font-weight: 800; font-size: 14px; letter-spacing: 1px; }
   .shop-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
   .shop-btn { background: #2b3326; color: #f8f9fa; border: 2px solid #8a7346; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; min-width: 170px; }
@@ -224,6 +227,7 @@
   </div>
 </div>
 <div id="party"></div>
+<div id="buff-hud"></div>
 <div id="village-hud"><div id="village-text">🏠 VILLAGE 3/3</div><div id="village-bar-wrap"><div id="village-bar"></div></div></div>
 <div id="gear-hud"><div class="gslot" id="gs-0"></div><div class="gslot" id="gs-1"></div><div class="gslot" id="gs-2"></div></div>
 <div id="combo"><span id="combo-text"></span><small id="combo-sub"></small></div>
@@ -265,8 +269,14 @@
   <p id="up-sub">Choose a blessing before the next battle</p>
   <div id="recruit-box"></div>
   <div class="cards" id="card-container"></div>
-  <div class="shop-title">TRAVELLING MERCHANT &mdash; <span id="shop-gold">0</span> GOLD</div>
-  <div class="shop-row" id="shop-row"></div>
+</div>
+
+<div class="modal" id="merchant-modal">
+  <h2>TRAVELLING MERCHANT</h2>
+  <p>Spend your gold on short-lived help. Hired blades and brews last a few waves, then they're gone.</p>
+  <div class="shop-title"><span id="shop-gold">0</span> GOLD</div>
+  <div id="shop-box"></div>
+  <button class="shop-btn" id="merchant-go" style="margin-top:22px;min-width:220px">⚔️ CONTINUE TO NEXT WAVE</button>
 </div>
 
 <div class="modal" id="gameover-modal">

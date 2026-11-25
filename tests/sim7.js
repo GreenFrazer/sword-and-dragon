@@ -17,13 +17,17 @@ for(let i=0;i<60;i++)step();
 console.log('menu',run('menuIdx'),run('selectedWeapon'),run('state'));
 run(`selectedWeapon='${W}'`);
 run('beginRun()');console.log('after begin',run('state'));
-let errors=0,maxWave=0,upgrades=0,evos=0,loots=0,elites=0,casts=0;const seen=new Set();
+let errors=0,maxWave=0,merchants=0,upgrades=0,evos=0,loots=0,elites=0,casts=0;const seen=new Set();
 for(let i=0;i<FRAMES;i++){
   try{
     const st=run('state');
     if(st==='upgrade'){upgrades++;const c=els['card-container'].children;if(!c.length)throw new Error('no cards');run('gold+=100');const rr=els['recruit-box']&&els['recruit-box']._row;if(rr&&rr.children.length&&run('pendingRecruit')){rr.children[0].onclick();rr.children=[];}
       // prefer evo cards
-      const pick=c.find(x=>x.className&&x.className.includes("evo"));if(pick)evos++;(pick||c[0]).onclick();}
+      const pick=c.find(x=>x.className&&x.className.includes("evo"));if(pick)evos++;(pick||c[0]).onclick();
+      // merchant screen: buy a timed buff and a hire (when there is room), then continue to the next wave
+      if(run("$('merchant-modal').style.display")!=='flex')throw new Error('merchant did not open');
+      merchants++;run("gold+=500;activeBuffs.brew=2;activeBuffs.salve=2;renderBuffHud();if(companions.length<3)recruitCompanion('squire',{hired:true,name:'Sellsword',wavesLeft:3});renderShop()");
+      run('closeMerchant()');}
     else if(st==='play'){
       run('player.hp=Math.max(player.hp,player.maxHp*0.5)');
       run('(()=>{const e=enemies[0];if(e){const a=Math.atan2(e.y-player.y,e.x-player.x);joy.dx=Math.cos(a);joy.dy=Math.sin(a);}})()');
@@ -37,6 +41,6 @@ for(let i=0;i<FRAMES;i++){
     step();maxWave=Math.max(maxWave,run('wave'));
   }catch(e){errors++;console.log('ERR frame',i,e.stack.split('\n').slice(0,5).join(' | '));break;}
 }
-console.log([...sb.__SEEN].join(','));console.log(W,{maxWave,upgrades,evos,loots,casts,errors,state:run('state'),kills:run('kills'),gear:run('JSON.stringify(Object.values(gear).map(g=>g&&g.name))'),evo:run('JSON.stringify(player.evo)'),weather:run('weather'),parts:run('particles.length')});
+console.log([...sb.__SEEN].join(','));console.log(W,{maxWave,merchants,upgrades,evos,loots,casts,errors,state:run('state'),kills:run('kills'),gear:run('JSON.stringify(Object.values(gear).map(g=>g&&g.name))'),evo:run('JSON.stringify(player.evo)'),weather:run('weather'),parts:run('particles.length')});
 run('state="play";player.invuln=0;player.windUsed=true;player.phoenixUsed=true;damagePlayer(99999,0,0)');console.log('gameover',run('state'),els['gameover-stats']._t,run('meta.embers'));
 run('showTitle()');console.log('title',run('state'));

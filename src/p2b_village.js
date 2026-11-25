@@ -10,16 +10,17 @@ const FORMATION = [[-70, 46], [72, 50], [0, -62]];
 
 function squadLvl() { return player.upg.squad || 0; }
 function compMaxHp(c) { return Math.round(CTYPES[c.type].hp * (1 + 0.07 * (c.lvl - 1)) * (1 + 0.3 * squadLvl())); }
-function compDmg(c) { return Math.round(CTYPES[c.type].dmg * (1 + 0.06 * (c.lvl - 1)) * (1 + 0.25 * squadLvl())); }
+function compDmg(c) { return Math.round(CTYPES[c.type].dmg * (1 + 0.06 * (c.lvl - 1)) * (1 + 0.25 * squadLvl()) * (player.evo && player.evo.legion ? 1.5 : 1)); }
 
-function recruitCompanion(type) {
+function recruitCompanion(type, opts) {
   const t = CTYPES[type];
   const c = { ally: true, type, name: t.name, x: player.x + rand(-50, 50), y: player.y + 40, vx: 0, vy: 0, facing: 0, walkPhase: 0, r: t.r,
     lvl: wave, hp: 1, maxHp: 1, down: false, invuln: 0, hitFlash: 0, atkCd: 0.5, aim: 0, healCd: 2, rev: 0, windup: 0, hasShield: type === 'squire', stun: 0, slot: companions.length, gx: 0, gy: 0 };
+  if (opts) Object.assign(c, opts);
   c.maxHp = compMaxHp(c); c.hp = c.maxHp;
   companions.push(c);
   spawnBurst(c.x, c.y - 20, '#69db7c', 16, 'ember'); addRing(c.x, c.y, 60, '#69db7c', 0.4, 5);
-  addFloatText(c.x, c.y - 60, `${t.name} joins!`, '#69db7c', 20); sfx('upgrade');
+  addFloatText(c.x, c.y - 60, `${c.name} joins!`, '#69db7c', 20); sfx('upgrade');
   rebuildParty();
 }
 function reviveCompanion(c, frac) {
@@ -94,6 +95,11 @@ function damageComp(c, dmg, fx, fy) {
   const a = Math.atan2(c.y - fy, c.x - fx); c.vx += Math.cos(a) * 160; c.vy += Math.sin(a) * 160;
   spawnBurst(c.x, c.y - 24, '#ff6b6b', 8, 'spark'); sfx('hit');
   addFloatText(c.x, c.y - 44, `-${dmg}`, '#ffa8a8', 15);
+  if (c.hp <= 0 && player.evo && player.evo.legion && c.legionWave !== wave) {
+    c.legionWave = wave; c.hp = Math.max(1, Math.round(c.maxHp * 0.5)); c.invuln = 1.5;
+    spawnBurst(c.x, c.y - 20, '#ffd43b', 16, 'ember'); addRing(c.x, c.y, 70, '#ffd43b', 0.45, 6);
+    addFloatText(c.x, c.y - 66, `${c.name} stands again!`, '#ffd43b', 18); sfx('potion'); return;
+  }
   if (c.hp <= 0) {
     c.hp = 0; c.down = true; c.rev = 0; c.gx = c.x; c.gy = c.y;
     addFloatText(c.x, c.y - 66, `${c.name} fell!`, '#ff6b6b', 20); spawnBurst(c.x, c.y - 20, '#ff6b6b', 16, 'spark'); sfx('death');

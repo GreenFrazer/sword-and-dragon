@@ -5,7 +5,7 @@ const WEAPONS = {
   daggers: { name: 'Twin Daggers', icon: '🔪', desc: 'Blinding speed and huge crit chance. Short reach.', rate: 0.25, range: 72, dmg: 0.5, crit: 0.28, cone: 0, cost: 90 },
   spear: { name: 'Spear', icon: '🔱', desc: 'Long piercing thrust in a line. Keeps foes at bay.', rate: 0.52, range: 150, dmg: 1.1, crit: 0.12, cone: 0.5, cost: 90 }
 };
-let selectedWeapon = 'sword', bossKills = 0, eliteBudget = 0, waveTotal = 1;
+let selectedWeapon = 'sword', bossKills = 0, waveTotal = 1;
 let meta = { embers: 0, vit: 0, might: 0, fort: 0, wind: 0, unlocked: { sword: true } };
 function loadMeta() {
   try { const m = JSON.parse(localStorage.getItem('swordDragonMeta') || 'null'); if (m) { meta = Object.assign(meta, m); meta.unlocked = Object.assign({ sword: true }, m.unlocked || {}); } } catch (e) {}
@@ -112,7 +112,7 @@ function makeElite(en) {
   en.elite = true; en.eAff = a; en.eName = ELITE_AFFIX[a].name + ' ' + en.type[0].toUpperCase() + en.type.slice(1);
   en.hp = en.maxHp = Math.round(en.maxHp * 2.4); en.damage = Math.round(en.damage * 1.3); en.r *= 1.12;
   if (a === 'swift') en.speed *= 1.5;
-  if (a === 'guarded') { en.barrier = Math.round(en.maxHp * 0.7); en.maxBarrier = en.barrier; }
+  if (a === 'guarded') { en.barrier = Math.round(en.maxHp * 0.7); }
   addFloatText(en.x, en.y - 90, `ELITE: ${en.eName}`, ELITE_AFFIX[a].col, 16);
 }
 

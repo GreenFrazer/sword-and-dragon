@@ -150,8 +150,6 @@ function nz(o) {
   s.connect(f); f.connect(g); s.start(t, Math.random() * 1.5, dur + 0.05); out(g, o);
 }
 // legacy-compatible helpers
-function tone(f, dur, type, vol, slideTo, delay) { voice({ f, dur, type, vol, slide: slideTo, delay, rev: 0.12 }); }
-function noise(dur, vol, freq, ftype) { nz({ dur, vol, fl: [freq, freq * 0.6, 0.7, ftype || 'lowpass'], rev: 0.08 }); }
 function kick(t0, vol, o) { // synthesized kick: pitch-dropping sine + click
   if (!actx || muted) return; o = o || {};
   const dl = t0 - actx.currentTime; voice({ f: o.f || 150, slide: o.low || 38, dur: o.len || 0.28, type: 'sine', vol, delay: Math.max(0, dl), bus: o.bus, atk: 0.001 });
@@ -178,7 +176,7 @@ function sfx(name, wx, wy) {
   if (sfxLast[name] && n - sfxLast[name] < (SFX_GAP[name] || 55)) return;
   sfxLast[name] = n;
   let pan = 0, att = 1;
-  if (wx != null && typeof cam !== 'undefined') {
+  if (wx != null) {
     pan = Math.max(-0.85, Math.min(0.85, (wx - cam.x - W / 2) / (W * 0.55)));
     if (wy != null) { const d = Math.hypot(wx - cam.x - W / 2, wy - cam.y - H / 2); att = Math.max(0.35, 1 - d / 1400); }
   }
@@ -397,11 +395,11 @@ function glowSprite(color) {
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   return glowCache[color] = c;
 }
-function drawGlow(x, y, r, color, alpha) {
-  ctx.save();
+function drawGlow(x, y, r, color, alpha) { // called hundreds of times a frame: swap just the two state fields instead of save()/restore()
+  const a0 = ctx.globalAlpha, op0 = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
-  ctx.restore();
+  ctx.globalAlpha = a0; ctx.globalCompositeOperation = op0;
 }
 
 // ======================= INPUT =======================
@@ -472,4 +470,8 @@ function getInput() {
   if (mag > 1) { ix /= mag; iy /= mag; }
   return { ix, iy, mag: Math.min(1, mag) };
 }
-function toggleMute() { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; }
+function toggleMute() {
+  muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊';
+  // silence the master bus too, so sounds already scheduled ahead (music look-ahead, delayed SFX) stop at once
+  if (actx) masterGain.gain.setTargetAtTime(muted ? 0 : 0.8, actx.currentTime, 0.02);
+}

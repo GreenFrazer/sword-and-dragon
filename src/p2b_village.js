@@ -82,6 +82,7 @@ function settleVillage() {
 }
 function updateVillage(dt) {
   if (!village) return;
+  village.scared = enemies.some(e => Math.hypot(e.x - village.x, e.y - village.y) < 330);
   for (const h of village.houses) {
     h.hitFlash = Math.max(0, h.hitFlash - dt);
     if (h.dead) { h.fireT -= dt; if (h.fireT <= 0) { h.fireT = 0.25; spawnSmoke(h.x + rand(-20, 20), h.y - 20, 1); if (Math.random() < 0.5 && particles.length < MAXP) particles.push({ x: h.x + rand(-24, 24), y: h.y - 14, vx: rand(-10, 10), vy: rand(-60, -30), life: 0.5, maxLife: 0.5, color: '#ff922b', size: rand(5, 9), kind: 'ember', g: 0 }); } }

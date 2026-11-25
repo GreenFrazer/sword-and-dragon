@@ -76,8 +76,6 @@
   .shop-btn:hover:not(:disabled) { border-color: #ffe066; }
   .shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-restart { padding: 12px 28px; font-size: 18px; font-weight: 800; border-radius: 10px; border: 2px solid #ffd43b; background: #2b8a3e; color: #fff; cursor: pointer; }
-  .keys { color: #adb5bd; font-size: 13px; margin-top: 16px; line-height: 1.7; }
-  .keys b { color: #ffd43b; }
   #hint { position: absolute; bottom: 14px; left: 16px; color: rgba(255,255,255,0.7); font-size: 11px; pointer-events: none; z-index: 10; text-shadow: 0 1px 3px #000; }
   .modal::before, .modal::after { content: ''; margin: auto; }
   .modal { justify-content: flex-start; }
@@ -87,13 +85,6 @@
   .skill-btn.cast { background: radial-gradient(circle at 30% 30%, #7048e8, #3b1f8f); border-color: #b197fc; }
   .card.evo { border-color: #ff922b; background: linear-gradient(180deg, #4a2a10, #22140a); box-shadow: 0 0 28px rgba(255,146,43,0.7), 0 8px 20px rgba(0,0,0,0.6); animation: pulse 0.9s infinite alternate; }
   .card.evo .card-title { color: #ffa94d; } .card.evo .card-lvl { color: #ffd43b; }
-  #weapon-box, #forge-box { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; max-width: 760px; }
-  .wcard { width: 170px; background: #1b2118; border: 2px solid #555; border-radius: 10px; padding: 8px; cursor: pointer; font-size: 12px; }
-  .wcard.sel { border-color: #ffd43b; box-shadow: 0 0 14px rgba(255,212,59,0.5); } .wcard.locked { opacity: 0.6; }
-  .wcard .wi { font-size: 24px; } .wcard .wt { font-weight: 800; color: #ffd43b; } .wcard .wd { color: #ced4da; margin-top: 3px; } .wcard .wc { color: #ff922b; font-weight: 700; margin-top: 3px; }
-  .forge-btn { background: #2a2118; color: #f8f9fa; border: 2px solid #ff922b; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: 170px; }
-  .forge-btn:disabled { opacity: 0.4; cursor: not-allowed; } .forge-btn small { color: #ffa94d; }
-  .sec-title { color: #ff922b; font-weight: 800; letter-spacing: 2px; margin: 6px 0; font-size: 13px; }
 /* @@THEME */
   /* ======================= V4 UI THEME: iron, ember & gold ======================= */
   :root { --ember: #ff7a1a; --ember2: #ffb347; --gold: #ffd76a; --iron: #14101a; --iron2: #221a2a; --steel: #8c93a6; --bone: #efe6d2; --serif: 'Cinzel','Trajan Pro','Palatino Linotype','Book Antiqua',Palatino,Georgia,serif; }
@@ -453,8 +444,6 @@ function nz(o) {
   s.connect(f); f.connect(g); s.start(t, Math.random() * 1.5, dur + 0.05); out(g, o);
 }
 // legacy-compatible helpers
-function tone(f, dur, type, vol, slideTo, delay) { voice({ f, dur, type, vol, slide: slideTo, delay, rev: 0.12 }); }
-function noise(dur, vol, freq, ftype) { nz({ dur, vol, fl: [freq, freq * 0.6, 0.7, ftype || 'lowpass'], rev: 0.08 }); }
 function kick(t0, vol, o) { // synthesized kick: pitch-dropping sine + click
   if (!actx || muted) return; o = o || {};
   const dl = t0 - actx.currentTime; voice({ f: o.f || 150, slide: o.low || 38, dur: o.len || 0.28, type: 'sine', vol, delay: Math.max(0, dl), bus: o.bus, atk: 0.001 });
@@ -481,7 +470,7 @@ function sfx(name, wx, wy) {
   if (sfxLast[name] && n - sfxLast[name] < (SFX_GAP[name] || 55)) return;
   sfxLast[name] = n;
   let pan = 0, att = 1;
-  if (wx != null && typeof cam !== 'undefined') {
+  if (wx != null) {
     pan = Math.max(-0.85, Math.min(0.85, (wx - cam.x - W / 2) / (W * 0.55)));
     if (wy != null) { const d = Math.hypot(wx - cam.x - W / 2, wy - cam.y - H / 2); att = Math.max(0.35, 1 - d / 1400); }
   }
@@ -700,11 +689,11 @@ function glowSprite(color) {
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   return glowCache[color] = c;
 }
-function drawGlow(x, y, r, color, alpha) {
-  ctx.save();
+function drawGlow(x, y, r, color, alpha) { // called hundreds of times a frame: swap just the two state fields instead of save()/restore()
+  const a0 = ctx.globalAlpha, op0 = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
-  ctx.restore();
+  ctx.globalAlpha = a0; ctx.globalCompositeOperation = op0;
 }
 
 // ======================= INPUT =======================
@@ -775,7 +764,11 @@ function getInput() {
   if (mag > 1) { ix /= mag; iy /= mag; }
   return { ix, iy, mag: Math.min(1, mag) };
 }
-function toggleMute() { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; }
+function toggleMute() {
+  muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊';
+  // silence the master bus too, so sounds already scheduled ahead (music look-ahead, delayed SFX) stop at once
+  if (actx) masterGain.gain.setTargetAtTime(muted ? 0 : 0.8, actx.currentTime, 0.02);
+}
 // ======================= GAME STATE =======================
 let state = 'title'; // title | play | upgrade | gameover | paused
 let wave = 1, gold = 0, kills = 0, combo = 0, comboT = 0, bestCombo = 0;
@@ -784,7 +777,7 @@ let time = 0, bannerT = 0, bannerText = '', bannerSub = '', ultReadyShown = fals
 let waveQueue = [], spawnTimer = 0, clearTimer = null, bestWave = 1;
 try { bestWave = parseInt(localStorage.getItem('swordDragonBestWave') || '1', 10) || 1; } catch (e) {}
 
-let player, enemies, props, pickups, particles, floatTexts, hazards, grassTufts, trees;
+let player, enemies, props, pickups, particles, floatTexts, hazards, trees;
 let projectiles, meteors, rings, novas, glows, slashes, bolts, ghosts, scorches, ambient;
 const cam = { x: 0, y: 0 };
 const MAXP = 650;
@@ -821,16 +814,14 @@ function resetGame() {
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
-  initAmbient();
-  startWave(wave);
+  startWave(wave); // biomeIdx = -1 forces startWave to rebuild ground + ambient
   cam.x = player.x - W / 2; cam.y = player.y - H / 2; updateCamera(1, true);
-  bannerT = 3;
 }
 function startGame() {
   if (state !== 'title') return;
-  initAudio(); startMusic(); $('title-modal').style.display = 'none'; state = 'play'; resetGame(); bannerT = 3; sfx('wave');
+  initAudio(); $('title-modal').style.display = 'none'; state = 'play'; resetGame(); sfx('wave');
 }
-function restartGame() { initAudio(); startMusic(); resetGame(); state = 'play'; sfx('wave'); }
+function restartGame() { initAudio(); resetGame(); state = 'play'; sfx('wave'); }
 
 function generateEnvironment() {
   trees = [];
@@ -858,8 +849,8 @@ function startWave(w) {
   const bi = Math.floor((w - 1) / 3) % BIOMES.length;
   if (bi !== biomeIdx) {
     biomeIdx = bi; biome = BIOMES[bi]; generateEnvironment(); buildGround(); initAmbient();
-    bannerSub = biome.name;
-  } else bannerSub = biome.name;
+  }
+  bannerSub = biome.name;
   populateArenaProps();
   pickWeather();
   if (player.g && player.g.phoenix) player.phoenixUsed = false;
@@ -940,6 +931,7 @@ function triggerDash() {
   player.facing = dir; player.dashCd = player.dashMaxCd; player.dashTime = 0.18;
   player.invuln = Math.max(player.invuln, 0.3);
   player.dashVx = Math.cos(dir) * 680; player.dashVy = Math.sin(dir) * 680;
+  if (gM().warp) { player.warpT = 1.2; addRing(player.x, player.y, 120, '#ffd76a', 0.5, 4); } // Hourglass legendary: foes and their shots slow down
   addRing(player.x, player.y, 70, '#74c0fc', 0.3, 5);
   spawnBurst(player.x, player.y, '#74c0fc', 12); sfx('dash');
 }
@@ -960,7 +952,7 @@ function triggerSpin() {
       damageEnemy(e, Math.round(base * (crit ? 2 : 1)), Math.atan2(e.y - player.y, e.x - player.x), 340, true, crit);
     }
   });
-  if (hits > 0) healPlayer(player.vamp);
+  if (hits > 0) healPlayer(vampAmt());
   checkPropsInRadius(player.x, player.y, R);
   deflectProjectiles(player.x, player.y, R + 20);
   addRing(player.x, player.y, R, '#ffe066', 0.4, 9);
@@ -1344,6 +1336,7 @@ function settleVillage() {
 }
 function updateVillage(dt) {
   if (!village) return;
+  village.scared = enemies.some(e => Math.hypot(e.x - village.x, e.y - village.y) < 330);
   for (const h of village.houses) {
     h.hitFlash = Math.max(0, h.hitFlash - dt);
     if (h.dead) { h.fireT -= dt; if (h.fireT <= 0) { h.fireT = 0.25; spawnSmoke(h.x + rand(-20, 20), h.y - 20, 1); if (Math.random() < 0.5 && particles.length < MAXP) particles.push({ x: h.x + rand(-24, 24), y: h.y - 14, vx: rand(-10, 10), vy: rand(-60, -30), life: 0.5, maxLife: 0.5, color: '#ff922b', size: rand(5, 9), kind: 'ember', g: 0 }); } }
@@ -1531,6 +1524,8 @@ function stepSimulation(dt) {
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);
+  player.warpT = Math.max(0, (player.warpT || 0) - dt);
+  const edt = player.warpT > 0 ? dt * 0.4 : dt; // enemy-side timestep (Hourglass slow)
   if (player.cast < 3) { player.castT -= dt; if (player.castT <= 0) { player.cast++; player.castT = player.cast < 3 ? 4 * cdrMul() : 0; } }
   if (gM().regen > 0) healPlayer(gM().regen * dt);
   updateFx(dt);
@@ -1634,24 +1629,25 @@ function stepSimulation(dt) {
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;
-    e.x = Math.max(45, Math.min(WORLD_W - 45, e.x + e.vx * dt)); e.y = Math.max(55, Math.min(WORLD_H - 45, e.y + e.vy * dt));
+    e.x = Math.max(45, Math.min(WORLD_W - 45, e.x + e.vx * edt)); e.y = Math.max(55, Math.min(WORLD_H - 45, e.y + e.vy * edt));
     if (e.type !== 'dragon') pushOutOfTrees(e, e.r * 0.6);
-    if (e.stun > 0) { e.stun -= dt; return; }
-    if (e.type === 'dragon') updateDragon(e, dt);
-    else if (e.type === 'archer') updateArcher(e, dt);
-    else if (e.type === 'bomber') updateBomber(e, dt);
-    else updateMelee(e, dt);
+    if (e.stun > 0) { e.stun -= edt; return; }
+    if (e.type === 'dragon') updateDragon(e, edt);
+    else if (e.type === 'archer') updateArcher(e, edt);
+    else if (e.type === 'bomber') updateBomber(e, edt);
+    else updateMelee(e, edt);
   });
   separateEnemies();
 
   // --- projectiles ---
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i]; if (!p) continue;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    const pdt = p.friendly ? dt : edt;
+    p.x += p.vx * pdt; p.y += p.vy * pdt; p.life -= pdt;
     if (p.kind === 'fire' && Math.random() < 0.7 && particles.length < MAXP) particles.push({ x: p.x, y: p.y - 22, vx: rand(-20, 20), vy: rand(-30, 10), life: 0.3, maxLife: 0.3, color: p.col || (p.friendly ? '#74c0fc' : '#ff922b'), size: rand(5, 9), kind: 'ember', g: 0 });
     let dead = p.life <= 0 || p.x < 10 || p.y < 10 || p.x > WORLD_W - 10 || p.y > WORLD_H - 10;
     if (!dead && p.friendly && p.pierce) {
-      for (const e of [...enemies]) if (!e.flying && !p.hit.includes(e) && Math.hypot(e.x - p.x, e.y - p.y) < e.r + (p.r || 14)) { p.hit.push(e); suppressUlt = false; damageEnemy(e, p.dmg, Math.atan2(p.vy, p.vx), 260, true, false, p); }
+      for (const e of [...enemies]) if (!e.flying && !p.hit.includes(e) && Math.hypot(e.x - p.x, e.y - p.y) < e.r + (p.r || 14)) { p.hit.push(e); damageEnemy(e, p.dmg, Math.atan2(p.vy, p.vx), 260, true, false, p); }
       if (Math.random() < 0.8 && particles.length < MAXP) particles.push({ x: p.x, y: p.y - 22, vx: rand(-30, 30), vy: rand(-30, 30), life: 0.3, maxLife: 0.3, color: p.col || '#b197fc', size: rand(5, 8), kind: 'ember', g: 0 });
     } else if (!dead && p.friendly) {
       for (const e of enemies) {
@@ -1704,7 +1700,7 @@ function stepSimulation(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.kind === 'smoke') { p.vx *= 0.97; }
-    if (p.life <= 0) particles.splice(i, 1);
+    if (p.life <= 0) { particles[i] = particles[particles.length - 1]; particles.pop(); } // swap-remove: O(1) instead of splice
   }
   for (let i = floatTexts.length - 1; i >= 0; i--) { const f = floatTexts[i]; f.y -= 38 * dt; f.life -= dt; if (f.life <= 0) floatTexts.splice(i, 1); }
 }
@@ -2340,7 +2336,7 @@ function drawHouse(h) {
   ctx.restore();
 }
 function drawVillager(v) {
-  const scared = enemies.some(e => Math.hypot(e.x - village.x, e.y - village.y) < 330);
+  const scared = village.scared;
   const bob = Math.sin(time * (scared ? 14 : 2.5) + v.ph) * (scared ? 3 : 1.2), sx = Math.sin(time * 1.3 + v.ph) * (scared ? 2 : 6);
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();
@@ -2421,7 +2417,7 @@ const WEAPONS = {
   daggers: { name: 'Twin Daggers', icon: '🔪', desc: 'Blinding speed and huge crit chance. Short reach.', rate: 0.25, range: 72, dmg: 0.5, crit: 0.28, cone: 0, cost: 90 },
   spear: { name: 'Spear', icon: '🔱', desc: 'Long piercing thrust in a line. Keeps foes at bay.', rate: 0.52, range: 150, dmg: 1.1, crit: 0.12, cone: 0.5, cost: 90 }
 };
-let selectedWeapon = 'sword', bossKills = 0, eliteBudget = 0, waveTotal = 1;
+let selectedWeapon = 'sword', bossKills = 0, waveTotal = 1;
 let meta = { embers: 0, vit: 0, might: 0, fort: 0, wind: 0, unlocked: { sword: true } };
 function loadMeta() {
   try { const m = JSON.parse(localStorage.getItem('swordDragonMeta') || 'null'); if (m) { meta = Object.assign(meta, m); meta.unlocked = Object.assign({ sword: true }, m.unlocked || {}); } } catch (e) {}
@@ -2528,7 +2524,7 @@ function makeElite(en) {
   en.elite = true; en.eAff = a; en.eName = ELITE_AFFIX[a].name + ' ' + en.type[0].toUpperCase() + en.type.slice(1);
   en.hp = en.maxHp = Math.round(en.maxHp * 2.4); en.damage = Math.round(en.damage * 1.3); en.r *= 1.12;
   if (a === 'swift') en.speed *= 1.5;
-  if (a === 'guarded') { en.barrier = Math.round(en.maxHp * 0.7); en.maxBarrier = en.barrier; }
+  if (a === 'guarded') { en.barrier = Math.round(en.maxHp * 0.7); }
   addFloatText(en.x, en.y - 90, `ELITE: ${en.eName}`, ELITE_AFFIX[a].col, 16);
 }
 
@@ -3070,7 +3066,7 @@ function tbEmber(init) { return { x: Math.random(), y: init ? Math.random() : 1.
 
 // layered ridge height (0..1 of H), seeded sine sum with jagged abs term
 function tbRidge(x, L) {
-  const s = TB.seeds[L], f = [1, 2.3, 5.1][0];
+  const s = TB.seeds[L];
   const base = [0.62, 0.7, 0.8, 0.9][L], amp = [0.17, 0.12, 0.08, 0.05][L];
   return base - amp * (0.55 * Math.abs(Math.sin(x * 2.1 + s[0])) + 0.3 * Math.sin(x * 5.3 + s[1]) * 0.5 + 0.25 * Math.abs(Math.sin(x * 9.7 + s[2])) * 0.6 + 0.2 * Math.sin(x * 1.2 + s[0]));
 }
@@ -3153,10 +3149,10 @@ function tbDraw(dt) {
   // mountains
   tbLayer(c, 0, ['#2a1426', '#14091a'], -TB.mx * 24, 0.35);
   // castle on the mid ridge
-  const cx = w * 0.56 - TB.mx * 36, cr = tbRidge((cx + -TB.mx * 40) / w * 3.2, 1) * h;
+  const cx = w * 0.56 - TB.mx * 36;
   tbLayer(c, 1, ['#1a0d1e', '#0c0610'], -TB.mx * 40, 0.25);
   c.fillStyle = '#0a050c'; const cs = Math.min(w, h) / 700;
-  c.save(); c.translate(cx, tbRidge((cx - TB.mx * 40 * 0 + (-TB.mx * 40)) / w * 3.2, 1) * h + 2); c.scale(cs, cs);
+  c.save(); c.translate(cx, tbRidge((cx - TB.mx * 40) / w * 3.2, 1) * h + 2); c.scale(cs, cs);
   c.fillRect(-60, -58, 120, 60); for (const tx of [-70, 56]) { c.fillRect(tx, -92, 16, 94); c.beginPath(); c.moveTo(tx - 4, -92); c.lineTo(tx + 8, -122); c.lineTo(tx + 20, -92); c.fill(); }
   c.fillRect(-14, -96, 28, 40); c.beginPath(); c.moveTo(-18, -96); c.lineTo(0, -132); c.lineTo(18, -96); c.fill();
   c.globalCompositeOperation = 'lighter';
@@ -3211,7 +3207,7 @@ const SVG_LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height=
 const TIPS = ['Swing at arrows and fireballs to <b>reflect</b> them back.', 'Shielded foes fall to <b>Spin</b> or a hit from <b>behind</b>.', 'Shoot a <b>bomber</b> when it stands among its friends.', 'Every <b>third wave</b> a dragon descends — learn its tells.', 'Villagers reward you. <b>Defend</b> their homes and a hero may join you.', 'Elites drop <b>loot</b>. Legendary gear changes how you play.', 'Complete a build to unlock an <b>Evolution</b> at level-up.'];
 let menuIdx = 0, subIdx = 0, panelFocus = false, beginning = false;
 
-function pips(n, max, cls) { let s = ''; for (let i = 0; i < max; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`; return s; }
+function pips(n, max) { let s = ''; for (let i = 0; i < max; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`; return s; }
 function wStat(k) {
   const w = WEAPONS[k];
   return [['DAMAGE', w.dmg / 1.9], ['SPEED', 0.25 / w.rate], ['REACH', w.range / 150], ['CRIT', w.crit / 0.28]].map(([n, v]) => `<span>${n}</span><div class="tm-pips">${pips(Math.max(1, Math.round(v * 10)), 10)}</div>`).join('');

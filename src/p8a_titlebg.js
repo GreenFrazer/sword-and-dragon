@@ -24,7 +24,7 @@ function tbEmber(init) { return { x: Math.random(), y: init ? Math.random() : 1.
 
 // layered ridge height (0..1 of H), seeded sine sum with jagged abs term
 function tbRidge(x, L) {
-  const s = TB.seeds[L], f = [1, 2.3, 5.1][0];
+  const s = TB.seeds[L];
   const base = [0.62, 0.7, 0.8, 0.9][L], amp = [0.17, 0.12, 0.08, 0.05][L];
   return base - amp * (0.55 * Math.abs(Math.sin(x * 2.1 + s[0])) + 0.3 * Math.sin(x * 5.3 + s[1]) * 0.5 + 0.25 * Math.abs(Math.sin(x * 9.7 + s[2])) * 0.6 + 0.2 * Math.sin(x * 1.2 + s[0]));
 }
@@ -107,10 +107,10 @@ function tbDraw(dt) {
   // mountains
   tbLayer(c, 0, ['#2a1426', '#14091a'], -TB.mx * 24, 0.35);
   // castle on the mid ridge
-  const cx = w * 0.56 - TB.mx * 36, cr = tbRidge((cx + -TB.mx * 40) / w * 3.2, 1) * h;
+  const cx = w * 0.56 - TB.mx * 36;
   tbLayer(c, 1, ['#1a0d1e', '#0c0610'], -TB.mx * 40, 0.25);
   c.fillStyle = '#0a050c'; const cs = Math.min(w, h) / 700;
-  c.save(); c.translate(cx, tbRidge((cx - TB.mx * 40 * 0 + (-TB.mx * 40)) / w * 3.2, 1) * h + 2); c.scale(cs, cs);
+  c.save(); c.translate(cx, tbRidge((cx - TB.mx * 40) / w * 3.2, 1) * h + 2); c.scale(cs, cs);
   c.fillRect(-60, -58, 120, 60); for (const tx of [-70, 56]) { c.fillRect(tx, -92, 16, 94); c.beginPath(); c.moveTo(tx - 4, -92); c.lineTo(tx + 8, -122); c.lineTo(tx + 20, -92); c.fill(); }
   c.fillRect(-14, -96, 28, 40); c.beginPath(); c.moveTo(-18, -96); c.lineTo(0, -132); c.lineTo(18, -96); c.fill();
   c.globalCompositeOperation = 'lighter';

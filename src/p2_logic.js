@@ -6,7 +6,7 @@ let time = 0, bannerT = 0, bannerText = '', bannerSub = '', ultReadyShown = fals
 let waveQueue = [], spawnTimer = 0, clearTimer = null, bestWave = 1;
 try { bestWave = parseInt(localStorage.getItem('swordDragonBestWave') || '1', 10) || 1; } catch (e) {}
 
-let player, enemies, props, pickups, particles, floatTexts, hazards, grassTufts, trees;
+let player, enemies, props, pickups, particles, floatTexts, hazards, trees;
 let projectiles, meteors, rings, novas, glows, slashes, bolts, ghosts, scorches, ambient;
 const cam = { x: 0, y: 0 };
 const MAXP = 650;
@@ -43,16 +43,14 @@ function resetGame() {
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
-  initAmbient();
-  startWave(wave);
+  startWave(wave); // biomeIdx = -1 forces startWave to rebuild ground + ambient
   cam.x = player.x - W / 2; cam.y = player.y - H / 2; updateCamera(1, true);
-  bannerT = 3;
 }
 function startGame() {
   if (state !== 'title') return;
-  initAudio(); startMusic(); $('title-modal').style.display = 'none'; state = 'play'; resetGame(); bannerT = 3; sfx('wave');
+  initAudio(); $('title-modal').style.display = 'none'; state = 'play'; resetGame(); sfx('wave');
 }
-function restartGame() { initAudio(); startMusic(); resetGame(); state = 'play'; sfx('wave'); }
+function restartGame() { initAudio(); resetGame(); state = 'play'; sfx('wave'); }
 
 function generateEnvironment() {
   trees = [];
@@ -80,8 +78,8 @@ function startWave(w) {
   const bi = Math.floor((w - 1) / 3) % BIOMES.length;
   if (bi !== biomeIdx) {
     biomeIdx = bi; biome = BIOMES[bi]; generateEnvironment(); buildGround(); initAmbient();
-    bannerSub = biome.name;
-  } else bannerSub = biome.name;
+  }
+  bannerSub = biome.name;
   populateArenaProps();
   pickWeather();
   if (player.g && player.g.phoenix) player.phoenixUsed = false;
@@ -162,6 +160,7 @@ function triggerDash() {
   player.facing = dir; player.dashCd = player.dashMaxCd; player.dashTime = 0.18;
   player.invuln = Math.max(player.invuln, 0.3);
   player.dashVx = Math.cos(dir) * 680; player.dashVy = Math.sin(dir) * 680;
+  if (gM().warp) { player.warpT = 1.2; addRing(player.x, player.y, 120, '#ffd76a', 0.5, 4); } // Hourglass legendary: foes and their shots slow down
   addRing(player.x, player.y, 70, '#74c0fc', 0.3, 5);
   spawnBurst(player.x, player.y, '#74c0fc', 12); sfx('dash');
 }
@@ -182,7 +181,7 @@ function triggerSpin() {
       damageEnemy(e, Math.round(base * (crit ? 2 : 1)), Math.atan2(e.y - player.y, e.x - player.x), 340, true, crit);
     }
   });
-  if (hits > 0) healPlayer(player.vamp);
+  if (hits > 0) healPlayer(vampAmt());
   checkPropsInRadius(player.x, player.y, R);
   deflectProjectiles(player.x, player.y, R + 20);
   addRing(player.x, player.y, R, '#ffe066', 0.4, 9);

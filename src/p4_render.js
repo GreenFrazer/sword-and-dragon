@@ -472,7 +472,7 @@ function drawHouse(h) {
   ctx.restore();
 }
 function drawVillager(v) {
-  const scared = enemies.some(e => Math.hypot(e.x - village.x, e.y - village.y) < 330);
+  const scared = village.scared;
   const bob = Math.sin(time * (scared ? 14 : 2.5) + v.ph) * (scared ? 3 : 1.2), sx = Math.sin(time * 1.3 + v.ph) * (scared ? 2 : 6);
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();

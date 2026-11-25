@@ -38,6 +38,8 @@ function stepSimulation(dt) {
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);
+  player.warpT = Math.max(0, (player.warpT || 0) - dt);
+  const edt = player.warpT > 0 ? dt * 0.4 : dt; // enemy-side timestep (Hourglass slow)
   if (player.cast < 3) { player.castT -= dt; if (player.castT <= 0) { player.cast++; player.castT = player.cast < 3 ? 4 * cdrMul() : 0; } }
   if (gM().regen > 0) healPlayer(gM().regen * dt);
   updateFx(dt);
@@ -141,24 +143,25 @@ function stepSimulation(dt) {
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;
-    e.x = Math.max(45, Math.min(WORLD_W - 45, e.x + e.vx * dt)); e.y = Math.max(55, Math.min(WORLD_H - 45, e.y + e.vy * dt));
+    e.x = Math.max(45, Math.min(WORLD_W - 45, e.x + e.vx * edt)); e.y = Math.max(55, Math.min(WORLD_H - 45, e.y + e.vy * edt));
     if (e.type !== 'dragon') pushOutOfTrees(e, e.r * 0.6);
-    if (e.stun > 0) { e.stun -= dt; return; }
-    if (e.type === 'dragon') updateDragon(e, dt);
-    else if (e.type === 'archer') updateArcher(e, dt);
-    else if (e.type === 'bomber') updateBomber(e, dt);
-    else updateMelee(e, dt);
+    if (e.stun > 0) { e.stun -= edt; return; }
+    if (e.type === 'dragon') updateDragon(e, edt);
+    else if (e.type === 'archer') updateArcher(e, edt);
+    else if (e.type === 'bomber') updateBomber(e, edt);
+    else updateMelee(e, edt);
   });
   separateEnemies();
 
   // --- projectiles ---
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i]; if (!p) continue;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    const pdt = p.friendly ? dt : edt;
+    p.x += p.vx * pdt; p.y += p.vy * pdt; p.life -= pdt;
     if (p.kind === 'fire' && Math.random() < 0.7 && particles.length < MAXP) particles.push({ x: p.x, y: p.y - 22, vx: rand(-20, 20), vy: rand(-30, 10), life: 0.3, maxLife: 0.3, color: p.col || (p.friendly ? '#74c0fc' : '#ff922b'), size: rand(5, 9), kind: 'ember', g: 0 });
     let dead = p.life <= 0 || p.x < 10 || p.y < 10 || p.x > WORLD_W - 10 || p.y > WORLD_H - 10;
     if (!dead && p.friendly && p.pierce) {
-      for (const e of [...enemies]) if (!e.flying && !p.hit.includes(e) && Math.hypot(e.x - p.x, e.y - p.y) < e.r + (p.r || 14)) { p.hit.push(e); suppressUlt = false; damageEnemy(e, p.dmg, Math.atan2(p.vy, p.vx), 260, true, false, p); }
+      for (const e of [...enemies]) if (!e.flying && !p.hit.includes(e) && Math.hypot(e.x - p.x, e.y - p.y) < e.r + (p.r || 14)) { p.hit.push(e); damageEnemy(e, p.dmg, Math.atan2(p.vy, p.vx), 260, true, false, p); }
       if (Math.random() < 0.8 && particles.length < MAXP) particles.push({ x: p.x, y: p.y - 22, vx: rand(-30, 30), vy: rand(-30, 30), life: 0.3, maxLife: 0.3, color: p.col || '#b197fc', size: rand(5, 8), kind: 'ember', g: 0 });
     } else if (!dead && p.friendly) {
       for (const e of enemies) {
@@ -211,7 +214,7 @@ function stepSimulation(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]; p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.kind === 'smoke') { p.vx *= 0.97; }
-    if (p.life <= 0) particles.splice(i, 1);
+    if (p.life <= 0) { particles[i] = particles[particles.length - 1]; particles.pop(); } // swap-remove: O(1) instead of splice
   }
   for (let i = floatTexts.length - 1; i >= 0; i--) { const f = floatTexts[i]; f.y -= 38 * dt; f.life -= dt; if (f.life <= 0) floatTexts.splice(i, 1); }
 }

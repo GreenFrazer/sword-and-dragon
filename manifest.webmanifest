@@ -1,0 +1,16 @@
+{
+  "name": "Sword & Dragon — Ashes of the Wyrm",
+  "short_name": "Sword & Dragon",
+  "description": "A 2.5D action RPG: survive waves, defend villages and slay dragons.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#05060f",
+  "theme_color": "#05060f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

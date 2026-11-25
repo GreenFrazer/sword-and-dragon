@@ -6,10 +6,12 @@ Everything is procedural: graphics are drawn on an HTML5 canvas, and sound effec
 
 ## Play
 
-Open `index.html` in a browser.
+**Online:** https://greenfrazer.github.io/sword-and-dragon/ (GitHub Pages, served from `main`).
+
+Or open `index.html` locally in a browser.
 
 - **Desktop:** double-click the file, or serve the folder with any static host.
-- **iPhone / iPad:** host the file (GitHub Pages, Netlify, Cloudflare Pages), open it in **Safari**, then Share → **Add to Home Screen** for a full-screen app that keeps your progress. Document viewers and in-app previewers usually block saved data (see [Saving progress](#saving-progress)).
+- **iPhone / iPad:** open the link above in **Safari**, then Share → **Add to Home Screen** for a full-screen app that keeps your progress. The repo includes a web app manifest, icons and a small offline service worker for this. Document viewers and in-app previewers usually block saved data (see [Saving progress](#saving-progress)).
 
 ## Controls
 
@@ -49,6 +51,7 @@ Embers, Forge upgrades, unlocked weapons and best wave are stored in the browser
 
 ```
 index.html        The built, playable game (single file)
+manifest.webmanifest, sw.js, icons/   Home Screen app settings, offline cache, icons
 src/              Source parts, concatenated in order by build.sh
   p0_head.html    HTML, CSS and HUD / modal markup
   theme.css       UI theme (also inlined into p0_head.html)

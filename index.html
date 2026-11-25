@@ -24,6 +24,8 @@
   #biome-text { font-size: 11px; color: #9ec5a0; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
   #combo { position: absolute; top: 134px; right: 14px; text-align: right; color: #ffd43b; font-weight: 900; font-size: 22px; text-shadow: 0 2px 6px #000; pointer-events: none; z-index: 10; display: none; }
   #combo small { display: block; font-size: 11px; color: #ffa94d; letter-spacing: 1px; }
+  #music-btn { position: absolute; top: 86px; right: 60px; z-index: 12; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #8a7346; background: rgba(18,22,16,0.8); color: #fff; font-size: 19px; cursor: pointer; }
+  #music-btn.off { color: #777; text-decoration: line-through; opacity: 0.7; }
   #mute { position: absolute; top: 86px; right: 14px; z-index: 12; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #8a7346; background: rgba(18,22,16,0.8); color: #fff; font-size: 17px; cursor: pointer; }
   #party { position: absolute; top: 128px; left: 14px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; gap: 5px; }
   .party-row { background: rgba(18,22,16,0.78); border: 1px solid #5c7a4a; border-radius: 7px; padding: 3px 8px; width: 150px; color: #e9f5e1; font-size: 11px; font-weight: 700; }
@@ -232,6 +234,7 @@
 <div id="gear-hud"><div class="gslot" id="gs-0"></div><div class="gslot" id="gs-1"></div><div class="gslot" id="gs-2"></div></div>
 <div id="combo"><span id="combo-text"></span><small id="combo-sub"></small></div>
 <button id="mute" tabindex="-1">🔊</button>
+<button id="music-btn" tabindex="-1" title="Music: on (N)">♪</button>
 <button id="pausebtn" tabindex="-1">❚❚</button>
 
 <div id="boss-hud">
@@ -287,6 +290,7 @@
   <button class="btn-restart" id="go-copy" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">COPY SAVE CODE</button>
   <button class="btn-restart" id="again-btn">PLAY AGAIN</button>
   <button class="btn-restart" id="forge-btn" style="margin-top:10px;">VISIT THE FORGE</button>
+  <button class="btn-restart" id="go-menu-btn" style="margin-top:10px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">MAIN MENU</button>
 </div>
 
 <div class="modal" id="pause-modal">
@@ -328,72 +332,278 @@ window.addEventListener('resize', resizeCanvas);
 
 const WORLD_W = 1800, WORLD_H = 1400;
 
-// ======================= AUDIO (procedural WebAudio) =======================
-let actx = null, masterGain = null, muted = false, noiseBuf = null;
+// ======================= AUDIO ENGINE (procedural WebAudio: reverb, compression, layered SFX, adaptive score) =======================
+let actx = null, masterGain = null, sfxBus = null, musicBus = null, revIn = null, dlyIn = null, musicRevIn = null, musicDlyIn = null, noiseBuf = null, brownBuf = null, distCurve = null, muted = false;
+function makeIR(sec, decay, dark) {
+  const sr = actx.sampleRate, n = Math.floor(sr * sec), b = actx.createBuffer(2, n, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = b.getChannelData(c); let lp = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / n, k = dark ? 0.15 + 0.7 * t : 0.5; // later tail gets darker
+      lp += (Math.random() * 2 - 1 - lp) * (1 - k * 0.9);
+      d[i] = lp * Math.pow(1 - t, decay) * (i < 400 ? i / 400 : 1);
+    }
+  }
+  return b;
+}
 function initAudio() {
   try {
     if (!actx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
-      actx = new AC(); masterGain = actx.createGain(); masterGain.gain.value = 0.45; masterGain.connect(actx.destination);
+      actx = new AC();
+      const comp = actx.createDynamicsCompressor();
+      comp.threshold.value = -16; comp.knee.value = 22; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.22;
+      const limiter = actx.createDynamicsCompressor();
+      limiter.threshold.value = -2; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08;
+      masterGain = actx.createGain(); masterGain.gain.value = 0.8;
+      masterGain.connect(comp); comp.connect(limiter); limiter.connect(actx.destination);
+      sfxBus = actx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(masterGain);
+      musicBus = actx.createGain(); musicBus.gain.value = 0.62; musicBus.connect(masterGain);
+      // shared hall reverb
+      revIn = actx.createGain(); revIn.gain.value = 1;
+      const conv = actx.createConvolver(); conv.buffer = makeIR(2.8, 2.6, true);
+      const revOut = actx.createGain(); revOut.gain.value = 0.55;
+      revIn.connect(conv); conv.connect(revOut); revOut.connect(masterGain);
+      // ping-pong delay (dotted eighth) for music
+      dlyIn = actx.createGain(); dlyIn.gain.value = 1;
+      const dl = actx.createDelay(2), dr = actx.createDelay(2), fb = actx.createGain(), lpf = actx.createBiquadFilter();
+      dl.delayTime.value = 0.33; dr.delayTime.value = 0.33; fb.gain.value = 0.38; lpf.type = 'lowpass'; lpf.frequency.value = 2400;
+      const mg = actx.createChannelMerger(2), dOut = actx.createGain(); dOut.gain.value = 0.5;
+      dlyIn.connect(dl); dl.connect(lpf); lpf.connect(dr); dr.connect(fb); fb.connect(dl);
+      dl.connect(mg, 0, 0); dr.connect(mg, 0, 1); mg.connect(dOut); dOut.connect(masterGain); dOut.connect(revIn);
+      musicRevIn = actx.createGain(); musicRevIn.connect(revIn); musicDlyIn = actx.createGain(); musicDlyIn.connect(dlyIn);
+      dlyL = dl; dlyR = dr;
+      // noise sources
+      const n = actx.sampleRate * 3;
+      noiseBuf = actx.createBuffer(1, n, actx.sampleRate); brownBuf = actx.createBuffer(1, n, actx.sampleRate);
+      const wd = noiseBuf.getChannelData(0), bd = brownBuf.getChannelData(0); let last = 0;
+      for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; wd[i] = w; last = (last + 0.02 * w) / 1.02; bd[i] = last * 3.5; }
+      distCurve = new Float32Array(1024);
+      for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; distCurve[i] = Math.tanh(x * 4.5); }
     }
     if (actx.state === 'suspended') actx.resume();
+    startMusic();
   } catch (e) { actx = null; }
 }
-function tone(f, dur, type, vol, slideTo, delay) {
-  if (!actx || muted) return;
-  const t = actx.currentTime + (delay || 0);
-  const o = actx.createOscillator(), g = actx.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t);
-  if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + dur + 0.03);
+function duck(amt, hold, rel) {
+  if (!actx) return; const t = actx.currentTime, g = musicBus.gain;
+  if (!musicOn) return;
+  g.cancelScheduledValues(t); g.setTargetAtTime(0.62 * amt, t, 0.02); g.setTargetAtTime(0.62, t + hold, rel || 0.35);
 }
-function noise(dur, vol, freq, ftype) {
+function panNode(p) { if (!p || !actx.createStereoPanner) return null; const s = actx.createStereoPanner(); s.pan.value = Math.max(-1, Math.min(1, p)); return s; }
+// route a node to an output bus with optional pan + reverb/delay sends
+function out(node, o, t0, tEnd) {
+  const dest = o.bus || sfxBus; let last = node;
+  const pn = panNode(o.pan); if (pn) { last.connect(pn); last = pn; }
+  last.connect(dest);
+  const isM = dest === musicBus;
+  if (o.rev) { const s = actx.createGain(); s.gain.value = o.rev; last.connect(s); s.connect(isM ? musicRevIn : revIn); }
+  if (o.dly) { const s = actx.createGain(); s.gain.value = o.dly; last.connect(s); s.connect(isM ? musicDlyIn : dlyIn); }
+}
+// Core oscillator voice: layered/detuned oscillators -> filter w/ envelope -> amp envelope
+function voice(o) {
   if (!actx || muted) return;
-  if (!noiseBuf) {
-    const n = actx.sampleRate; noiseBuf = actx.createBuffer(1, n, actx.sampleRate);
-    const d = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const t = actx.currentTime + (o.delay || 0), dur = o.dur, atk = Math.min(o.atk != null ? o.atk : 0.004, dur * 0.5), vol = o.vol;
+  const rel = o.rel != null ? o.rel : 0.03, end = t + dur + rel;
+  const amp = actx.createGain();
+  amp.gain.setValueAtTime(0.0001, t); amp.gain.linearRampToValueAtTime(vol, t + atk);
+  if (o.sustain) { amp.gain.setValueAtTime(vol, t + dur - 0.02); amp.gain.exponentialRampToValueAtTime(0.0001, end); }
+  else amp.gain.exponentialRampToValueAtTime(0.0001, t + dur + rel * 0.5);
+  let head = amp;
+  if (o.dist) { const ws = actx.createWaveShaper(); ws.curve = distCurve; ws.oversample = '2x'; ws.connect(amp); head = ws; }
+  let tail = head;
+  if (o.fl) { // filter: [f0, f1, q, type]
+    const f = actx.createBiquadFilter(); f.type = o.fl[3] || 'lowpass'; f.Q.value = o.fl[2] || 1;
+    f.frequency.setValueAtTime(o.fl[0], t); f.frequency.exponentialRampToValueAtTime(Math.max(30, o.fl[1]), t + dur);
+    f.connect(head); tail = f;
   }
-  const s = actx.createBufferSource(); s.buffer = noiseBuf;
-  const f = actx.createBiquadFilter(); f.type = ftype || 'lowpass'; f.frequency.value = freq;
-  const g = actx.createGain(); const t = actx.currentTime;
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(masterGain); s.start(t); s.stop(t + dur);
+  const n = o.n || 1, spread = o.spread || 0, freq = o.f * (o.pv || 1);
+  for (let i = 0; i < n; i++) {
+    const osc = actx.createOscillator(); osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(18, o.slide * (o.pv || 1)), t + dur);
+    osc.detune.value = n > 1 ? (i / (n - 1) - 0.5) * 2 * spread : 0;
+    if (o.vib) { const l = actx.createOscillator(), lg = actx.createGain(); l.frequency.value = o.vib[0]; lg.gain.value = o.vib[1]; l.connect(lg); lg.connect(osc.detune); l.start(t); l.stop(end + 0.05); }
+    const og = actx.createGain(); og.gain.value = 1 / Math.sqrt(n); osc.connect(og); og.connect(tail);
+    osc.start(t); osc.stop(end + 0.05);
+  }
+  out(amp, o);
 }
+// FM bell / metallic voice
+function fm(o) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + (o.delay || 0), dur = o.dur, f = o.f * (o.pv || 1);
+  const car = actx.createOscillator(), mod = actx.createOscillator(), mg = actx.createGain(), amp = actx.createGain();
+  car.type = 'sine'; mod.type = 'sine'; car.frequency.value = f; mod.frequency.value = f * (o.ratio || 2);
+  mg.gain.setValueAtTime(f * (o.idx || 3), t); mg.gain.exponentialRampToValueAtTime(f * 0.05, t + dur);
+  mod.connect(mg); mg.connect(car.frequency);
+  amp.gain.setValueAtTime(0.0001, t); amp.gain.linearRampToValueAtTime(o.vol, t + 0.003); amp.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  car.connect(amp); car.start(t); mod.start(t); car.stop(t + dur + 0.05); mod.stop(t + dur + 0.05);
+  out(amp, o);
+}
+// Filtered noise burst: fl = [f0, f1, q, type]
+function nz(o) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + (o.delay || 0), dur = o.dur, atk = Math.min(o.atk || 0.002, dur * 0.5);
+  const s = actx.createBufferSource(); s.buffer = o.brown ? brownBuf : noiseBuf;
+  const f = actx.createBiquadFilter(); const fl = o.fl; f.type = fl[3] || 'lowpass'; f.Q.value = fl[2] || 0.8;
+  f.frequency.setValueAtTime(fl[0], t); f.frequency.exponentialRampToValueAtTime(Math.max(30, fl[1]), t + dur);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(o.vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); s.start(t, Math.random() * 1.5, dur + 0.05); out(g, o);
+}
+// legacy-compatible helpers
+function tone(f, dur, type, vol, slideTo, delay) { voice({ f, dur, type, vol, slide: slideTo, delay, rev: 0.12 }); }
+function noise(dur, vol, freq, ftype) { nz({ dur, vol, fl: [freq, freq * 0.6, 0.7, ftype || 'lowpass'], rev: 0.08 }); }
+function kick(t0, vol, o) { // synthesized kick: pitch-dropping sine + click
+  if (!actx || muted) return; o = o || {};
+  const dl = t0 - actx.currentTime; voice({ f: o.f || 150, slide: o.low || 38, dur: o.len || 0.28, type: 'sine', vol, delay: Math.max(0, dl), bus: o.bus, atk: 0.001 });
+  nz({ dur: 0.02, vol: vol * 0.35, fl: [5000, 2000, 0.7, 'highpass'], delay: Math.max(0, dl), bus: o.bus });
+}
+function snare(t0, vol, bus) {
+  const dl = Math.max(0, t0 - actx.currentTime);
+  nz({ dur: 0.18, vol, fl: [3200, 1800, 0.9, 'bandpass'], delay: dl, bus, rev: 0.25 });
+  voice({ f: 220, slide: 150, dur: 0.1, type: 'triangle', vol: vol * 0.7, delay: dl, bus });
+}
+function hat(t0, vol, bus, open) { nz({ dur: open ? 0.16 : 0.035, vol, fl: [9000, 7000, 1, 'highpass'], delay: Math.max(0, t0 - actx.currentTime), bus, pan: (Math.random() - 0.5) * 0.4 }); }
+function taiko(t0, vol, f, bus) {
+  const dl = Math.max(0, t0 - actx.currentTime);
+  voice({ f: f * 1.7, slide: f, dur: 0.45, type: 'sine', vol, delay: dl, bus, rev: 0.3 });
+  nz({ dur: 0.07, vol: vol * 0.4, fl: [900, 300, 1, 'lowpass'], delay: dl, bus });
+}
+
+// ---- sound effects ----
 const sfxLast = {};
-function sfx(name) {
+const SFX_GAP = { fuse: 90, fire: 70, zap: 70, shoot: 55, hit: 45, swing: 70 };
+function sfx(name, wx, wy) {
   if (!actx || muted) return;
   const n = performance.now();
-  if (sfxLast[name] && n - sfxLast[name] < 55) return;
+  if (sfxLast[name] && n - sfxLast[name] < (SFX_GAP[name] || 55)) return;
   sfxLast[name] = n;
-  switch (name) {
-    case 'swing': noise(0.12, 0.10, 1800, 'bandpass'); tone(240, 0.1, 'sawtooth', 0.03, 110); break;
-    case 'hit': noise(0.08, 0.18, 900); tone(170, 0.08, 'square', 0.07, 80); break;
-    case 'crit': tone(520, 0.14, 'square', 0.09, 1000); noise(0.1, 0.2, 1400); break;
-    case 'block': tone(900, 0.06, 'triangle', 0.1, 500); noise(0.05, 0.1, 3000, 'highpass'); break;
-    case 'spin': noise(0.35, 0.14, 1200, 'bandpass'); tone(300, 0.34, 'sawtooth', 0.05, 760); break;
-    case 'dash': noise(0.15, 0.09, 2500, 'highpass'); break;
-    case 'boom': noise(0.6, 0.4, 420); tone(95, 0.5, 'sine', 0.3, 30); break;
-    case 'coin': tone(988, 0.06, 'square', 0.05); tone(1319, 0.1, 'square', 0.05, 0, 0.06); break;
-    case 'potion': tone(440, 0.18, 'sine', 0.1, 880); break;
-    case 'hurt': tone(140, 0.22, 'sawtooth', 0.14, 60); noise(0.15, 0.2, 700); break;
-    case 'roar': noise(0.9, 0.35, 300); tone(70, 0.9, 'sawtooth', 0.25, 38); break;
-    case 'fire': noise(0.14, 0.09, 1500, 'bandpass'); break;
-    case 'shoot': tone(620, 0.08, 'triangle', 0.07, 300); break;
-    case 'ult': tone(200, 0.8, 'sawtooth', 0.14, 900); noise(0.6, 0.18, 2000, 'bandpass'); break;
-    case 'ready': tone(660, 0.12, 'square', 0.07); tone(990, 0.2, 'square', 0.07, 0, 0.1); break;
-    case 'meteor': noise(0.4, 0.33, 350); tone(110, 0.35, 'sine', 0.24, 35); break;
-    case 'wave': tone(392, 0.14, 'square', 0.07); tone(523, 0.14, 'square', 0.07, 0, 0.14); tone(659, 0.26, 'square', 0.08, 0, 0.28); break;
-    case 'upgrade': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, 'triangle', 0.09, 0, i * 0.07)); break;
-    case 'death': tone(300, 0.6, 'sawtooth', 0.2, 40); noise(0.5, 0.25, 600); break;
-    case 'loot': tone(784, 0.1, 'triangle', 0.09); tone(1175, 0.18, 'triangle', 0.09, 0, 0.08); break;
-    case 'legend': [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, 0, i * 0.09)); noise(0.5, 0.15, 3000, 'highpass'); break;
-    case 'thunder': noise(0.9, 0.38, 220); tone(55, 0.8, 'sine', 0.3, 28); break;
-    case 'cast': tone(900, 0.18, 'sawtooth', 0.08, 300); noise(0.15, 0.1, 2500, 'bandpass'); break;
-    case 'zap': tone(1300, 0.1, 'sawtooth', 0.05, 300); break;
-    case 'fuse': tone(1000, 0.05, 'square', 0.04); break;
+  let pan = 0, att = 1;
+  if (wx != null && typeof cam !== 'undefined') {
+    pan = Math.max(-0.85, Math.min(0.85, (wx - cam.x - W / 2) / (W * 0.55)));
+    if (wy != null) { const d = Math.hypot(wx - cam.x - W / 2, wy - cam.y - H / 2); att = Math.max(0.35, 1 - d / 1400); }
   }
+  const pv = 1 + (Math.random() - 0.5) * 0.18, v = k => k * att, P = { pan, pv };
+  switch (name) {
+    case 'swing':
+      nz({ dur: 0.16, vol: v(0.2), atk: 0.04, fl: [500, 3800, 1.6, 'bandpass'], pan, rev: 0.1 });
+      nz({ dur: 0.12, vol: v(0.07), atk: 0.01, fl: [6000, 2500, 0.8, 'highpass'], pan });
+      voice({ f: 200, slide: 90, dur: 0.12, type: 'sawtooth', vol: v(0.035), fl: [1500, 300, 1], ...P }); break;
+    case 'hit':
+      voice({ f: 190, slide: 52, dur: 0.14, type: 'sine', vol: v(0.3), ...P });
+      nz({ dur: 0.07, vol: v(0.28), fl: [3800, 700, 0.8], pan, rev: 0.12 });
+      voice({ f: 330, slide: 120, dur: 0.05, type: 'square', vol: v(0.05), ...P }); break;
+    case 'crit':
+      voice({ f: 150, slide: 45, dur: 0.18, type: 'sine', vol: v(0.34), ...P });
+      nz({ dur: 0.12, vol: v(0.3), fl: [6000, 900, 0.8], pan, rev: 0.2 });
+      fm({ f: 1480, ratio: 2.76, idx: 5, dur: 0.55, vol: v(0.1), pan, rev: 0.4, pv });
+      voice({ f: 500, slide: 1400, dur: 0.14, type: 'sawtooth', vol: v(0.07), fl: [1200, 5000, 1], pan, rev: 0.2 }); break;
+    case 'block':
+      fm({ f: 880, ratio: 3.5, idx: 4, dur: 0.35, vol: v(0.15), pan, rev: 0.3, pv });
+      fm({ f: 1250, ratio: 1.41, idx: 3, dur: 0.22, vol: v(0.07), pan, pv });
+      nz({ dur: 0.06, vol: v(0.2), fl: [8000, 3000, 0.8, 'highpass'], pan }); break;
+    case 'spin':
+      for (let i = 0; i < 3; i++) nz({ dur: 0.2, vol: 0.17, atk: 0.06, delay: i * 0.1, fl: [600, 3200, 1.8, 'bandpass'], pan: (i - 1) * 0.5, rev: 0.12 });
+      voice({ f: 240, slide: 900, dur: 0.34, type: 'sawtooth', vol: 0.05, fl: [700, 3500, 2], rev: 0.15 }); break;
+    case 'dash':
+      nz({ dur: 0.22, vol: 0.2, atk: 0.02, fl: [1200, 7000, 1.2, 'bandpass'], rev: 0.2 });
+      voice({ f: 500, slide: 120, dur: 0.18, type: 'sine', vol: 0.08 }); break;
+    case 'boom':
+      duck(0.35, 0.3, 0.5);
+      voice({ f: 100, slide: 26, dur: 0.9, type: 'sine', vol: v(0.55), rel: 0.1, rev: 0.25, ...P });
+      nz({ dur: 0.8, vol: v(0.55), brown: true, fl: [2500, 80, 0.8], pan, rev: 0.45 });
+      nz({ dur: 0.12, vol: v(0.3), fl: [5000, 600, 0.8], pan }); break;
+    case 'coin':
+      fm({ f: 1976, ratio: 2, idx: 1.2, dur: 0.12, vol: 0.09, rev: 0.2 });
+      fm({ f: 2637, ratio: 2, idx: 1, dur: 0.4, vol: 0.09, delay: 0.07, rev: 0.3 });
+      voice({ f: 988, dur: 0.06, type: 'square', vol: 0.03 }); break;
+    case 'potion':
+      [523, 659, 784, 1047].forEach((f, i) => fm({ f, ratio: 3, idx: 1.5, dur: 0.35, vol: 0.07, delay: i * 0.06, rev: 0.35, pan: (i - 1.5) * 0.25 }));
+      voice({ f: 400, slide: 1000, dur: 0.3, type: 'sine', vol: 0.06, rev: 0.3 }); break;
+    case 'hurt':
+      voice({ f: 180, slide: 50, dur: 0.3, type: 'sawtooth', vol: 0.2, fl: [2000, 150, 2], dist: true, rev: 0.15 });
+      voice({ f: 90, slide: 35, dur: 0.25, type: 'sine', vol: 0.35 });
+      nz({ dur: 0.2, vol: 0.25, fl: [1800, 200, 0.8], rev: 0.1 }); break;
+    case 'roar':
+      duck(0.25, 1.0, 0.8);
+      voice({ f: 78, slide: 34, dur: 1.3, type: 'sawtooth', n: 3, spread: 25, vol: 0.32, atk: 0.1, fl: [900, 120, 3], dist: true, vib: [14, 40], rev: 0.5, rel: 0.2 });
+      voice({ f: 46, slide: 28, dur: 1.2, type: 'sine', vol: 0.45, atk: 0.05, rev: 0.2 });
+      nz({ dur: 1.2, vol: 0.38, atk: 0.12, fl: [350, 1500, 4, 'bandpass'], rev: 0.5 });
+      nz({ dur: 1.0, vol: 0.3, atk: 0.2, fl: [1400, 300, 3, 'bandpass'], rev: 0.5, delay: 0.05 }); break;
+    case 'fire':
+      nz({ dur: 0.22, vol: v(0.18), atk: 0.03, fl: [900, 2400, 1.2, 'bandpass'], pan, rev: 0.25 });
+      nz({ dur: 0.18, vol: v(0.12), brown: true, fl: [1200, 250, 0.8], pan });
+      for (let i = 0; i < 3; i++) nz({ dur: 0.02, vol: v(0.12), delay: Math.random() * 0.18, fl: [4000 + Math.random() * 3000, 3000, 2, 'bandpass'], pan }); break;
+    case 'shoot':
+      voice({ f: 700, slide: 180, dur: 0.1, type: 'triangle', vol: v(0.1), fl: [3000, 500, 1], ...P, rev: 0.1 });
+      nz({ dur: 0.06, vol: v(0.1), fl: [4000, 8000, 1, 'highpass'], pan }); break;
+    case 'ult':
+      duck(0.4, 0.8, 0.6);
+      voice({ f: 150, slide: 1100, dur: 0.9, type: 'sawtooth', n: 3, spread: 20, vol: 0.15, atk: 0.2, fl: [400, 5000, 3], rev: 0.4 });
+      voice({ f: 75, slide: 550, dur: 0.9, type: 'sine', vol: 0.3, atk: 0.2 });
+      nz({ dur: 0.8, vol: 0.2, atk: 0.4, fl: [800, 7000, 2, 'bandpass'], rev: 0.3 });
+      [0, 7, 12].forEach((s, i) => fm({ f: 880 * Math.pow(2, s / 12), ratio: 2, idx: 2, dur: 0.8, vol: 0.05, delay: 0.55 + i * 0.05, rev: 0.5 })); break;
+    case 'ready':
+      fm({ f: 880, ratio: 2, idx: 2, dur: 0.4, vol: 0.1, rev: 0.4 });
+      fm({ f: 1320, ratio: 2, idx: 2, dur: 0.7, vol: 0.1, delay: 0.1, rev: 0.5 });
+      fm({ f: 1760, ratio: 2, idx: 1.5, dur: 0.9, vol: 0.07, delay: 0.2, rev: 0.5 }); break;
+    case 'meteor':
+      duck(0.3, 0.5, 0.6);
+      voice({ f: 90, slide: 22, dur: 1.3, type: 'sine', vol: v(0.7), rev: 0.3, rel: 0.1, ...P });
+      nz({ dur: 1.2, vol: v(0.6), brown: true, fl: [3000, 60, 0.8], pan, rev: 0.55 });
+      nz({ dur: 0.2, vol: v(0.4), fl: [7000, 800, 0.8], pan });
+      nz({ dur: 0.9, vol: v(0.12), delay: 0.1, fl: [3000, 800, 3, 'bandpass'], pan, rev: 0.4 }); break;
+    case 'wave': // brassy horn call
+      [[196, 0], [294, 0.18], [392, 0.36]].forEach(([f, d], i) => {
+        voice({ f, dur: i === 2 ? 0.9 : 0.2, type: 'sawtooth', n: 3, spread: 12, vol: 0.09, atk: 0.04, delay: d, fl: [500, 2600, 1.5], rev: 0.45, sustain: true, rel: 0.12 });
+        voice({ f: f / 2, dur: i === 2 ? 0.9 : 0.2, type: 'triangle', vol: 0.12, atk: 0.03, delay: d });
+      });
+      kick(actx.currentTime, 0.4, { f: 120, low: 40 }); break;
+    case 'upgrade':
+      [523, 659, 784, 1047, 1319].forEach((f, i) => fm({ f, ratio: 2, idx: 1.3, dur: 0.5, vol: 0.09, delay: i * 0.065, rev: 0.45, pan: (i - 2) * 0.2 }));
+      voice({ f: 262, dur: 0.7, type: 'triangle', vol: 0.1, atk: 0.02, rev: 0.3 }); break;
+    case 'death':
+      duck(0.4, 0.4, 0.5);
+      voice({ f: 320, slide: 38, dur: 0.8, type: 'sawtooth', n: 2, spread: 15, vol: v(0.2), fl: [3000, 100, 2], dist: true, rev: 0.4, ...P });
+      voice({ f: 120, slide: 28, dur: 0.7, type: 'sine', vol: v(0.4), pan });
+      nz({ dur: 0.6, vol: v(0.3), brown: true, fl: [1500, 100, 0.8], pan, rev: 0.4 }); break;
+    case 'loot':
+      fm({ f: 1568, ratio: 2, idx: 1.5, dur: 0.3, vol: 0.09, rev: 0.4 });
+      fm({ f: 2349, ratio: 2, idx: 1.5, dur: 0.6, vol: 0.09, delay: 0.09, rev: 0.5 });
+      voice({ f: 784, dur: 0.2, type: 'triangle', vol: 0.06 }); break;
+    case 'legend': {
+      duck(0.35, 1.2, 0.8);
+      [196, 247, 294, 392].forEach(f => voice({ f, dur: 1.6, type: 'sawtooth', n: 3, spread: 18, vol: 0.06, atk: 0.3, fl: [300, 3000, 1], rev: 0.6, sustain: true, rel: 0.4 }));
+      [392, 494, 587, 784, 988, 1175, 1568].forEach((f, i) => fm({ f, ratio: 2, idx: 1.8, dur: 0.9, vol: 0.08, delay: 0.1 + i * 0.085, rev: 0.55, pan: Math.sin(i) * 0.5 }));
+      nz({ dur: 1.2, vol: 0.12, atk: 0.5, fl: [3000, 9000, 1, 'highpass'], rev: 0.4 });
+      kick(actx.currentTime, 0.45, { f: 110, low: 36 }); break; }
+    case 'thunder':
+      duck(0.4, 0.8, 0.8);
+      nz({ dur: 0.1, vol: 0.5, fl: [8000, 1500, 0.8, 'highpass'], rev: 0.4 }); // crack
+      nz({ dur: 2.2, vol: 0.55, atk: 0.15, brown: true, fl: [1800, 60, 0.8], rev: 0.7, delay: 0.05 });
+      voice({ f: 60, slide: 30, dur: 1.8, type: 'sine', vol: 0.4, atk: 0.1, rev: 0.4, delay: 0.1 }); break;
+    case 'cast':
+      voice({ f: 400, slide: 1600, dur: 0.3, type: 'sine', vol: 0.12, rev: 0.4 });
+      fm({ f: 1200, ratio: 1.5, idx: 4, dur: 0.4, vol: 0.08, rev: 0.4 });
+      nz({ dur: 0.25, vol: 0.12, atk: 0.05, fl: [1500, 6000, 3, 'bandpass'], rev: 0.3 }); break;
+    case 'zap': {
+      const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(), curve = new Float32Array(16);
+      for (let i = 0; i < 16; i++) curve[i] = 400 + Math.random() * 2400;
+      o.type = 'sawtooth'; o.frequency.setValueCurveAtTime(curve, t, 0.14);
+      g.gain.setValueAtTime(0.07 * att, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g); out(g, { pan, rev: 0.2 }); o.start(t); o.stop(t + 0.18);
+      nz({ dur: 0.1, vol: v(0.2), fl: [9000, 3000, 1, 'highpass'], pan }); break; }
+    case 'fuse':
+      nz({ dur: 0.07, vol: v(0.08), fl: [7000, 5000, 3, 'bandpass'], pan });
+      voice({ f: 1800 + Math.random() * 600, dur: 0.03, type: 'square', vol: v(0.02), pan }); break;
+    case 'ui':
+      fm({ f: 880 * pv, ratio: 2, idx: 1, dur: 0.18, vol: 0.06, rev: 0.3 }); break;
+  }
+}
+function uiTone(f, d, v) {
+  try { if (!actx || muted) return; if (f < 300) voice({ f, dur: d || 0.12, type: 'triangle', vol: (v || 0.06) * 2, slide: f * 0.7 }); else fm({ f, ratio: 2, idx: 1, dur: 0.22, vol: (v || 0.05) * 1.4, rev: 0.3 }); } catch (e) {}
 }
 
 // ======================= BIOMES =======================
@@ -512,6 +722,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyF') triggerCast();
   if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
   if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'KeyN') toggleMusic();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') togglePause(); });
@@ -537,7 +748,9 @@ bindBtn('btn-spin', () => triggerSpin());
 bindBtn('btn-ult', () => triggerUlt());
 bindBtn('btn-cast', () => triggerCast());
 $('forge-btn').addEventListener('click', () => showTitle());
+$('go-menu-btn').addEventListener('click', () => showTitle());
 $('mute').addEventListener('click', () => toggleMute());
+$('music-btn').addEventListener('click', () => { initAudio(); toggleMusic(); });
 $('start-btn').addEventListener('click', () => beginRun());
 $('again-btn').addEventListener('click', () => restartGame());
 $('resume-btn').addEventListener('click', () => togglePause());
@@ -2638,26 +2851,199 @@ function drawThrust(s) {
   ctx.beginPath(); ctx.moveTo(len, 0); ctx.lineTo(10, -12 * (1 - p * 0.5)); ctx.lineTo(10, 12 * (1 - p * 0.5)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
 
-// ======================= PROCEDURAL MUSIC =======================
-let musicRunning = false, musicStep = 0;
-const SCALES = [[0, 3, 5, 7, 10], [0, 2, 3, 7, 8], [0, 2, 3, 5, 7], [0, 1, 5, 7, 8]];
-const ROOTS = [110, 98, 123.47, 87.31], PROG = [0, 5, 3, 4];
-function startMusic() { if (musicRunning || !actx) return; musicRunning = true; musicLoop(); }
-function musicLoop() {
-  if (!actx) { musicRunning = false; return; }
-  const bi = Math.max(0, biomeIdx), root = ROOTS[bi], sc = SCALES[bi];
-  const boss = enemies.some(e => e.type === 'dragon'), fight = state === 'play' && (enemies.length > 0), active = state === 'play' || state === 'upgrade';
-  if (active && !muted) {
-    const chord = PROG[Math.floor(musicStep / 8) % 4], f = (n, oct) => root * Math.pow(2, (n + chord * 2) / 12) * oct;
-    if (musicStep % 4 === 0) tone(f(0, 0.5), 0.9, 'triangle', boss ? 0.075 : 0.05);
-    if (boss && musicStep % 2 === 0) { noise(0.09, 0.07, 120); }
-    if (fight && musicStep % 4 === 2) noise(0.04, 0.03, 4000, 'highpass');
-    if (Math.random() < (fight ? 0.7 : 0.4)) tone(f(sc[Math.floor(Math.random() * sc.length)], boss ? 2 : 4), 0.4, boss ? 'sawtooth' : 'sine', boss ? 0.018 : 0.03);
-    if (musicStep % 16 === 0) tone(f(7, 1), 1.8, 'sine', 0.025);
-  }
-  musicStep++;
-  setTimeout(musicLoop, boss ? 150 : 230);
+// ======================= COMPOSED ADAPTIVE SCORE =======================
+// Each biome has a hand-written 8-bar theme (notes = [16th-step, scale degree, length in 16ths]) over an 8-bar chord cycle.
+// Calm: flute/bells + harp arpeggios + string pad. Fight: adds drums, driving bass, string ostinato, violin-lead. Boss: brass, choir, war drums.
+let musicOn = true, musicRunning = false, musicStep = 0, musicNext = 0, musicFightUntil = 0, musicLevel = 0;
+try { musicOn = localStorage.getItem('swordDragonMusic') !== '0'; } catch (e) {}
+const MUS = [
+  { // Emerald Meadow — A aeolian, pastoral, flute over harp
+    root: 110, sc: [0, 2, 3, 5, 7, 8, 10], bpm: 100, lead: 'flute', arp: 'harp',
+    ch: [[0, 'm'], [8, 'M'], [3, 'M'], [10, 'M'], [8, 'M'], [3, 'M'], [10, 'M'], [0, 'm']],
+    mel: [
+      [[0, 4, 3], [4, 2, 2], [6, 4, 2], [8, 7, 8]],
+      [[0, 5, 3], [4, 7, 2], [6, 5, 2], [8, 4, 4], [12, 2, 4]],
+      [[0, 4, 3], [4, 6, 2], [6, 4, 2], [8, 2, 6], [14, 3, 2]],
+      [[0, 6, 3], [4, 4, 2], [6, 3, 2], [8, 1, 6], [14, 2, 2]],
+      [[0, 7, 4], [4, 9, 4], [8, 7, 2], [10, 5, 2], [12, 7, 4]],
+      [[0, 9, 4], [4, 11, 4], [8, 9, 4], [12, 7, 4]],
+      [[0, 8, 4], [4, 6, 4], [8, 8, 4], [12, 10, 4]],
+      [[0, 9, 3], [4, 8, 2], [6, 7, 2], [8, 4, 8]]
+    ] },
+  { // Autumn Grove — G dorian, warm and rolling
+    root: 98, sc: [0, 2, 3, 5, 7, 9, 10], bpm: 108, lead: 'flute', arp: 'harp',
+    ch: [[0, 'm'], [5, 'M'], [10, 'M'], [0, 'm'], [5, 'M'], [10, 'M'], [3, 'M'], [0, 'm']],
+    mel: [
+      [[0, 4, 3], [4, 2, 2], [6, 0, 2], [8, 2, 4], [12, 4, 4]],
+      [[0, 5, 3], [4, 3, 2], [6, 5, 2], [8, 7, 6], [14, 5, 2]],
+      [[0, 8, 3], [4, 6, 2], [6, 8, 2], [8, 10, 6], [14, 8, 2]],
+      [[0, 11, 4], [4, 9, 4], [8, 7, 8]],
+      [[0, 10, 3], [4, 8, 2], [6, 7, 2], [8, 5, 4], [12, 7, 4]],
+      [[0, 8, 3], [4, 6, 2], [6, 8, 2], [8, 10, 4], [12, 11, 4]],
+      [[0, 9, 4], [4, 11, 4], [8, 13, 4], [12, 11, 4]],
+      [[0, 11, 3], [4, 9, 2], [6, 7, 2], [8, 7, 8]]
+    ] },
+  { // Frostfall Tundra — B aeolian, sparse, crystalline bells
+    root: 123.47, sc: [0, 2, 3, 5, 7, 8, 10], bpm: 84, lead: 'bell', arp: 'bell',
+    ch: [[0, 'm'], [10, 'M'], [8, 'M'], [10, 'M'], [8, 'M'], [10, 'M'], [0, 'm'], [0, 'm']],
+    mel: [
+      [[0, 7, 6], [8, 9, 6], [14, 8, 2]],
+      [[0, 8, 6], [8, 6, 4], [12, 8, 4]],
+      [[0, 7, 6], [8, 5, 4], [12, 7, 4]],
+      [[0, 8, 4], [4, 10, 4], [8, 9, 4], [12, 8, 4]],
+      [[0, 9, 4], [4, 7, 4], [8, 9, 4], [12, 11, 4]],
+      [[0, 12, 6], [8, 10, 4], [12, 8, 4]],
+      [[0, 11, 6], [8, 9, 4], [12, 7, 4]],
+      [[0, 9, 4], [4, 8, 4], [8, 7, 8]]
+    ] },
+  { // Ashen Volcano — F phrygian, heavy and rhythmic
+    root: 87.31, sc: [0, 1, 3, 5, 7, 8, 10], bpm: 116, lead: 'saw', arp: 'saw',
+    ch: [[0, 'm'], [1, 'M'], [0, 'm'], [10, 'M'], [0, 'm'], [8, 'M'], [10, 'M'], [1, 'M']],
+    mel: [
+      [[0, 0, 2], [3, 1, 1], [4, 0, 2], [6, 2, 2], [8, 4, 4], [12, 2, 2], [14, 1, 2]],
+      [[0, 1, 2], [3, 2, 1], [4, 1, 2], [6, 0, 2], [8, 1, 4], [12, 3, 2], [14, 2, 2]],
+      [[0, 7, 2], [3, 8, 1], [4, 7, 2], [6, 9, 2], [8, 11, 4], [12, 9, 2], [14, 8, 2]],
+      [[0, 6, 4], [4, 4, 4], [8, 6, 4], [12, 3, 2], [14, 4, 2]],
+      [[0, 4, 2], [2, 7, 2], [4, 4, 2], [6, 2, 2], [8, 4, 8]],
+      [[0, 5, 4], [4, 7, 2], [6, 5, 2], [8, 3, 4], [12, 5, 4]],
+      [[0, 6, 2], [2, 4, 2], [4, 6, 2], [6, 7, 2], [8, 6, 4], [12, 4, 4]],
+      [[0, 8, 4], [4, 7, 4], [8, 8, 4], [12, 7, 2], [14, 8, 2]]
+    ] }
+];
+const CH = { m: [0, 3, 7], M: [0, 4, 7] };
+let dlyL = null, dlyR = null;
+function setMusicLevel(tc) { // applies musicOn to the bus and its reverb/delay sends
+  if (!actx) return; const t = actx.currentTime, v = musicOn ? 1 : 0;
+  musicBus.gain.cancelScheduledValues(t); musicBus.gain.setTargetAtTime(0.62 * v, t, tc || 0.05);
+  musicRevIn.gain.cancelScheduledValues(t); musicRevIn.gain.setTargetAtTime(v, t, tc || 0.05);
+  musicDlyIn.gain.cancelScheduledValues(t); musicDlyIn.gain.setTargetAtTime(v, t, tc || 0.05);
 }
+function toggleMusic() {
+  musicOn = !musicOn; try { localStorage.setItem('swordDragonMusic', musicOn ? '1' : '0'); } catch (e) {}
+  const b = $('music-btn'); if (b && b.classList && b.classList.toggle) { b.classList.toggle('off', !musicOn); b.title = musicOn ? 'Music: on (N)' : 'Music: off (N)'; }
+  setMusicLevel(musicOn ? 0.3 : 0.04);
+  if (musicOn && actx) musicNext = actx.currentTime + 0.1;
+}
+function startMusic() { if (musicRunning || !actx) return; musicRunning = true; musicNext = actx.currentTime + 0.1; setMusicLevel(0.01); musicTick(); }
+function mHz(root, semis) { return root * Math.pow(2, semis / 12); }
+function musicTick() {
+  if (!actx) { musicRunning = false; return; }
+  const now = actx.currentTime;
+  const active = (state === 'play' || state === 'upgrade' || state === 'title') && !muted && musicOn;
+  if (!active) { musicNext = Math.max(musicNext, now + 0.1); setTimeout(musicTick, 150); return; }
+  if (state === 'play' && enemies.length > 0) musicFightUntil = performance.now() + 3500;
+  const boss = state === 'play' && enemies.some(e => e.type === 'dragon');
+  const fight = state === 'play' && performance.now() < musicFightUntil;
+  const target = boss ? 2 : fight ? 1 : 0;
+  while (musicNext < now + 0.25) {
+    if (musicNext < now - 0.3) musicNext = now + 0.05;
+    musicLevel += (target - musicLevel) * (target > musicLevel ? 0.12 : 0.035);
+    const M = MUS[Math.max(0, Math.min(3, biomeIdx))];
+    const sd = 60 / (M.bpm * (1 + musicLevel * 0.08)) / 4;
+    if (dlyL) { dlyL.delayTime.setTargetAtTime(sd * 3, now, 0.05); dlyR.delayTime.setTargetAtTime(sd * 3, now, 0.05); }
+    scheduleStep(musicNext, musicStep, M, sd, musicLevel, state === 'title');
+    musicNext += sd; musicStep++;
+  }
+  setTimeout(musicTick, 40);
+}
+// ---- instruments (d = delay in seconds from now; all routed to the music bus) ----
+function iFlute(f, dur, vol, d, pan) {
+  const B = musicBus;
+  voice({ f, dur, type: 'sine', vol, atk: 0.07, rel: 0.14, sustain: true, vib: [5.1, 8], delay: d, bus: B, rev: 0.55, dly: 0.28, pan });
+  voice({ f: f * 2, dur, type: 'triangle', vol: vol * 0.12, atk: 0.09, rel: 0.1, sustain: true, delay: d, bus: B, pan });
+  nz({ dur: Math.min(dur, 0.3), vol: vol * 0.45, atk: 0.04, fl: [f * 3, f * 3, 3, 'bandpass'], delay: d, bus: B, pan });
+}
+function iBell(f, dur, vol, d, pan) { fm({ f, ratio: 3.01, idx: 1.3, dur, vol, delay: d, bus: musicBus, rev: 0.7, dly: 0.5, pan }); fm({ f: f * 2, ratio: 1.5, idx: 0.6, dur: dur * 0.5, vol: vol * 0.3, delay: d, bus: musicBus, rev: 0.6, pan }); }
+function iHarp(f, dur, vol, d, pan) { fm({ f, ratio: 2, idx: 1.6, dur: Math.min(dur, 0.9), vol, delay: d, bus: musicBus, rev: 0.45, dly: 0.4, pan }); voice({ f, dur: 0.25, type: 'triangle', vol: vol * 0.5, delay: d, bus: musicBus, fl: [4000, 600, 1], pan }); }
+function iPluck(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 8, vol, fl: [4500, 500, 2], delay: d, bus: musicBus, rev: 0.3, dly: 0.35, pan }); }
+function iStrings(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 4, spread: 13, vol, atk: dur * 0.3, rel: dur * 0.4, sustain: true, fl: [600, 1800, 0.7], vib: [4.8, 6], delay: d, bus: musicBus, rev: 0.7, pan }); }
+function iViolin(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 7, vol, atk: 0.04, rel: 0.1, sustain: true, vib: [5.6, 12], fl: [3200, 1800, 1], delay: d, bus: musicBus, rev: 0.35, dly: 0.25, pan }); }
+function iBrass(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 3, spread: 9, vol, atk: 0.06, rel: 0.12, sustain: true, fl: [350, 2600, 1.4], delay: d, bus: musicBus, rev: 0.45, pan }); }
+function iChoir(f, dur, vol, d) {
+  voice({ f, dur, type: 'sawtooth', n: 3, spread: 12, vol: vol * 3, atk: dur * 0.3, rel: dur * 0.4, sustain: true, vib: [5, 9], fl: [800, 800, 5, 'bandpass'], delay: d, bus: musicBus, rev: 0.8 });
+  voice({ f, dur, type: 'sawtooth', n: 3, spread: 12, vol: vol * 2.4, atk: dur * 0.3, rel: dur * 0.4, sustain: true, fl: [1250, 1250, 6, 'bandpass'], delay: d, bus: musicBus, rev: 0.8 });
+}
+function iSaw(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 14, vol, atk: 0.01, rel: 0.08, sustain: true, fl: [2600, 700, 2.2], dist: true, delay: d, bus: musicBus, rev: 0.3, dly: 0.25, pan }); }
+function crash(d, vol) { nz({ dur: 1.6, vol, atk: 0.005, fl: [9000, 5000, 0.8, 'highpass'], delay: d, bus: musicBus, rev: 0.5 }); fm({ f: 420, ratio: 2.76, idx: 6, dur: 1.2, vol: vol * 0.18, delay: d, bus: musicBus, rev: 0.5 }); }
+function riser(d, dur, vol) { nz({ dur, vol, atk: dur * 0.95, fl: [500, 9000, 2, 'bandpass'], delay: d, bus: musicBus, rev: 0.4 }); }
+
+function scheduleStep(t, step, M, sd, lv, title) {
+  const s = step % 16, bar = Math.floor(step / 16), b8 = bar % 8, [cr, cq] = M.ch[b8], tones = CH[cq];
+  const dl = Math.max(0, t - actx.currentTime), barDur = sd * 16, B = musicBus;
+  const fight = lv > 0.45 && !title, boss = lv > 1.4 && !title, calm = lv < 0.99;
+  const root = M.root, scHz = (deg, oct) => mHz(root * oct, M.sc[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7));
+  const chHz = (i, oct) => mHz(root * oct, cr + tones[i % 3] + 12 * Math.floor(i / 3));
+  const bellish = M.lead === 'bell', volc = M.lead === 'saw';
+
+  // --- harmonic bed: strings + deep drone, re-struck every bar ---
+  if (s === 0) {
+    tones.forEach((tn, i) => iStrings(mHz(root * 2, cr + tn), barDur * 1.05, 0.02 + 0.008 * lv, dl, (i - 1) * 0.4));
+    voice({ f: mHz(root / 2, cr), dur: barDur * 1.02, type: 'sine', vol: 0.1 + 0.03 * lv, atk: 0.2, rel: 0.4, sustain: true, delay: dl, bus: B });
+    if (boss) {
+      tones.forEach(tn => iChoir(mHz(root * 2, cr + tn), barDur * 1.05, 0.018, dl));
+      voice({ f: mHz(root, cr), dur: barDur, type: 'sawtooth', n: 2, spread: 22, vol: 0.035, atk: 0.1, sustain: true, fl: [200, 800, 3], dist: true, delay: dl, bus: B, rev: 0.3 });
+    }
+    if (b8 === 0 && fight) crash(dl, 0.18);
+  }
+  // --- arpeggio under the theme (calm) / sparkle (fight) ---
+  const arpGrid = fight ? 4 : 2;
+  if (s % arpGrid === 0 && !boss) {
+    const pat = [0, 1, 2, 3, 2, 1, 4, 2], idx = pat[(s / arpGrid) % 8 | 0], f = chHz(idx, bellish ? 8 : 4), v = (fight ? 0.03 : 0.04) * (s === 0 ? 1.25 : 0.9);
+    const pan = Math.sin(step * 0.7) * 0.5;
+    if (M.arp === 'bell') { if (s % 4 === 0) iBell(f, 1.4, v * 1.2, dl, pan); }
+    else if (M.arp === 'saw') { if (!fight) iPluck(f, 0.25, v * 0.8, dl, pan); }
+    else iHarp(f, 0.8, v, dl, pan);
+  }
+  // --- bass ---
+  const bf = o => mHz(root / 2, cr + o);
+  let bassSteps;
+  if (title || !fight) bassSteps = { 0: 0, 10: 7 };
+  else if (boss) bassSteps = { 0: 0, 2: 0, 3: 12, 4: 0, 6: 0, 7: 12, 8: 0, 10: 0, 11: 12, 12: 0, 14: 7, 15: 5 };
+  else bassSteps = { 0: 0, 2: 0, 4: 12, 6: 0, 8: 0, 10: 7, 12: 12, 14: 0 };
+  if (bassSteps[s] !== undefined) {
+    const f = bf(bassSteps[s]), long = (title || (!fight && s === 0)), acc = s === 0 ? 1.15 : 1;
+    voice({ f, dur: sd * (long ? 7 : 1.7), type: 'sawtooth', vol: (0.07 + 0.03 * lv) * acc, fl: [900 + lv * 700, 120, 2.5], delay: dl, bus: B, atk: 0.006, dist: boss });
+    voice({ f, dur: sd * (long ? 8 : 2.2), type: 'sine', vol: 0.15 * acc, delay: dl, bus: B, atk: 0.006 });
+  }
+  // --- string ostinato (fight: 8ths with accents; boss: 16ths) ---
+  if (fight && (boss || s % 2 === 0)) {
+    const acc = s % 4 === 0 ? 1.4 : s % 2 === 0 ? 1 : 0.7, nt = (s % 8 === 6 || s % 8 === 7) ? 7 : 0;
+    voice({ f: mHz(root * 2, cr + nt + (s % 8 >= 4 ? 12 : 0)), dur: sd * 1.1, type: 'sawtooth', n: 2, spread: 10, vol: (boss ? 0.026 : 0.02) * acc, atk: 0.003, fl: [1800, 400, 1.4], delay: dl, bus: B, rev: 0.2 });
+  }
+  // --- THE THEME ---
+  const notes = M.mel[b8];
+  for (let k = 0; k < notes.length; k++) {
+    const [st, deg, len] = notes[k]; if (st !== s) continue;
+    const dur = len * sd * (fight ? 0.95 : 1.1), pan = (deg % 5 - 2) * 0.12;
+    if (boss) { // brass + octave lead: the full theme at war
+      iBrass(scHz(deg, 2), dur, 0.07, dl, pan); iSaw(scHz(deg, 4), dur, 0.03, dl, pan);
+    } else if (fight) {
+      if (bellish) iBell(scHz(deg, 4), 1.0, 0.07, dl, pan); else if (volc) iSaw(scHz(deg, 2), dur, 0.05, dl, pan); else iViolin(scHz(deg, 4), dur, 0.04, dl, pan);
+      iPluck(scHz(deg, 2), sd * 1.5, 0.025, dl, pan);
+    } else {
+      if (bellish) iBell(scHz(deg, 4), Math.min(2.2, dur + 0.8), 0.08, dl, pan);
+      else if (volc) iSaw(scHz(deg, 2), dur, 0.035, dl, pan);
+      else iFlute(scHz(deg, 4), dur, title ? 0.07 : 0.085, dl, pan);
+      if (!bellish && !volc && deg >= 4) iHarp(scHz(deg, 8), 0.6, 0.02, dl + sd * 0.5, -pan); // echoing harp sparkle
+    }
+  }
+  // --- drums ---
+  if (fight) {
+    const v = 0.28 + 0.1 * lv, odd = bar % 2 === 1, fill = b8 === 7 && s >= 12;
+    const K = boss ? [0, 4, 8, 10, 12] : odd ? [0, 8, 10] : [0, 8];
+    if (K.includes(s) && !fill) kick(t, v, { bus: B });
+    if ((s === 4 || s === 12) && !fill) snare(t, 0.1 + 0.05 * lv, B);
+    if (boss && s === 14 && !fill) snare(t, 0.06, B);
+    if (s % 2 === 0) hat(t, (0.026 + 0.012 * lv) * (s % 4 === 0 ? 1.4 : 1), B, s === 14 && odd);
+    if ((boss || lv > 0.9) && s % 2 === 1) hat(t, 0.014, B);
+    if (boss && [0, 3, 6, 10].includes(s)) taiko(t, 0.2, 62 + (s === 6 ? 14 : s === 10 ? 8 : 0), B);
+    if (fill) { // snare roll into the next 8-bar cycle
+      snare(t, 0.06 + (s - 12) * 0.03, B); if (boss) taiko(t, 0.2, 90 - (s - 12) * 8, B);
+      if (s === 12) riser(dl, sd * 4, 0.1);
+    }
+  } else if (!title && s % 4 === 2) hat(t, 0.01 * (1 - lv), B); // calm shaker
+}
+{ const mb = $('music-btn'); if (mb && mb.classList && mb.classList.toggle) mb.classList.toggle('off', !musicOn); }
 // ======================= TITLE SCREEN BACKDROP (procedural, parallax, animated) =======================
 const TB = { cv: null, c: null, w: 0, h: 0, dpr: 1, t: 0, mx: 0, my: 0, tmx: 0, tmy: 0, stars: [], emb: [], ready: false, flash: 0, nextFlash: 6, sprE: null, sprF: null, seeds: [] };
 function tbInit() {
@@ -2825,7 +3211,6 @@ const SVG_LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height=
 const TIPS = ['Swing at arrows and fireballs to <b>reflect</b> them back.', 'Shielded foes fall to <b>Spin</b> or a hit from <b>behind</b>.', 'Shoot a <b>bomber</b> when it stands among its friends.', 'Every <b>third wave</b> a dragon descends — learn its tells.', 'Villagers reward you. <b>Defend</b> their homes and a hero may join you.', 'Elites drop <b>loot</b>. Legendary gear changes how you play.', 'Complete a build to unlock an <b>Evolution</b> at level-up.'];
 let menuIdx = 0, subIdx = 0, panelFocus = false, beginning = false;
 
-function uiTone(f, d, v) { try { tone(f, d || 0.06, 'triangle', v || 0.05); } catch (e) {} }
 function pips(n, max, cls) { let s = ''; for (let i = 0; i < max; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`; return s; }
 function wStat(k) {
   const w = WEAPONS[k];

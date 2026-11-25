@@ -23,7 +23,6 @@ const SVG_LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height=
 const TIPS = ['Swing at arrows and fireballs to <b>reflect</b> them back.', 'Shielded foes fall to <b>Spin</b> or a hit from <b>behind</b>.', 'Shoot a <b>bomber</b> when it stands among its friends.', 'Every <b>third wave</b> a dragon descends — learn its tells.', 'Villagers reward you. <b>Defend</b> their homes and a hero may join you.', 'Elites drop <b>loot</b>. Legendary gear changes how you play.', 'Complete a build to unlock an <b>Evolution</b> at level-up.'];
 let menuIdx = 0, subIdx = 0, panelFocus = false, beginning = false;
 
-function uiTone(f, d, v) { try { tone(f, d || 0.06, 'triangle', v || 0.05); } catch (e) {} }
 function pips(n, max, cls) { let s = ''; for (let i = 0; i < max; i++) s += `<i class="${i < n ? 'on' : ''}"></i>`; return s; }
 function wStat(k) {
   const w = WEAPONS[k];

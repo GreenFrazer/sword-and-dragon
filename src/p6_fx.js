@@ -247,23 +247,196 @@ function drawThrust(s) {
   ctx.beginPath(); ctx.moveTo(len, 0); ctx.lineTo(10, -12 * (1 - p * 0.5)); ctx.lineTo(10, 12 * (1 - p * 0.5)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
 
-// ======================= PROCEDURAL MUSIC =======================
-let musicRunning = false, musicStep = 0;
-const SCALES = [[0, 3, 5, 7, 10], [0, 2, 3, 7, 8], [0, 2, 3, 5, 7], [0, 1, 5, 7, 8]];
-const ROOTS = [110, 98, 123.47, 87.31], PROG = [0, 5, 3, 4];
-function startMusic() { if (musicRunning || !actx) return; musicRunning = true; musicLoop(); }
-function musicLoop() {
-  if (!actx) { musicRunning = false; return; }
-  const bi = Math.max(0, biomeIdx), root = ROOTS[bi], sc = SCALES[bi];
-  const boss = enemies.some(e => e.type === 'dragon'), fight = state === 'play' && (enemies.length > 0), active = state === 'play' || state === 'upgrade';
-  if (active && !muted) {
-    const chord = PROG[Math.floor(musicStep / 8) % 4], f = (n, oct) => root * Math.pow(2, (n + chord * 2) / 12) * oct;
-    if (musicStep % 4 === 0) tone(f(0, 0.5), 0.9, 'triangle', boss ? 0.075 : 0.05);
-    if (boss && musicStep % 2 === 0) { noise(0.09, 0.07, 120); }
-    if (fight && musicStep % 4 === 2) noise(0.04, 0.03, 4000, 'highpass');
-    if (Math.random() < (fight ? 0.7 : 0.4)) tone(f(sc[Math.floor(Math.random() * sc.length)], boss ? 2 : 4), 0.4, boss ? 'sawtooth' : 'sine', boss ? 0.018 : 0.03);
-    if (musicStep % 16 === 0) tone(f(7, 1), 1.8, 'sine', 0.025);
-  }
-  musicStep++;
-  setTimeout(musicLoop, boss ? 150 : 230);
+// ======================= COMPOSED ADAPTIVE SCORE =======================
+// Each biome has a hand-written 8-bar theme (notes = [16th-step, scale degree, length in 16ths]) over an 8-bar chord cycle.
+// Calm: flute/bells + harp arpeggios + string pad. Fight: adds drums, driving bass, string ostinato, violin-lead. Boss: brass, choir, war drums.
+let musicOn = true, musicRunning = false, musicStep = 0, musicNext = 0, musicFightUntil = 0, musicLevel = 0;
+try { musicOn = localStorage.getItem('swordDragonMusic') !== '0'; } catch (e) {}
+const MUS = [
+  { // Emerald Meadow — A aeolian, pastoral, flute over harp
+    root: 110, sc: [0, 2, 3, 5, 7, 8, 10], bpm: 100, lead: 'flute', arp: 'harp',
+    ch: [[0, 'm'], [8, 'M'], [3, 'M'], [10, 'M'], [8, 'M'], [3, 'M'], [10, 'M'], [0, 'm']],
+    mel: [
+      [[0, 4, 3], [4, 2, 2], [6, 4, 2], [8, 7, 8]],
+      [[0, 5, 3], [4, 7, 2], [6, 5, 2], [8, 4, 4], [12, 2, 4]],
+      [[0, 4, 3], [4, 6, 2], [6, 4, 2], [8, 2, 6], [14, 3, 2]],
+      [[0, 6, 3], [4, 4, 2], [6, 3, 2], [8, 1, 6], [14, 2, 2]],
+      [[0, 7, 4], [4, 9, 4], [8, 7, 2], [10, 5, 2], [12, 7, 4]],
+      [[0, 9, 4], [4, 11, 4], [8, 9, 4], [12, 7, 4]],
+      [[0, 8, 4], [4, 6, 4], [8, 8, 4], [12, 10, 4]],
+      [[0, 9, 3], [4, 8, 2], [6, 7, 2], [8, 4, 8]]
+    ] },
+  { // Autumn Grove — G dorian, warm and rolling
+    root: 98, sc: [0, 2, 3, 5, 7, 9, 10], bpm: 108, lead: 'flute', arp: 'harp',
+    ch: [[0, 'm'], [5, 'M'], [10, 'M'], [0, 'm'], [5, 'M'], [10, 'M'], [3, 'M'], [0, 'm']],
+    mel: [
+      [[0, 4, 3], [4, 2, 2], [6, 0, 2], [8, 2, 4], [12, 4, 4]],
+      [[0, 5, 3], [4, 3, 2], [6, 5, 2], [8, 7, 6], [14, 5, 2]],
+      [[0, 8, 3], [4, 6, 2], [6, 8, 2], [8, 10, 6], [14, 8, 2]],
+      [[0, 11, 4], [4, 9, 4], [8, 7, 8]],
+      [[0, 10, 3], [4, 8, 2], [6, 7, 2], [8, 5, 4], [12, 7, 4]],
+      [[0, 8, 3], [4, 6, 2], [6, 8, 2], [8, 10, 4], [12, 11, 4]],
+      [[0, 9, 4], [4, 11, 4], [8, 13, 4], [12, 11, 4]],
+      [[0, 11, 3], [4, 9, 2], [6, 7, 2], [8, 7, 8]]
+    ] },
+  { // Frostfall Tundra — B aeolian, sparse, crystalline bells
+    root: 123.47, sc: [0, 2, 3, 5, 7, 8, 10], bpm: 84, lead: 'bell', arp: 'bell',
+    ch: [[0, 'm'], [10, 'M'], [8, 'M'], [10, 'M'], [8, 'M'], [10, 'M'], [0, 'm'], [0, 'm']],
+    mel: [
+      [[0, 7, 6], [8, 9, 6], [14, 8, 2]],
+      [[0, 8, 6], [8, 6, 4], [12, 8, 4]],
+      [[0, 7, 6], [8, 5, 4], [12, 7, 4]],
+      [[0, 8, 4], [4, 10, 4], [8, 9, 4], [12, 8, 4]],
+      [[0, 9, 4], [4, 7, 4], [8, 9, 4], [12, 11, 4]],
+      [[0, 12, 6], [8, 10, 4], [12, 8, 4]],
+      [[0, 11, 6], [8, 9, 4], [12, 7, 4]],
+      [[0, 9, 4], [4, 8, 4], [8, 7, 8]]
+    ] },
+  { // Ashen Volcano — F phrygian, heavy and rhythmic
+    root: 87.31, sc: [0, 1, 3, 5, 7, 8, 10], bpm: 116, lead: 'saw', arp: 'saw',
+    ch: [[0, 'm'], [1, 'M'], [0, 'm'], [10, 'M'], [0, 'm'], [8, 'M'], [10, 'M'], [1, 'M']],
+    mel: [
+      [[0, 0, 2], [3, 1, 1], [4, 0, 2], [6, 2, 2], [8, 4, 4], [12, 2, 2], [14, 1, 2]],
+      [[0, 1, 2], [3, 2, 1], [4, 1, 2], [6, 0, 2], [8, 1, 4], [12, 3, 2], [14, 2, 2]],
+      [[0, 7, 2], [3, 8, 1], [4, 7, 2], [6, 9, 2], [8, 11, 4], [12, 9, 2], [14, 8, 2]],
+      [[0, 6, 4], [4, 4, 4], [8, 6, 4], [12, 3, 2], [14, 4, 2]],
+      [[0, 4, 2], [2, 7, 2], [4, 4, 2], [6, 2, 2], [8, 4, 8]],
+      [[0, 5, 4], [4, 7, 2], [6, 5, 2], [8, 3, 4], [12, 5, 4]],
+      [[0, 6, 2], [2, 4, 2], [4, 6, 2], [6, 7, 2], [8, 6, 4], [12, 4, 4]],
+      [[0, 8, 4], [4, 7, 4], [8, 8, 4], [12, 7, 2], [14, 8, 2]]
+    ] }
+];
+const CH = { m: [0, 3, 7], M: [0, 4, 7] };
+let dlyL = null, dlyR = null;
+function setMusicLevel(tc) { // applies musicOn to the bus and its reverb/delay sends
+  if (!actx) return; const t = actx.currentTime, v = musicOn ? 1 : 0;
+  musicBus.gain.cancelScheduledValues(t); musicBus.gain.setTargetAtTime(0.62 * v, t, tc || 0.05);
+  musicRevIn.gain.cancelScheduledValues(t); musicRevIn.gain.setTargetAtTime(v, t, tc || 0.05);
+  musicDlyIn.gain.cancelScheduledValues(t); musicDlyIn.gain.setTargetAtTime(v, t, tc || 0.05);
 }
+function toggleMusic() {
+  musicOn = !musicOn; try { localStorage.setItem('swordDragonMusic', musicOn ? '1' : '0'); } catch (e) {}
+  const b = $('music-btn'); if (b && b.classList && b.classList.toggle) { b.classList.toggle('off', !musicOn); b.title = musicOn ? 'Music: on (N)' : 'Music: off (N)'; }
+  setMusicLevel(musicOn ? 0.3 : 0.04);
+  if (musicOn && actx) musicNext = actx.currentTime + 0.1;
+}
+function startMusic() { if (musicRunning || !actx) return; musicRunning = true; musicNext = actx.currentTime + 0.1; setMusicLevel(0.01); musicTick(); }
+function mHz(root, semis) { return root * Math.pow(2, semis / 12); }
+function musicTick() {
+  if (!actx) { musicRunning = false; return; }
+  const now = actx.currentTime;
+  const active = (state === 'play' || state === 'upgrade' || state === 'title') && !muted && musicOn;
+  if (!active) { musicNext = Math.max(musicNext, now + 0.1); setTimeout(musicTick, 150); return; }
+  if (state === 'play' && enemies.length > 0) musicFightUntil = performance.now() + 3500;
+  const boss = state === 'play' && enemies.some(e => e.type === 'dragon');
+  const fight = state === 'play' && performance.now() < musicFightUntil;
+  const target = boss ? 2 : fight ? 1 : 0;
+  while (musicNext < now + 0.25) {
+    if (musicNext < now - 0.3) musicNext = now + 0.05;
+    musicLevel += (target - musicLevel) * (target > musicLevel ? 0.12 : 0.035);
+    const M = MUS[Math.max(0, Math.min(3, biomeIdx))];
+    const sd = 60 / (M.bpm * (1 + musicLevel * 0.08)) / 4;
+    if (dlyL) { dlyL.delayTime.setTargetAtTime(sd * 3, now, 0.05); dlyR.delayTime.setTargetAtTime(sd * 3, now, 0.05); }
+    scheduleStep(musicNext, musicStep, M, sd, musicLevel, state === 'title');
+    musicNext += sd; musicStep++;
+  }
+  setTimeout(musicTick, 40);
+}
+// ---- instruments (d = delay in seconds from now; all routed to the music bus) ----
+function iFlute(f, dur, vol, d, pan) {
+  const B = musicBus;
+  voice({ f, dur, type: 'sine', vol, atk: 0.07, rel: 0.14, sustain: true, vib: [5.1, 8], delay: d, bus: B, rev: 0.55, dly: 0.28, pan });
+  voice({ f: f * 2, dur, type: 'triangle', vol: vol * 0.12, atk: 0.09, rel: 0.1, sustain: true, delay: d, bus: B, pan });
+  nz({ dur: Math.min(dur, 0.3), vol: vol * 0.45, atk: 0.04, fl: [f * 3, f * 3, 3, 'bandpass'], delay: d, bus: B, pan });
+}
+function iBell(f, dur, vol, d, pan) { fm({ f, ratio: 3.01, idx: 1.3, dur, vol, delay: d, bus: musicBus, rev: 0.7, dly: 0.5, pan }); fm({ f: f * 2, ratio: 1.5, idx: 0.6, dur: dur * 0.5, vol: vol * 0.3, delay: d, bus: musicBus, rev: 0.6, pan }); }
+function iHarp(f, dur, vol, d, pan) { fm({ f, ratio: 2, idx: 1.6, dur: Math.min(dur, 0.9), vol, delay: d, bus: musicBus, rev: 0.45, dly: 0.4, pan }); voice({ f, dur: 0.25, type: 'triangle', vol: vol * 0.5, delay: d, bus: musicBus, fl: [4000, 600, 1], pan }); }
+function iPluck(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 8, vol, fl: [4500, 500, 2], delay: d, bus: musicBus, rev: 0.3, dly: 0.35, pan }); }
+function iStrings(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 4, spread: 13, vol, atk: dur * 0.3, rel: dur * 0.4, sustain: true, fl: [600, 1800, 0.7], vib: [4.8, 6], delay: d, bus: musicBus, rev: 0.7, pan }); }
+function iViolin(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 7, vol, atk: 0.04, rel: 0.1, sustain: true, vib: [5.6, 12], fl: [3200, 1800, 1], delay: d, bus: musicBus, rev: 0.35, dly: 0.25, pan }); }
+function iBrass(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 3, spread: 9, vol, atk: 0.06, rel: 0.12, sustain: true, fl: [350, 2600, 1.4], delay: d, bus: musicBus, rev: 0.45, pan }); }
+function iChoir(f, dur, vol, d) {
+  voice({ f, dur, type: 'sawtooth', n: 3, spread: 12, vol: vol * 3, atk: dur * 0.3, rel: dur * 0.4, sustain: true, vib: [5, 9], fl: [800, 800, 5, 'bandpass'], delay: d, bus: musicBus, rev: 0.8 });
+  voice({ f, dur, type: 'sawtooth', n: 3, spread: 12, vol: vol * 2.4, atk: dur * 0.3, rel: dur * 0.4, sustain: true, fl: [1250, 1250, 6, 'bandpass'], delay: d, bus: musicBus, rev: 0.8 });
+}
+function iSaw(f, dur, vol, d, pan) { voice({ f, dur, type: 'sawtooth', n: 2, spread: 14, vol, atk: 0.01, rel: 0.08, sustain: true, fl: [2600, 700, 2.2], dist: true, delay: d, bus: musicBus, rev: 0.3, dly: 0.25, pan }); }
+function crash(d, vol) { nz({ dur: 1.6, vol, atk: 0.005, fl: [9000, 5000, 0.8, 'highpass'], delay: d, bus: musicBus, rev: 0.5 }); fm({ f: 420, ratio: 2.76, idx: 6, dur: 1.2, vol: vol * 0.18, delay: d, bus: musicBus, rev: 0.5 }); }
+function riser(d, dur, vol) { nz({ dur, vol, atk: dur * 0.95, fl: [500, 9000, 2, 'bandpass'], delay: d, bus: musicBus, rev: 0.4 }); }
+
+function scheduleStep(t, step, M, sd, lv, title) {
+  const s = step % 16, bar = Math.floor(step / 16), b8 = bar % 8, [cr, cq] = M.ch[b8], tones = CH[cq];
+  const dl = Math.max(0, t - actx.currentTime), barDur = sd * 16, B = musicBus;
+  const fight = lv > 0.45 && !title, boss = lv > 1.4 && !title, calm = lv < 0.99;
+  const root = M.root, scHz = (deg, oct) => mHz(root * oct, M.sc[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7));
+  const chHz = (i, oct) => mHz(root * oct, cr + tones[i % 3] + 12 * Math.floor(i / 3));
+  const bellish = M.lead === 'bell', volc = M.lead === 'saw';
+
+  // --- harmonic bed: strings + deep drone, re-struck every bar ---
+  if (s === 0) {
+    tones.forEach((tn, i) => iStrings(mHz(root * 2, cr + tn), barDur * 1.05, 0.02 + 0.008 * lv, dl, (i - 1) * 0.4));
+    voice({ f: mHz(root / 2, cr), dur: barDur * 1.02, type: 'sine', vol: 0.1 + 0.03 * lv, atk: 0.2, rel: 0.4, sustain: true, delay: dl, bus: B });
+    if (boss) {
+      tones.forEach(tn => iChoir(mHz(root * 2, cr + tn), barDur * 1.05, 0.018, dl));
+      voice({ f: mHz(root, cr), dur: barDur, type: 'sawtooth', n: 2, spread: 22, vol: 0.035, atk: 0.1, sustain: true, fl: [200, 800, 3], dist: true, delay: dl, bus: B, rev: 0.3 });
+    }
+    if (b8 === 0 && fight) crash(dl, 0.18);
+  }
+  // --- arpeggio under the theme (calm) / sparkle (fight) ---
+  const arpGrid = fight ? 4 : 2;
+  if (s % arpGrid === 0 && !boss) {
+    const pat = [0, 1, 2, 3, 2, 1, 4, 2], idx = pat[(s / arpGrid) % 8 | 0], f = chHz(idx, bellish ? 8 : 4), v = (fight ? 0.03 : 0.04) * (s === 0 ? 1.25 : 0.9);
+    const pan = Math.sin(step * 0.7) * 0.5;
+    if (M.arp === 'bell') { if (s % 4 === 0) iBell(f, 1.4, v * 1.2, dl, pan); }
+    else if (M.arp === 'saw') { if (!fight) iPluck(f, 0.25, v * 0.8, dl, pan); }
+    else iHarp(f, 0.8, v, dl, pan);
+  }
+  // --- bass ---
+  const bf = o => mHz(root / 2, cr + o);
+  let bassSteps;
+  if (title || !fight) bassSteps = { 0: 0, 10: 7 };
+  else if (boss) bassSteps = { 0: 0, 2: 0, 3: 12, 4: 0, 6: 0, 7: 12, 8: 0, 10: 0, 11: 12, 12: 0, 14: 7, 15: 5 };
+  else bassSteps = { 0: 0, 2: 0, 4: 12, 6: 0, 8: 0, 10: 7, 12: 12, 14: 0 };
+  if (bassSteps[s] !== undefined) {
+    const f = bf(bassSteps[s]), long = (title || (!fight && s === 0)), acc = s === 0 ? 1.15 : 1;
+    voice({ f, dur: sd * (long ? 7 : 1.7), type: 'sawtooth', vol: (0.07 + 0.03 * lv) * acc, fl: [900 + lv * 700, 120, 2.5], delay: dl, bus: B, atk: 0.006, dist: boss });
+    voice({ f, dur: sd * (long ? 8 : 2.2), type: 'sine', vol: 0.15 * acc, delay: dl, bus: B, atk: 0.006 });
+  }
+  // --- string ostinato (fight: 8ths with accents; boss: 16ths) ---
+  if (fight && (boss || s % 2 === 0)) {
+    const acc = s % 4 === 0 ? 1.4 : s % 2 === 0 ? 1 : 0.7, nt = (s % 8 === 6 || s % 8 === 7) ? 7 : 0;
+    voice({ f: mHz(root * 2, cr + nt + (s % 8 >= 4 ? 12 : 0)), dur: sd * 1.1, type: 'sawtooth', n: 2, spread: 10, vol: (boss ? 0.026 : 0.02) * acc, atk: 0.003, fl: [1800, 400, 1.4], delay: dl, bus: B, rev: 0.2 });
+  }
+  // --- THE THEME ---
+  const notes = M.mel[b8];
+  for (let k = 0; k < notes.length; k++) {
+    const [st, deg, len] = notes[k]; if (st !== s) continue;
+    const dur = len * sd * (fight ? 0.95 : 1.1), pan = (deg % 5 - 2) * 0.12;
+    if (boss) { // brass + octave lead: the full theme at war
+      iBrass(scHz(deg, 2), dur, 0.07, dl, pan); iSaw(scHz(deg, 4), dur, 0.03, dl, pan);
+    } else if (fight) {
+      if (bellish) iBell(scHz(deg, 4), 1.0, 0.07, dl, pan); else if (volc) iSaw(scHz(deg, 2), dur, 0.05, dl, pan); else iViolin(scHz(deg, 4), dur, 0.04, dl, pan);
+      iPluck(scHz(deg, 2), sd * 1.5, 0.025, dl, pan);
+    } else {
+      if (bellish) iBell(scHz(deg, 4), Math.min(2.2, dur + 0.8), 0.08, dl, pan);
+      else if (volc) iSaw(scHz(deg, 2), dur, 0.035, dl, pan);
+      else iFlute(scHz(deg, 4), dur, title ? 0.07 : 0.085, dl, pan);
+      if (!bellish && !volc && deg >= 4) iHarp(scHz(deg, 8), 0.6, 0.02, dl + sd * 0.5, -pan); // echoing harp sparkle
+    }
+  }
+  // --- drums ---
+  if (fight) {
+    const v = 0.28 + 0.1 * lv, odd = bar % 2 === 1, fill = b8 === 7 && s >= 12;
+    const K = boss ? [0, 4, 8, 10, 12] : odd ? [0, 8, 10] : [0, 8];
+    if (K.includes(s) && !fill) kick(t, v, { bus: B });
+    if ((s === 4 || s === 12) && !fill) snare(t, 0.1 + 0.05 * lv, B);
+    if (boss && s === 14 && !fill) snare(t, 0.06, B);
+    if (s % 2 === 0) hat(t, (0.026 + 0.012 * lv) * (s % 4 === 0 ? 1.4 : 1), B, s === 14 && odd);
+    if ((boss || lv > 0.9) && s % 2 === 1) hat(t, 0.014, B);
+    if (boss && [0, 3, 6, 10].includes(s)) taiko(t, 0.2, 62 + (s === 6 ? 14 : s === 10 ? 8 : 0), B);
+    if (fill) { // snare roll into the next 8-bar cycle
+      snare(t, 0.06 + (s - 12) * 0.03, B); if (boss) taiko(t, 0.2, 90 - (s - 12) * 8, B);
+      if (s === 12) riser(dl, sd * 4, 0.1);
+    }
+  } else if (!title && s % 4 === 2) hat(t, 0.01 * (1 - lv), B); // calm shaker
+}
+{ const mb = $('music-btn'); if (mb && mb.classList && mb.classList.toggle) mb.classList.toggle('off', !musicOn); }

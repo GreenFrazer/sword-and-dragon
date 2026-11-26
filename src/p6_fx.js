@@ -202,8 +202,11 @@ function drawIntro() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
   const b = enemies.find(e => e.type === 'dragon'); if (!b) return;
   ctx.globalAlpha = Math.max(0, Math.min(1, (2.5 - introT) / 0.4, introT / 0.5)); ctx.textAlign = 'center';
-  ctx.font = `900 ${Math.min(44, W / 16)}px 'Segoe UI', sans-serif`; ctx.lineWidth = 7; ctx.strokeStyle = '#000';
-  ctx.strokeText(b.skin.name, W / 2, H - bar - 24); ctx.fillStyle = '#ff6b6b'; ctx.fillText(b.skin.name, W / 2, H - bar - 24);
+  const small = W < 900, ny = small ? H * 0.66 : H - bar - 24; // on phones the bottom corners hold the minimap and buttons
+  let fz = small ? 34 : Math.min(44, W / 16); ctx.font = `900 ${fz}px 'Segoe UI', sans-serif`;
+  const tw = ctx.measureText(b.skin.name).width; if (tw > W * 0.9) { fz *= W * 0.9 / tw; ctx.font = `900 ${fz}px 'Segoe UI', sans-serif`; }
+  ctx.lineWidth = 7; ctx.strokeStyle = '#000';
+  ctx.strokeText(b.skin.name, W / 2, ny); ctx.fillStyle = '#ff6b6b'; ctx.fillText(b.skin.name, W / 2, ny);
   ctx.globalAlpha = 1;
 }
 

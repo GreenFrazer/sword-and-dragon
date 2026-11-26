@@ -203,7 +203,7 @@ function render() {
     const a = Math.min(1, bannerT / 0.6, (3 - bannerT) / 0.4);
     ctx.globalAlpha = Math.max(0, a); ctx.textAlign = 'center';
     const boss = bannerText.startsWith('BOSS');
-    ctx.font = `900 ${Math.min(46, W / 14)}px 'Segoe UI', sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    let bfs = Math.min(46, W / 14); ctx.font = `900 ${bfs}px 'Segoe UI', sans-serif`; const bw = ctx.measureText(bannerText).width; if (bw > W * 0.92) { bfs *= W * 0.92 / bw; ctx.font = `900 ${bfs}px 'Segoe UI', sans-serif`; } ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
     ctx.strokeText(bannerText, W / 2, H * 0.3); ctx.fillStyle = boss ? '#ff6b6b' : '#ffd43b'; ctx.fillText(bannerText, W / 2, H * 0.3);
     ctx.font = `700 ${Math.min(20, W / 30)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#e9ecef';
     ctx.strokeText(bannerSub, W / 2, H * 0.3 + 30); ctx.fillText(bannerSub, W / 2, H * 0.3 + 30);

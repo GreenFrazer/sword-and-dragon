@@ -13,6 +13,30 @@ function loadMeta() {
 function saveMeta() { try { localStorage.setItem('swordDragonMeta', JSON.stringify(meta)); } catch (e) {} }
 loadMeta();
 
+// ---- Daily Omen: a date-seeded curse you may take for bonus embers, plus a daily-return streak ----
+const OMENS = [
+  { id: 'moon', name: 'Blood Moon', desc: 'Foes move 25% faster.', mul: 1.4, spd: 1.25 },
+  { id: 'iron', name: 'Iron Hide', desc: 'Foes have 35% more health.', mul: 1.4, hp: 1.35 },
+  { id: 'glass', name: 'Glass Heart', desc: 'You have 40% less health.', mul: 1.5, plHp: 0.6 },
+  { id: 'wrath', name: "Wyrm's Wrath", desc: 'Dragons have 60% more health.', mul: 1.4, drg: 1.6 },
+  { id: 'gloom', name: 'Gilded Curse', desc: 'Gold drops are halved.', mul: 1.3, gold: 0.5 }
+];
+var runOmen = null;
+function dayNum() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 864e5); }
+function todaysOmen() { return OMENS[(dayNum() * 7 + 3) % OMENS.length]; }
+function dailyReady() { return meta.lastDay !== dayNum(); }
+function streakNow() { return (meta.lastDay === dayNum() || meta.lastDay === dayNum() - 1) ? (meta.streak || 0) : 0; }
+function dailyBonus() { return 30 + 10 * Math.min(7, streakNow()); }
+function claimDaily() {
+  if (!dailyReady()) return 0;
+  const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
+}
+function runEmbers() {
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  if (runOmen) e = Math.floor(e * runOmen.mul);
+  return { base: e, daily: claimDaily() };
+}
+
 const FORGE = [
   { id: 'vit', name: 'Vitality', desc: '+12 starting max HP', max: 5, cost: l => 40 + 30 * l },
   { id: 'might', name: 'Might', desc: '+5% damage', max: 5, cost: l => 50 + 35 * l },
@@ -34,7 +58,7 @@ function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might
 function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }
-function goldMul() { return 1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0); }
+function goldMul() { return (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
 
 // ---------- gear / loot ----------
 let gear = { weapon: null, armor: null, trinket: null };

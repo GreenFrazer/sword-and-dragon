@@ -200,6 +200,7 @@
   @media (max-width: 600px) { #hint { display: none; } #controls { right: 8px; bottom: 12px; gap: 8px; } .skill-btn { width: 62px; height: 62px; font-size: 11px; } .skill-btn.ult { width: 70px; height: 70px; } }
 
   #tm-code { width: 100%; background: rgba(0,0,0,0.4); color: #cbbfae; border: 1px solid #4a3d3a; font-family: monospace; font-size: 10px; padding: 6px; resize: none; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
+  .omen { margin-top: 14px; padding: 10px 12px; border: 1px solid rgba(255,120,30,0.35); background: linear-gradient(90deg, rgba(120,20,10,0.35), rgba(0,0,0,0.3)); } .omen.on { border-color: #ff7a1a; box-shadow: 0 0 22px rgba(255,100,20,0.3); } .omen-h { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 10px; letter-spacing: 0.22em; color: #ffb347; } .omen-h em { font-style: normal; color: #ffd76a; } .omen-b { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; } .omen-b b { display: block; color: var(--gold); font-size: 17px; letter-spacing: 0.06em; } .omen-b small { color: #b8ac98; font-size: 12px; } .omen-b button { flex: none; min-height: 44px; } .omen-b button small { display: block; font-size: 9px; letter-spacing: 0.2em; color: inherit; opacity: .8; }
 </style>
 </head>
 <body>
@@ -818,6 +819,8 @@ function resetGame() {
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
+  runOmen = meta.omenOn ? todaysOmen() : null;
+  if (runOmen && runOmen.plHp) { player.maxHp = Math.round(player.maxHp * runOmen.plHp); player.hp = player.maxHp; }
   startWave(wave); // biomeIdx = -1 forces startWave to rebuild ground + ambient
   cam.x = player.x - W / 2; cam.y = player.y - H / 2; updateCamera(1, true);
 }
@@ -920,6 +923,7 @@ function spawnEnemy(type) {
     const hp = Math.round(85 * sc);
     en = { ...base, type: 'grunt', hp, maxHp: hp, speed: 138, r: 20, damage: Math.round(13 * ds) };
   }
+  if (runOmen) { if (runOmen.spd) en.speed *= runOmen.spd; const hm = type === 'dragon' ? (runOmen.drg || 1) : (runOmen.hp || 1); if (hm !== 1) { en.hp = Math.round(en.hp * hm); en.maxHp = en.hp; } }
   if (type !== 'dragon' && wave >= 3 && Math.random() < Math.min(0.2, 0.04 + wave * 0.012)) makeElite(en);
   if (type === 'dragon') introT = 2.8;
   enemies.push(en);
@@ -1128,15 +1132,15 @@ function damagePlayer(amount, fromX, fromY) {
   }
   if (player.hp <= 0) {
     player.hp = 0; state = 'gameover'; sfx('death');
-    const earned = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40); meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
+    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers`;
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }
 function cashOutRun() {
   if (!player || state === 'gameover' || kills < 1) return;
-  const earned = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  const re = runEmbers(), earned = re.base + re.daily;
   meta.embers += earned; saveMeta();
   if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
 }
@@ -2518,6 +2522,30 @@ function loadMeta() {
 function saveMeta() { try { localStorage.setItem('swordDragonMeta', JSON.stringify(meta)); } catch (e) {} }
 loadMeta();
 
+// ---- Daily Omen: a date-seeded curse you may take for bonus embers, plus a daily-return streak ----
+const OMENS = [
+  { id: 'moon', name: 'Blood Moon', desc: 'Foes move 25% faster.', mul: 1.4, spd: 1.25 },
+  { id: 'iron', name: 'Iron Hide', desc: 'Foes have 35% more health.', mul: 1.4, hp: 1.35 },
+  { id: 'glass', name: 'Glass Heart', desc: 'You have 40% less health.', mul: 1.5, plHp: 0.6 },
+  { id: 'wrath', name: "Wyrm's Wrath", desc: 'Dragons have 60% more health.', mul: 1.4, drg: 1.6 },
+  { id: 'gloom', name: 'Gilded Curse', desc: 'Gold drops are halved.', mul: 1.3, gold: 0.5 }
+];
+var runOmen = null;
+function dayNum() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 864e5); }
+function todaysOmen() { return OMENS[(dayNum() * 7 + 3) % OMENS.length]; }
+function dailyReady() { return meta.lastDay !== dayNum(); }
+function streakNow() { return (meta.lastDay === dayNum() || meta.lastDay === dayNum() - 1) ? (meta.streak || 0) : 0; }
+function dailyBonus() { return 30 + 10 * Math.min(7, streakNow()); }
+function claimDaily() {
+  if (!dailyReady()) return 0;
+  const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
+}
+function runEmbers() {
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  if (runOmen) e = Math.floor(e * runOmen.mul);
+  return { base: e, daily: claimDaily() };
+}
+
 const FORGE = [
   { id: 'vit', name: 'Vitality', desc: '+12 starting max HP', max: 5, cost: l => 40 + 30 * l },
   { id: 'might', name: 'Might', desc: '+5% damage', max: 5, cost: l => 50 + 35 * l },
@@ -2539,7 +2567,7 @@ function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might
 function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }
-function goldMul() { return 1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0); }
+function goldMul() { return (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
 
 // ---------- gear / loot ----------
 let gear = { weapon: null, armor: null, trinket: null };
@@ -3305,6 +3333,10 @@ function wStat(k) {
   const w = WEAPONS[k];
   return [['DAMAGE', w.dmg / 1.9], ['SPEED', 0.25 / w.rate], ['REACH', w.range / 150], ['CRIT', w.crit / 0.28]].map(([n, v]) => `<span>${n}</span><div class="tm-pips">${pips(Math.max(1, Math.round(v * 10)), 10)}</div>`).join('');
 }
+function omenCard() {
+  const o = todaysOmen(), on = !!meta.omenOn, st = streakNow(), rdy = dailyReady();
+  return `<div class="omen${on ? ' on' : ''}"><div class="omen-h"><span>TODAY'S OMEN</span><em>${rdy ? '🌅 DAILY HUNT +' + dailyBonus() + ' EMBERS' : '✔ DAILY HUNT DONE'}${st ? ' · 🔥 ' + st + '-DAY STREAK' : ''}</em></div><div class="omen-b"><div><b>${o.name}</b><small>${o.desc}</small></div><button id="omen-btn" class="hire-n${on ? ' on' : ''}">${on ? '☠ OMEN TAKEN' : 'TAKE THE OMEN'}<small>×${o.mul} EMBERS</small></button></div></div>`;
+}
 function renderMenu() {
   const ml = $('menu-list'); if (!ml) return;
   ml.innerHTML = MENU.map((m, i) => `<button class="tm-item${i === menuIdx ? ' sel' : ''}${i === 0 ? ' primary' : ''}" data-i="${i}"><span class="tm-cur"></span><span class="tm-lab">${m.label}</span><small>${m.sub}</small></button>`).join('');
@@ -3319,6 +3351,7 @@ function renderMenu() {
     const w = WEAPONS[selectedWeapon];
     h = `<div class="tm-ph">HUNT BRIEFING</div><div class="tm-pd">The Wyrm's ash blots out the sun. Villages burn, and something vast circles above them. Hold the line as long as you can.</div>
       <div class="tm-brief"><div class="tm-stat"><b>${w.name}</b><span>EQUIPPED</span></div><div class="tm-stat"><b>${bestWave > 1 ? 'WAVE ' + bestWave : '—'}</b><span>BEST RUN</span></div><div class="tm-stat"><b>${meta.embers}</b><span>EMBERS IN HAND</span></div><div class="tm-stat"><b>4 · 4</b><span>REALMS · WYRMS</span></div></div>
+      ${omenCard()}
       <div class="tm-pd" style="margin:14px 0 4px">Hero</div><div class="hire-seg" id="hero-seg"><button class="hire-n${meta.hero !== 'f' ? ' on' : ''}" data-h="m">♂ MALE</button><button class="hire-n${meta.hero === 'f' ? ' on' : ''}" data-h="f">♀ FEMALE</button></div>
       <div class="tm-pd" style="margin:16px 0 0">${TIPS[Math.floor(time * 0.1 + menuIdx) % TIPS.length].replace(/<\/?b>/g, '')}</div>`;
   } else if (id === 'armoury') {
@@ -3340,6 +3373,7 @@ function renderMenu() {
   const ta = $('tm-code');
   if (ta) { ta.addEventListener('keydown', e => e.stopPropagation()); ta.onclick = () => { try { ta.select(); } catch (e) {} };
     $('tm-load').onclick = () => { const ok = loadCode(ta.value); if (ok) renderMenu(); else $('tm-codemsg').textContent = 'That code is not valid.'; }; }
+  const ob = $('omen-btn'); if (ob) ob.onclick = () => { meta.omenOn = !meta.omenOn; saveMeta(); sfx(meta.omenOn ? 'legend' : 'block'); renderMenu(); };
   p.querySelectorAll('#hero-seg button').forEach(b => { b.onclick = () => setHero(b.dataset.h); });
   const bk = $('tm-back'); if (bk) bk.onclick = () => { panelFocus = false; menuIdx = 0; uiTone(400); renderMenu(); const ml2 = $('menu-list'); if (ml2 && ml2.scrollIntoView) ml2.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   p.querySelectorAll('.tm-w').forEach((el, i) => { el.onclick = () => { initAudio(); subIdx = i; panelFocus = true; pickWeapon(keys[i]); }; });

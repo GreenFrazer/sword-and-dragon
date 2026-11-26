@@ -43,6 +43,8 @@ function resetGame() {
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
+  runOmen = meta.omenOn ? todaysOmen() : null;
+  if (runOmen && runOmen.plHp) { player.maxHp = Math.round(player.maxHp * runOmen.plHp); player.hp = player.maxHp; }
   startWave(wave); // biomeIdx = -1 forces startWave to rebuild ground + ambient
   cam.x = player.x - W / 2; cam.y = player.y - H / 2; updateCamera(1, true);
 }
@@ -145,6 +147,7 @@ function spawnEnemy(type) {
     const hp = Math.round(85 * sc);
     en = { ...base, type: 'grunt', hp, maxHp: hp, speed: 138, r: 20, damage: Math.round(13 * ds) };
   }
+  if (runOmen) { if (runOmen.spd) en.speed *= runOmen.spd; const hm = type === 'dragon' ? (runOmen.drg || 1) : (runOmen.hp || 1); if (hm !== 1) { en.hp = Math.round(en.hp * hm); en.maxHp = en.hp; } }
   if (type !== 'dragon' && wave >= 3 && Math.random() < Math.min(0.2, 0.04 + wave * 0.012)) makeElite(en);
   if (type === 'dragon') introT = 2.8;
   enemies.push(en);
@@ -353,15 +356,15 @@ function damagePlayer(amount, fromX, fromY) {
   }
   if (player.hp <= 0) {
     player.hp = 0; state = 'gameover'; sfx('death');
-    const earned = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40); meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
+    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers`;
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }
 function cashOutRun() {
   if (!player || state === 'gameover' || kills < 1) return;
-  const earned = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  const re = runEmbers(), earned = re.base + re.daily;
   meta.embers += earned; saveMeta();
   if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
 }

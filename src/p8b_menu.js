@@ -28,6 +28,10 @@ function wStat(k) {
   const w = WEAPONS[k];
   return [['DAMAGE', w.dmg / 1.9], ['SPEED', 0.25 / w.rate], ['REACH', w.range / 150], ['CRIT', w.crit / 0.28]].map(([n, v]) => `<span>${n}</span><div class="tm-pips">${pips(Math.max(1, Math.round(v * 10)), 10)}</div>`).join('');
 }
+function omenCard() {
+  const o = todaysOmen(), on = !!meta.omenOn, st = streakNow(), rdy = dailyReady();
+  return `<div class="omen${on ? ' on' : ''}"><div class="omen-h"><span>TODAY'S OMEN</span><em>${rdy ? '🌅 DAILY HUNT +' + dailyBonus() + ' EMBERS' : '✔ DAILY HUNT DONE'}${st ? ' · 🔥 ' + st + '-DAY STREAK' : ''}</em></div><div class="omen-b"><div><b>${o.name}</b><small>${o.desc}</small></div><button id="omen-btn" class="hire-n${on ? ' on' : ''}">${on ? '☠ OMEN TAKEN' : 'TAKE THE OMEN'}<small>×${o.mul} EMBERS</small></button></div></div>`;
+}
 function renderMenu() {
   const ml = $('menu-list'); if (!ml) return;
   ml.innerHTML = MENU.map((m, i) => `<button class="tm-item${i === menuIdx ? ' sel' : ''}${i === 0 ? ' primary' : ''}" data-i="${i}"><span class="tm-cur"></span><span class="tm-lab">${m.label}</span><small>${m.sub}</small></button>`).join('');
@@ -42,6 +46,7 @@ function renderMenu() {
     const w = WEAPONS[selectedWeapon];
     h = `<div class="tm-ph">HUNT BRIEFING</div><div class="tm-pd">The Wyrm's ash blots out the sun. Villages burn, and something vast circles above them. Hold the line as long as you can.</div>
       <div class="tm-brief"><div class="tm-stat"><b>${w.name}</b><span>EQUIPPED</span></div><div class="tm-stat"><b>${bestWave > 1 ? 'WAVE ' + bestWave : '—'}</b><span>BEST RUN</span></div><div class="tm-stat"><b>${meta.embers}</b><span>EMBERS IN HAND</span></div><div class="tm-stat"><b>4 · 4</b><span>REALMS · WYRMS</span></div></div>
+      ${omenCard()}
       <div class="tm-pd" style="margin:14px 0 4px">Hero</div><div class="hire-seg" id="hero-seg"><button class="hire-n${meta.hero !== 'f' ? ' on' : ''}" data-h="m">♂ MALE</button><button class="hire-n${meta.hero === 'f' ? ' on' : ''}" data-h="f">♀ FEMALE</button></div>
       <div class="tm-pd" style="margin:16px 0 0">${TIPS[Math.floor(time * 0.1 + menuIdx) % TIPS.length].replace(/<\/?b>/g, '')}</div>`;
   } else if (id === 'armoury') {
@@ -63,6 +68,7 @@ function renderMenu() {
   const ta = $('tm-code');
   if (ta) { ta.addEventListener('keydown', e => e.stopPropagation()); ta.onclick = () => { try { ta.select(); } catch (e) {} };
     $('tm-load').onclick = () => { const ok = loadCode(ta.value); if (ok) renderMenu(); else $('tm-codemsg').textContent = 'That code is not valid.'; }; }
+  const ob = $('omen-btn'); if (ob) ob.onclick = () => { meta.omenOn = !meta.omenOn; saveMeta(); sfx(meta.omenOn ? 'legend' : 'block'); renderMenu(); };
   p.querySelectorAll('#hero-seg button').forEach(b => { b.onclick = () => setHero(b.dataset.h); });
   const bk = $('tm-back'); if (bk) bk.onclick = () => { panelFocus = false; menuIdx = 0; uiTone(400); renderMenu(); const ml2 = $('menu-list'); if (ml2 && ml2.scrollIntoView) ml2.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   p.querySelectorAll('.tm-w').forEach((el, i) => { el.onclick = () => { initAudio(); subIdx = i; panelFocus = true; pickWeapon(keys[i]); }; });

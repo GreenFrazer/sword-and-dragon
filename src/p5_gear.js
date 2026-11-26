@@ -6,7 +6,7 @@ const WEAPONS = {
   spear: { name: 'Spear', icon: '🔱', desc: 'Long piercing thrust in a line. Keeps foes at bay.', rate: 0.52, range: 150, dmg: 1.1, crit: 0.12, cone: 0.5, cost: 90 }
 };
 let selectedWeapon = 'sword', bossKills = 0, waveTotal = 1;
-let meta = { embers: 0, vit: 0, might: 0, fort: 0, wind: 0, unlocked: { sword: true } };
+let meta = { hero: 'm', embers: 0, vit: 0, might: 0, fort: 0, wind: 0, unlocked: { sword: true } };
 function loadMeta() {
   try { const m = JSON.parse(localStorage.getItem('swordDragonMeta') || 'null'); if (m) { meta = Object.assign(meta, m); meta.unlocked = Object.assign({ sword: true }, m.unlocked || {}); } } catch (e) {}
 }

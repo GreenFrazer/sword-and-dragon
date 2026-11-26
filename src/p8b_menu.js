@@ -42,6 +42,7 @@ function renderMenu() {
     const w = WEAPONS[selectedWeapon];
     h = `<div class="tm-ph">HUNT BRIEFING</div><div class="tm-pd">The Wyrm's ash blots out the sun. Villages burn, and something vast circles above them. Hold the line as long as you can.</div>
       <div class="tm-brief"><div class="tm-stat"><b>${w.name}</b><span>EQUIPPED</span></div><div class="tm-stat"><b>${bestWave > 1 ? 'WAVE ' + bestWave : '—'}</b><span>BEST RUN</span></div><div class="tm-stat"><b>${meta.embers}</b><span>EMBERS IN HAND</span></div><div class="tm-stat"><b>4 · 4</b><span>REALMS · WYRMS</span></div></div>
+      <div class="tm-pd" style="margin:14px 0 4px">Hero</div><div class="hire-seg" id="hero-seg"><button class="hire-n${meta.hero !== 'f' ? ' on' : ''}" data-h="m">♂ MALE</button><button class="hire-n${meta.hero === 'f' ? ' on' : ''}" data-h="f">♀ FEMALE</button></div>
       <div class="tm-pd" style="margin:16px 0 0">${TIPS[Math.floor(time * 0.1 + menuIdx) % TIPS.length].replace(/<\/?b>/g, '')}</div>`;
   } else if (id === 'armoury') {
     h = `<div class="tm-ph">THE ARMOURY</div><div class="tm-pd">Every blade fights differently. Unlock new steel with embers earned in battle.</div><div class="tm-weps">` + keys.map((k, i) => {
@@ -54,7 +55,7 @@ function renderMenu() {
       return `<div class="tm-f${panelFocus && subIdx === i ? ' hi' : ''}" data-f="${i}">${SVGF[f.id]}<div><div class="fn">${f.name.toUpperCase()}</div><div class="fd">${f.desc}</div><div class="fp">${pips(lvl, f.max)}</div></div><button class="tm-buy" ${mx || meta.embers < cost ? 'disabled' : ''}>${mx ? 'MASTERED' : 'TEMPER · ' + cost}</button></div>`;
     }).join('') + `</div><div class="tm-pd" style="margin:14px 0 4px">${storageOK ? 'Progress saves in this browser.' : '⚠ This viewer blocks saving.'} Back up your progress with this code and paste it back later (or on another device):</div><textarea id="tm-code" rows="2" spellcheck="false">${metaCode()}</textarea><button class="tm-buy" id="tm-load" style="margin-top:6px">LOAD CODE</button><span id="tm-codemsg" style="margin-left:10px;font-size:11px;color:#ffb347"></span>`;
   } else {
-    const K = [['W A S D', 'Move'], ['SPACE', 'Dash'], ['E', 'Spin'], ['Q', 'Meteor Storm'], ['F', 'Cast (3 charges)'], ['P', 'Pause'], ['M', 'Mute']];
+    const K = [['W A S D', 'Move'], ['SPACE', 'Dash'], ['E', 'Spin'], ['Q', 'Meteor Storm'], ['F', 'Cast (3 charges)'], ['P', 'Pause'], ['M', 'Mute'], ['G', 'Hero (title screen)']];
     h = `<div class="tm-ph">CHRONICLE</div><div class="tm-pd">Your sword strikes on its own &mdash; you decide where to stand.</div><div class="tm-keys-grid">` + K.map(k => `<div class="tm-k"><span class="tm-cap">${k[0]}</span>${k[1]}</div>`).join('') + `<div class="tm-k"><span class="tm-cap">DRAG</span>Touch move</div></div><ul class="tm-tips">` + TIPS.slice(0, 5).map(t => `<li>${t}</li>`).join('') + '</ul>';
   }
   if (id !== 'play') h += '<button class="tm-back show" id="tm-back">◀ BACK TO MENU</button>';
@@ -62,6 +63,7 @@ function renderMenu() {
   const ta = $('tm-code');
   if (ta) { ta.addEventListener('keydown', e => e.stopPropagation()); ta.onclick = () => { try { ta.select(); } catch (e) {} };
     $('tm-load').onclick = () => { const ok = loadCode(ta.value); if (ok) renderMenu(); else $('tm-codemsg').textContent = 'That code is not valid.'; }; }
+  p.querySelectorAll('#hero-seg button').forEach(b => { b.onclick = () => setHero(b.dataset.h); });
   const bk = $('tm-back'); if (bk) bk.onclick = () => { panelFocus = false; menuIdx = 0; uiTone(400); renderMenu(); const ml2 = $('menu-list'); if (ml2 && ml2.scrollIntoView) ml2.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   p.querySelectorAll('.tm-w').forEach((el, i) => { el.onclick = () => { initAudio(); subIdx = i; panelFocus = true; pickWeapon(keys[i]); }; });
   p.querySelectorAll('.tm-f').forEach((el, i) => { el.onclick = () => { initAudio(); subIdx = i; panelFocus = true; buyForge(i); }; });
@@ -75,12 +77,14 @@ function loadCode(str) {
     const num = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0));
     meta.embers = num(o.m.embers, 1e7);
     for (const f of FORGE) meta[f.id] = num(o.m[f.id], f.max);
+    meta.hero = o.m.hero === 'f' ? 'f' : 'm';
     meta.unlocked = { sword: true };
     for (const k of Object.keys(WEAPONS)) if (o.m.unlocked && o.m.unlocked[k] === true) meta.unlocked[k] = true;
     if (Number.isFinite(o.b) && o.b > bestWave) { bestWave = Math.min(9999, Math.floor(o.b)); try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
     saveMeta(); return true;
   } catch (e) { return false; }
 }
+function setHero(h) { meta.hero = h === 'f' ? 'f' : 'm'; saveMeta(); sfx('block'); renderMenu(); }
 function pickWeapon(k) {
   const w = WEAPONS[k];
   if (!meta.unlocked[k]) { if (meta.embers >= w.cost) { meta.embers -= w.cost; meta.unlocked[k] = true; selectedWeapon = k; saveMeta(); sfx('legend'); } else { uiTone(140, 0.12, 0.08); } }
@@ -97,6 +101,7 @@ function menuKey(e) {
   if (beginning) return;
   const c = e.code, up = c === 'ArrowUp' || c === 'KeyW', dn = c === 'ArrowDown' || c === 'KeyS', lf = c === 'ArrowLeft' || c === 'KeyA', rt = c === 'ArrowRight' || c === 'KeyD', ok = c === 'Enter' || c === 'Space';
   initAudio(); const id = MENU[menuIdx].id, wk = Object.keys(WEAPONS);
+  if (c === 'KeyG') { setHero(meta.hero === 'f' ? 'm' : 'f'); return; }
   if (!panelFocus) {
     if (up) moveMenu(-1); else if (dn) moveMenu(1);
     else if (ok || rt) { if (id === 'play') beginRun(); else if (id !== 'lore') { panelFocus = true; subIdx = id === 'armoury' ? Math.max(0, wk.indexOf(selectedWeapon)) : 0; uiTone(660); renderMenu(); } }

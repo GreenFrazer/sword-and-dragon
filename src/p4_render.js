@@ -357,9 +357,10 @@ function drawHumanoid(ent, isPlayer) {
   ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(-9, -33, 6, 18);
   ctx.fillStyle = '#5c3a21'; ctx.fillRect(-12, -18, 24, 5); ctx.fillStyle = '#ffd43b'; ctx.fillRect(-2, -18, 4, 5);
   if (type === 'shield' || type === 'brute') { ctx.fillStyle = flashing ? '#fff' : '#6c757d'; ctx.beginPath(); ctx.arc(-11, -34, 6, 0, TAU); ctx.arc(11, -34, 6, 0, TAU); ctx.fill(); }
-  // long hair behind the head (female companions)
+  // long hair behind the head (female heroes and companions)
+  const fem = isPlayer ? meta.hero === 'f' : ent.fem;
   const hairCol = flashing ? '#fff' : (type === 'elf' ? '#f1e6a6' : (type === 'cleric' ? '#c9a46a' : (type === 'squire' ? '#8a4b2a' : '#3b2a1a')));
-  if (ent.fem) { ctx.fillStyle = hairCol; ctx.beginPath(); rrect(-11, -52, 22, 30 + Math.sin(ent.walkPhase) * 1.5, 9); ctx.fill(); }
+  if (fem) { ctx.fillStyle = hairCol; ctx.beginPath(); rrect(-11, -52, 22, 30 + Math.sin(ent.walkPhase) * 1.5, 9); ctx.fill(); }
   // head
   ctx.fillStyle = flashing ? '#fff' : ((isPlayer || ent.ally) ? '#ffdbac' : '#94d82d');
   ctx.beginPath(); ctx.arc(0, -44, 10, 0, TAU); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
@@ -371,7 +372,7 @@ function drawHumanoid(ent, isPlayer) {
     if (type === 'archer' || type === 'ranger' || type === 'elf') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? (type === 'elf' ? '#5c940d' : '#0b7a5a') : '#1b6b30'); ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.95, TAU * 1.03); ctx.fill(); }
     if (type === 'shield' || type === 'brute' || type === 'squire') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? '#ced4da' : '#868e96'); ctx.beginPath(); ctx.arc(0, -47, 10.5, Math.PI, TAU); ctx.fill(); ctx.fillRect(-1.5, -57, 3, 8); if (ent.ally) { ctx.fillStyle = '#e03131'; ctx.fillRect(-2, -62, 4, 7); } }
     if (type === 'cleric') { ctx.fillStyle = flashing ? '#fff' : '#f8f9fa'; ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.9, TAU * 1.05); ctx.fill(); ctx.fillStyle = '#ffd43b'; ctx.fillRect(-4, -57, 8, 3); }
-    if (ent.fem) { ctx.fillStyle = hairCol; ctx.beginPath(); ctx.arc(0, -46, 10.5, Math.PI * 1.02, TAU * 0.99); ctx.fill(); }
+    if (fem) { ctx.fillStyle = hairCol; ctx.beginPath(); ctx.arc(0, -46, 10.5, Math.PI * 1.02, TAU * 0.99); ctx.fill(); }
     if (type === 'elf') { // pointed ears
       ctx.fillStyle = flashing ? '#fff' : '#ffdbac'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
       for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 9, -48); ctx.lineTo(s * 19, -55); ctx.lineTo(s * 10, -42); ctx.closePath(); ctx.fill(); ctx.stroke(); }

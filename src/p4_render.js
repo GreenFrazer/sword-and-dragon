@@ -414,13 +414,34 @@ function drawHumanoid(ent, isPlayer) {
     drawGlow(whx + 5, why - 20, 10 + 4 * Math.sin(time * 30), '#ffd43b', 0.9);
   } else {
     ctx.save(); ctx.translate(whx, why); ctx.rotate(wa);
-    ctx.fillStyle = '#fcc419'; ctx.fillRect(0, -6, 4, 12);
-    const bl = isPlayer ? (32 + Math.min(player.swordTier, 12) * 3) : 26;
+    const wk = isPlayer ? player.weapon : 'sword';
     const bs = isPlayer ? bladeStyle() : { fill: '#ced4da', glow: null };
-    ctx.fillStyle = flashing ? '#fff' : bs.fill;
-    ctx.beginPath(); ctx.moveTo(4, -3.5); ctx.lineTo(4 + bl, -2); ctx.lineTo(4 + bl + 6, 0); ctx.lineTo(4 + bl, 2); ctx.lineTo(4, 3.5); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1.2; ctx.stroke();
-    if (bs.glow) { drawGlow(4 + bl * 0.6, 0, 26, bs.glow, 0.7); drawGlow(4 + bl, 0, 16, bs.glow, 0.9); }
+    const bf = flashing ? '#fff' : bs.fill;
+    if (wk === 'spear') {
+      const L = 62 + Math.min(player.swordTier, 12) * 2;
+      ctx.strokeStyle = flashing ? '#fff' : '#7a4a24'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(L, 0); ctx.stroke();
+      ctx.fillStyle = bf; ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(L - 4, -6); ctx.lineTo(L + 20, 0); ctx.lineTo(L - 4, 6); ctx.lineTo(L, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = flashing ? '#fff' : '#c1272d'; ctx.fillRect(L - 9, -4, 4, 8);
+      if (bs.glow) drawGlow(L + 10, 0, 18, bs.glow, 0.8);
+    } else if (wk === 'daggers') {
+      for (const o of [-0.35, 0.35]) {
+        ctx.save(); ctx.rotate(o);
+        ctx.fillStyle = '#fcc419'; ctx.fillRect(0, -5, 3, 10);
+        ctx.fillStyle = bf; ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(24, -1.5); ctx.lineTo(31, 0); ctx.lineTo(24, 1.5); ctx.lineTo(3, 3); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1; ctx.stroke();
+        if (bs.glow) drawGlow(26, 0, 12, bs.glow, 0.8);
+        ctx.restore();
+      }
+    } else {
+      const big = wk === 'greatsword';
+      ctx.fillStyle = '#fcc419'; ctx.fillRect(0, big ? -9 : -6, big ? 6 : 4, big ? 18 : 12);
+      const bl = isPlayer ? ((big ? 46 : 32) + Math.min(player.swordTier, 12) * 3) : 26, hw = big ? 6 : 3.5;
+      ctx.fillStyle = bf;
+      ctx.beginPath(); ctx.moveTo(6, -hw); ctx.lineTo(4 + bl, -hw * 0.6); ctx.lineTo(4 + bl + 8, 0); ctx.lineTo(4 + bl, hw * 0.6); ctx.lineTo(6, hw); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1.2; ctx.stroke();
+      if (bs.glow) { drawGlow(4 + bl * 0.6, 0, 26, bs.glow, 0.7); drawGlow(4 + bl, 0, 16, bs.glow, 0.9); }
+    }
     ctx.restore();
   }
   ctx.globalAlpha = 1;

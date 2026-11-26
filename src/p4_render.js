@@ -1,8 +1,10 @@
 // ======================= RENDERING =======================
 function rrect(x, y, w, h, r) { if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+const WEAPON_TINT = { greatsword: ['#ffb08a', '#ff6b35'], daggers: ['#d8c2ff', '#9775fa'], spear: ['#a9f0b8', '#40c057'] };
 function bladeStyle() {
   if (player.lightning) return { fill: '#d0ebff', glow: '#74c0fc' };
-  const t = player.swordTier;
+  const t = player.swordTier, wt = WEAPON_TINT[player.weapon];
+  if (wt) return { fill: wt[0], glow: t >= 4 ? wt[1] : null };
   if (t < 4) return { fill: '#e9ecef', glow: null };
   if (t < 7) return { fill: '#a5d8ff', glow: '#4dabf7' };
   if (t < 10) return { fill: '#ffe066', glow: '#fcc419' };

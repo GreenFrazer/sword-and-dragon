@@ -58,7 +58,7 @@ function renderMenu() {
     h = `<div class="tm-ph">THE FORGE <span class="tm-bal" style="margin-left:auto">${SVG_EMBER}${meta.embers}</span></div><div class="tm-pd">Embers are earned on every run, win or lose. What you temper here stays with you forever.</div><div class="tm-forge">` + FORGE.map((f, i) => {
       const lvl = meta[f.id] || 0, mx = lvl >= f.max, cost = f.cost(lvl);
       return `<div class="tm-f${panelFocus && subIdx === i ? ' hi' : ''}" data-f="${i}">${SVGF[f.id]}<div><div class="fn">${f.name.toUpperCase()}</div><div class="fd">${f.desc}</div><div class="fp">${pips(lvl, f.max)}</div></div><button class="tm-buy" ${mx || meta.embers < cost ? 'disabled' : ''}>${mx ? 'MASTERED' : 'TEMPER · ' + cost}</button></div>`;
-    }).join('') + `</div><div class="tm-pd" style="margin:14px 0 4px">${storageOK ? 'Progress saves in this browser.' : '⚠ This viewer blocks saving.'} Back up your progress with this code and paste it back later (or on another device):</div><textarea id="tm-code" rows="2" spellcheck="false">${metaCode()}</textarea><button class="tm-buy" id="tm-load" style="margin-top:6px">LOAD CODE</button><span id="tm-codemsg" style="margin-left:10px;font-size:11px;color:#ffb347"></span>`;
+    }).join('') + `</div><div class="tm-pd" style="margin:16px 0 6px">${storageOK ? '✔ Progress saves automatically in this browser.' : '⚠ This viewer blocks saving — use a link or file below to keep your progress.'} Move it to another device in one tap:</div><div class="tm-xfer"><button class="tm-buy" id="tm-link">📲 SAVE LINK</button><button class="tm-buy" id="tm-file">⬇ SAVE FILE</button><button class="tm-buy" id="tm-pick">⬆ LOAD FILE</button><input type="file" id="tm-fin" accept=".json,.txt,application/json,text/plain" style="display:none"></div><span id="tm-codemsg" style="font-size:11px;color:#ffb347"></span><details style="margin-top:8px"><summary class="tm-pd" style="cursor:pointer">Advanced: save code</summary><textarea id="tm-code" rows="2" spellcheck="false">${metaCode()}</textarea><button class="tm-buy" id="tm-load" style="margin-top:6px">LOAD CODE</button></details>`;
   } else {
     const K = [['W A S D', 'Move'], ['SPACE', 'Dash'], ['E', 'Spin'], ['Q', 'Meteor Storm'], ['F', 'Cast (3 charges)'], ['P', 'Pause'], ['M', 'Mute'], ['G', 'Hero (title screen)']];
     h = `<div class="tm-ph">CHRONICLE</div><div class="tm-pd">Your sword strikes on its own &mdash; you decide where to stand.</div><div class="tm-keys-grid">` + K.map(k => `<div class="tm-k"><span class="tm-cap">${k[0]}</span>${k[1]}</div>`).join('') + `<div class="tm-k"><span class="tm-cap">DRAG</span>Touch move</div></div><ul class="tm-tips">` + TIPS.slice(0, 5).map(t => `<li>${t}</li>`).join('') + '</ul>' + featsHtml();
@@ -68,6 +68,13 @@ function renderMenu() {
   const ta = $('tm-code');
   if (ta) { ta.addEventListener('keydown', e => e.stopPropagation()); ta.onclick = () => { try { ta.select(); } catch (e) {} };
     $('tm-load').onclick = () => { const ok = loadCode(ta.value); if (ok) renderMenu(); else $('tm-codemsg').textContent = 'That code is not valid.'; }; }
+  if ($('tm-link')) {
+    const msg = t => { $('tm-codemsg').textContent = t; };
+    $('tm-link').onclick = () => shareSaveLink(msg);
+    $('tm-file').onclick = () => saveFile(msg);
+    $('tm-pick').onclick = () => $('tm-fin').click();
+    $('tm-fin').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { const ok = loadCode(String(r.result).replace(/^[\s\S]*?"code"\s*:\s*"([^"]+)"[\s\S]*$/, '$1')); if (ok) renderMenu(); else msg('That file is not a valid save.'); }; r.readAsText(f); };
+  }
   const ob = $('omen-btn'); if (ob) ob.onclick = () => { meta.omenOn = !meta.omenOn; saveMeta(); sfx(meta.omenOn ? 'legend' : 'block'); renderMenu(); };
   p.querySelectorAll('#hero-seg button').forEach(b => { b.onclick = () => setHero(b.dataset.h); });
   const bk = $('tm-back'); if (bk) bk.onclick = () => { panelFocus = false; menuIdx = 0; uiTone(400); renderMenu(); const ml2 = $('menu-list'); if (ml2 && ml2.scrollIntoView) ml2.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -90,6 +97,34 @@ function loadCode(str) {
     if (Number.isFinite(o.b) && o.b > bestWave) { bestWave = Math.min(9999, Math.floor(o.b)); try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
     saveMeta(); return true;
   } catch (e) { return false; }
+}
+function saveLink() { const base = /^https?:/.test(location.protocol) ? location.origin + location.pathname : 'https://greenfrazer.github.io/sword-and-dragon/'; return base + '#save=' + encodeURIComponent(metaCode()); }
+async function shareSaveLink(msg) {
+  const url = saveLink();
+  try { if (navigator.share) { await navigator.share({ title: 'Sword & Dragon save', text: 'Open this on any device to continue your Sword & Dragon progress.', url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); msg('✔ Link copied — open it on any device to continue.'); } catch (e) { msg('Copy blocked — use the save code below.'); }
+}
+function saveFile(msg) {
+  try {
+    const blob = new Blob([JSON.stringify({ game: 'sword-and-dragon', code: metaCode() })], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sword-and-dragon-save.json';
+    document.body.appendChild(a); a.click(); a.remove(); msg('✔ Save file downloaded.');
+  } catch (e) { msg('Downloads blocked — use the save link.'); }
+}
+function goSaveUI() {
+  const lk = $('go-link'); if (!lk) return;
+  const show = storageOK ? 'none' : '';
+  $('go-code').style.display = show; $('go-copy').style.display = show; $('go-code-note').style.display = show;
+  lk.onclick = () => shareSaveLink(t => { lk.textContent = t; });
+}
+// opening a save link (…#save=CODE) restores progress, so progress follows the player between devices
+function importSaveFromHash() {
+  const m = /[#&]save=([^&]+)/.exec(location.hash || ''); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  let code = ''; try { code = decodeURIComponent(m[1]); } catch (e) { return; }
+  const has = meta.embers > 0 || bestWave > 1 || Object.keys(meta.unlocked || {}).length > 1;
+  if (has && typeof confirm === 'function' && !confirm('Replace the progress on this device with the progress from this save link?')) return;
+  if (loadCode(code)) { renderMenu(); const t = $('title-best'); if (t) t.textContent = '✔ SAVE LINK LOADED — PROGRESS RESTORED'; }
 }
 function setHero(h) { meta.hero = h === 'f' ? 'f' : 'm'; saveMeta(); sfx('block'); renderMenu(); }
 function pickWeapon(k) {

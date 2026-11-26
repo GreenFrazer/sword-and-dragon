@@ -486,13 +486,13 @@ function drawSlain() { // screen space
   // title: slams in, settles
   const pop = el < 0.45 ? 1 + (1 - el / 0.45) * 1.2 : 1 + Math.sin(el * 3) * 0.012;
   ctx.save(); ctx.translate(cx, cy); ctx.scale(pop, pop); ctx.globalAlpha = Math.min(1, el / 0.2) * fade; ctx.textAlign = 'center';
-  const fs = Math.min(84, W / 7.5); ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`; ctx.lineJoin = 'round';
+  let fs = 84; ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`; fs = Math.max(20, Math.min(84, fs * (W * 0.86) / (ctx.measureText('DRAGON SLAIN').width * pop))); ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`; ctx.lineJoin = 'round';
   ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(40,10,0,0.9)'; ctx.strokeText('DRAGON SLAIN', 0, 0);
   const tg = ctx.createLinearGradient(0, -fs * 0.8, 0, fs * 0.2); tg.addColorStop(0, '#fffbe0'); tg.addColorStop(0.5, '#ffd43b'); tg.addColorStop(1, '#d9730d');
   ctx.shadowColor = '#ff9a1f'; ctx.shadowBlur = 30; ctx.fillStyle = tg; ctx.fillText('DRAGON SLAIN', 0, 0); ctx.shadowBlur = 0;
   // glint sweeping across the letters
   const sw = ((el - 0.5) / 1.1); if (sw > 0 && sw < 1) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.fillRect(-fs * 3.4 + sw * fs * 6.8, -fs * 0.8, fs * 0.22, fs); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; }
   if (el > 0.6) { ctx.globalAlpha = Math.min(1, (el - 0.6) / 0.5) * fade; ctx.font = `700 ${Math.max(13, fs * 0.26)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ffe9b0'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
+    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.92 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
   ctx.restore(); ctx.globalAlpha = 1;
 }

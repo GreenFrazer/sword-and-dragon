@@ -2873,18 +2873,28 @@ function drawHumanoid(ent, isPlayer) {
   }
   // arms
   const skin = flashing ? '#fff' : ((isPlayer || ent.ally) ? '#ffdbac' : '#94d82d');
-  const offA = aim + 0.65 * sideFlip, osx = -11 * sideFlip, osy = -31, ohx = osx + Math.cos(offA) * 14, ohy = osy + Math.sin(offA) * 10;
+  // swing: twin daggers alternate hands (atkDir flips every strike), everything else swings the weapon hand
+  const dual = isPlayer && player.weapon === 'daggers' && !ent.hasShield;
+  let swing = 0, offSwing = 0;
+  if (isPlayer && player.spinTime > 0) { swing = (player.spinTime / 0.34) * Math.PI * 4; if (dual) offSwing = swing; }
+  else if (isPlayer && player.atkTimer > 0) {
+    const arc = (1 - player.atkTimer / player.atkDuration - 0.5) * 2.4 * player.atkDir;
+    if (dual && player.atkDir < 0) offSwing = arc; else swing = arc;
+  }
+  else if (!isPlayer && ent.windup > 0) swing = -0.9 * sideFlip;
+  const offA = aim + 0.65 * sideFlip + offSwing, osx = -11 * sideFlip, osy = -31, ohx = osx + Math.cos(offA) * 14, ohy = osy + Math.sin(offA) * 10;
   ctx.strokeStyle = skin; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(osx, osy); ctx.lineTo(ohx, ohy); ctx.stroke();
+  if (dual) {
+    const bs = bladeStyle();
+    ctx.save(); ctx.translate(ohx, ohy); ctx.rotate(offA - 0.35 * sideFlip);
+    drawDagger(flashing ? '#fff' : bs.fill, bs.glow); ctx.restore();
+  }
   if (ent.hasShield) {
     ctx.save(); ctx.translate(ohx + Math.cos(aim) * 6, ohy + Math.sin(aim) * 4);
     ctx.fillStyle = flashing ? '#fff' : '#adb5bd'; ctx.strokeStyle = '#343a40'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(0, 0, 14, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill(); ctx.restore();
   }
-  let swing = 0;
-  if (isPlayer && player.spinTime > 0) swing = (player.spinTime / 0.34) * Math.PI * 4;
-  else if (isPlayer && player.atkTimer > 0) swing = (1 - player.atkTimer / player.atkDuration - 0.5) * 2.4 * player.atkDir;
-  else if (!isPlayer && ent.windup > 0) swing = -0.9 * sideFlip;
   const wa = aim + swing, wsx = 11 * sideFlip, wsy = -31, whx = wsx + Math.cos(wa) * 15, why = wsy + Math.sin(wa) * 11;
   ctx.strokeStyle = skin; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(wsx, wsy); ctx.lineTo(whx, why); ctx.stroke();
 
@@ -2917,14 +2927,7 @@ function drawHumanoid(ent, isPlayer) {
       ctx.fillStyle = flashing ? '#fff' : '#c1272d'; ctx.fillRect(L - 9, -4, 4, 8);
       if (bs.glow) drawGlow(L + 10, 0, 18, bs.glow, 0.8);
     } else if (wk === 'daggers') {
-      for (const o of [-0.35, 0.35]) {
-        ctx.save(); ctx.rotate(o);
-        ctx.fillStyle = '#fcc419'; ctx.fillRect(0, -5, 3, 10);
-        ctx.fillStyle = bf; ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(24, -1.5); ctx.lineTo(31, 0); ctx.lineTo(24, 1.5); ctx.lineTo(3, 3); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1; ctx.stroke();
-        if (bs.glow) drawGlow(26, 0, 12, bs.glow, 0.8);
-        ctx.restore();
-      }
+      drawDagger(bf, bs.glow);
     } else {
       const big = wk === 'greatsword';
       ctx.fillStyle = '#fcc419'; ctx.fillRect(0, big ? -9 : -6, big ? 6 : 4, big ? 18 : 12);
@@ -2952,6 +2955,14 @@ function drawHumanoid(ent, isPlayer) {
     if (ent.stun > 0) { ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('STUNNED!', 0, -74); }
   }
   ctx.restore();
+}
+
+// one dagger in hand-local space (blade along +x); twin daggers draw one per hand
+function drawDagger(bf, glow) {
+  ctx.fillStyle = '#fcc419'; ctx.fillRect(0, -5, 3, 10);
+  ctx.fillStyle = bf; ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(24, -1.5); ctx.lineTo(31, 0); ctx.lineTo(24, 1.5); ctx.lineTo(3, 3); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#343a40'; ctx.lineWidth = 1; ctx.stroke();
+  if (glow) drawGlow(26, 0, 12, glow, 0.8);
 }
 
 function drawDragon(d) {

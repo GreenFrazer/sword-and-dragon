@@ -98,6 +98,10 @@ function render() {
     for (const h of village.houses) dr.push({ y: h.y, f: () => drawHouse(h) });
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
+  if (camp) {
+    dr.push({ y: camp.y, f: () => drawCamp() });
+    for (const v of camp.workers) dr.push({ y: v.y, f: () => drawVillager(v) });
+  }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
   dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
@@ -233,6 +237,7 @@ function drawMinimap() {
     if (e.type === 'dragon') { mctx.fillStyle = '#ff2a2a'; mctx.beginPath(); mctx.arc(e.x * sx, e.y * sy, 5, 0, TAU); mctx.fill(); }
     else { mctx.fillStyle = e.type === 'archer' ? '#69db7c' : (e.type === 'bomber' ? '#ff922b' : '#ff6b6b'); mctx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4); }
   }
+  if (camp) { mctx.fillStyle = '#e8a65a'; mctx.fillRect(camp.x * sx - 3, camp.y * sy - 3, 6, 5); }
   if (village) for (const h of village.houses) { mctx.fillStyle = h.dead ? '#5a2a1a' : '#ffa94d'; mctx.fillRect(h.x * sx - 3, h.y * sy - 3, 6, 6); }
   mctx.fillStyle = '#69db7c'; for (const c of companions) if (!c.down) mctx.fillRect(c.x * sx - 2, c.y * sy - 2, 4, 4);
   mctx.fillStyle = '#4dd4ff'; mctx.beginPath(); mctx.arc(player.x * sx, player.y * sy, 3.5, 0, TAU); mctx.fill();
@@ -605,7 +610,7 @@ function drawHouse(h) {
   ctx.restore();
 }
 function drawVillager(v) {
-  const scared = village.scared;
+  const scared = v.scared;
   const run = scared || v.moving, bob = Math.sin(time * (scared ? 14 : v.moving ? 10 : 2.5) + v.ph) * (scared ? 3 : v.moving ? 2 : 1.2), sx = v.moving || scared ? 0 : Math.sin(time * 1.3 + v.ph) * 2;
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();
@@ -613,6 +618,29 @@ function drawVillager(v) {
   if (v.carry > 0 && !scared) { ctx.save(); ctx.translate(0, -13 + bob * 0.2); ctx.rotate(0.3); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-9, -3, 18, 5); ctx.fillStyle = '#d9b27c'; ctx.fillRect(7, -3, 2, 5); ctx.restore(); }
   ctx.strokeStyle = '#ffdbac'; ctx.lineWidth = 2;
   if (scared) { ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-8, -22 + bob); ctx.moveTo(4, -12); ctx.lineTo(8, -22 - bob); ctx.stroke(); ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -28); }
+  ctx.restore();
+}
+function drawCamp() {
+  const c = camp, x = c.x, y = c.y;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(0, 8, 56, 17, 0, 0, TAU); ctx.fill();
+  // tent
+  ctx.fillStyle = '#b5784a'; ctx.beginPath(); ctx.moveTo(-44, 4); ctx.lineTo(-4, -50); ctx.lineTo(36, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#d9a066'; ctx.beginPath(); ctx.moveTo(-4, -50); ctx.lineTo(36, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3b2a1c'; ctx.beginPath(); ctx.moveTo(-14, 4); ctx.lineTo(-4, -22); ctx.lineTo(8, 4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-4, -50); ctx.lineTo(-4, -62); ctx.stroke();
+  ctx.fillStyle = '#e8590c'; ctx.beginPath(); ctx.moveTo(-4, -62); ctx.lineTo(10, -57); ctx.lineTo(-4, -52); ctx.closePath(); ctx.fill();
+  // stockpile of logs grows with the stock
+  const n = Math.min(10, Math.ceil(campStock / 2.4));
+  for (let i = 0; i < n; i++) {
+    const col = i % 3, row = Math.floor(i / 3);
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(34 + col * 7 - row * 3, 4 - row * 6, 7, 5);
+    ctx.fillStyle = '#d9b27c'; ctx.fillRect(34 + col * 7 - row * 3 + 5, 4 - row * 6, 2, 5);
+  }
+  if (campStock > 0) { ctx.fillStyle = '#ffe9c2'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`🪵 ${campStock}`, 46, -18); }
+  // little fire
+  drawGlow(-62, -2, 26, '#ff9f43', 0.35 + 0.1 * Math.sin(time * 9));
+  ctx.fillStyle = '#ff922b'; ctx.beginPath(); ctx.ellipse(-62, -4, 4, 7 + Math.sin(time * 11) * 1.5, 0, 0, TAU); ctx.fill();
   ctx.restore();
 }
 function drawGrave(c) {

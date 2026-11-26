@@ -98,13 +98,79 @@ function rebuildHouse(h) {
   addFloatText(h.x, h.y - 80, 'HOUSE REBUILT!', '#8ce99a', 20); sfx('upgrade');
 }
 function explosionFxLite(x, y) { addRing(x, y, 70, '#d9b27c', 0.4, 6); spawnBurst(x, y - 20, '#d9b27c', 16, 'spark'); spawnBurst(x, y - 20, '#f1d9a8', 8, 'ember'); }
+function enemyNear(x, y, r) { for (const e of enemies) if (Math.hypot(e.x - x, e.y - y) < r) return true; return false; }
+// ---------- woodcutters' camp (every wave without a village) ----------
+function makeCamp() {
+  let cx = WORLD_W / 2, cy = WORLD_H / 2, best = -1;
+  for (let i = 0; i < 40; i++) {
+    const x = rand(320, WORLD_W - 320), y = rand(300, WORLD_H - 300);
+    if (Math.hypot(x - player.x, y - player.y) < 320) continue;
+    if (ponds.some(q => Math.hypot((x - q.x) / (q.rx + 70), (y - q.y) / (q.ry + 70)) < 1)) continue;
+    const clear = trees.every(t => Math.hypot(t.x - x, t.y - y) > 110);
+    const sc = (clear ? 1000 : 0) + Math.min(Math.hypot(x - player.x, y - player.y), 700);
+    if (sc > best) { best = sc; cx = x; cy = y; }
+  }
+  camp = { x: cx, y: cy, workers: [] };
+  const cols = ['#e8a65a', '#9ccf7a', '#7fb3e6'];
+  for (let i = 0; i < 3; i++) { const x = cx + rand(-60, 60), y = cy + rand(20, 70); camp.workers.push({ x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[i], carry: 0, tgt: null, moving: false, scared: false }); }
+  props = props.filter(p => Math.hypot(p.x - cx, p.y - cy) > 80);
+  hazards = hazards.filter(h => Math.hypot(h.x - cx, h.y - cy) > 90);
+}
+// the woodcutters bring their stockpile to a village wave (and to anyone who walks up to the camp)
+function deliverCampStock(announce) {
+  const n = Math.min(campStock, WOOD_MAX - wood);
+  if (n <= 0) return;
+  campStock -= n; wood += n;
+  if (announce) addFloatText(player.x, player.y - 60, `Woodcutters brought ${n} 🪵`, '#d9b27c', 18);
+  else addFloatText(player.x, player.y - 50, `+${n} 🪵`, '#d9b27c');
+  sfx('coin');
+}
+function updateCamp(dt) {
+  if (!camp) return;
+  if (Math.hypot(camp.x - player.x, camp.y - player.y) < 90 && campStock > 0 && wood < WOOD_MAX) deliverCampStock(false);
+  for (const v of camp.workers) {
+    v.moving = false;
+    let near = null, nd = 260;
+    for (const e of enemies) { const d = Math.hypot(e.x - v.x, e.y - v.y); if (d < nd) { nd = d; near = e; } }
+    v.scared = !!near;
+    let tx = null, ty = null, sp = 62;
+    if (near) { // run directly away from the closest enemy, staying inside the world
+      const a = Math.atan2(v.y - near.y, v.x - near.x);
+      tx = Math.max(60, Math.min(WORLD_W - 60, v.x + Math.cos(a) * 200)); ty = Math.max(60, Math.min(WORLD_H - 60, v.y + Math.sin(a) * 200)); sp = 125;
+    } else if (v.carry > 0) {
+      tx = camp.x + 36; ty = camp.y + 40;
+      if (Math.hypot(tx - v.x, ty - v.y) < 14) { campStock = Math.min(CAMP_MAX, campStock + v.carry); v.carry = 0; sfx('chop', camp.x, camp.y); }
+    } else {
+      if (v.tgt && !pickups.includes(v.tgt)) v.tgt = null;
+      if (!v.tgt) {
+        let bd = 760;
+        for (const pk of pickups) {
+          if (pk.type !== 'wood' || pk.claim || (pk.age || 0) < 6 || Math.hypot(pk.x - player.x, pk.y - player.y) < 120) continue;
+          const d = Math.hypot(pk.x - camp.x, pk.y - camp.y); if (d < bd) { bd = d; v.tgt = pk; }
+        }
+        if (v.tgt) v.tgt.claim = v;
+      }
+      if (v.tgt) {
+        tx = v.tgt.x; ty = v.tgt.y;
+        if (Math.hypot(tx - v.x, ty - v.y) < 16) { v.carry = Math.min(v.tgt.n, 2); v.tgt.n -= v.carry; if (v.tgt.n <= 0) pickups.splice(pickups.indexOf(v.tgt), 1); else v.tgt.claim = null; v.tgt = null; }
+      } else { tx = v.hx; ty = v.hy; sp = 36; }
+    }
+    if (tx != null) {
+      const d = Math.hypot(tx - v.x, ty - v.y);
+      if (d > 5) { v.x += (tx - v.x) / d * sp * dt; v.y += (ty - v.y) / d * sp * dt; v.moving = true; }
+    }
+    // a worker who was sent running should not forget a claimed pile
+    if (near && v.tgt) { v.tgt.claim = null; v.tgt = null; }
+  }
+}
 // villagers fetch logs, haul them to a house and mend it; they flee to the houses when enemies close in
 function updateVillagers(dt) {
   if (!village) return;
   const alive = village.houses.filter(h => !h.dead);
   for (const v of village.villagers) {
     let tx = null, ty = null, sp = 70; v.moving = false;
-    if (village.scared) { // run for the nearest house
+    v.scared = enemyNear(v.x, v.y, 230);
+    if (v.scared) { // run for the nearest house
       const h = alive.length ? alive.reduce((a, b) => Math.hypot(a.x - v.x, a.y - v.y) < Math.hypot(b.x - v.x, b.y - v.y) ? a : b) : null;
       if (h) { tx = h.x; ty = h.y + 30; sp = 110; }
     } else if (v.carry > 0) {

@@ -355,6 +355,7 @@ const TAU = Math.PI * 2;
 
 var storageOK = (function () { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })();
 var bloodMoon = false, bloodMoons = 0, bmT = 0;
+var camp = null, campStock = 0, CAMP_MAX = 24;
 var wood = 0, treesFelled = 0, WOOD_MAX = 12, treeFx = 0;
 var fxDirty = true, ponds = [], grassBlades = [], lavaLights = [];
 let W = 0, H = 0, DPR = 1, vig = null;
@@ -872,7 +873,7 @@ function resetGame() {
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
-  wood = 0; treesFelled = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
+  wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
@@ -982,6 +983,7 @@ function startWave(w) {
     bannerText = 'BLOOD MOON'; bannerSub = 'The dark hungers · double gold';
     sfx('roar'); flash('#b0001a', 0.4); shake = Math.max(shake, 8);
   }
+  if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
 function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }
@@ -1497,13 +1499,79 @@ function rebuildHouse(h) {
   addFloatText(h.x, h.y - 80, 'HOUSE REBUILT!', '#8ce99a', 20); sfx('upgrade');
 }
 function explosionFxLite(x, y) { addRing(x, y, 70, '#d9b27c', 0.4, 6); spawnBurst(x, y - 20, '#d9b27c', 16, 'spark'); spawnBurst(x, y - 20, '#f1d9a8', 8, 'ember'); }
+function enemyNear(x, y, r) { for (const e of enemies) if (Math.hypot(e.x - x, e.y - y) < r) return true; return false; }
+// ---------- woodcutters' camp (every wave without a village) ----------
+function makeCamp() {
+  let cx = WORLD_W / 2, cy = WORLD_H / 2, best = -1;
+  for (let i = 0; i < 40; i++) {
+    const x = rand(320, WORLD_W - 320), y = rand(300, WORLD_H - 300);
+    if (Math.hypot(x - player.x, y - player.y) < 320) continue;
+    if (ponds.some(q => Math.hypot((x - q.x) / (q.rx + 70), (y - q.y) / (q.ry + 70)) < 1)) continue;
+    const clear = trees.every(t => Math.hypot(t.x - x, t.y - y) > 110);
+    const sc = (clear ? 1000 : 0) + Math.min(Math.hypot(x - player.x, y - player.y), 700);
+    if (sc > best) { best = sc; cx = x; cy = y; }
+  }
+  camp = { x: cx, y: cy, workers: [] };
+  const cols = ['#e8a65a', '#9ccf7a', '#7fb3e6'];
+  for (let i = 0; i < 3; i++) { const x = cx + rand(-60, 60), y = cy + rand(20, 70); camp.workers.push({ x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[i], carry: 0, tgt: null, moving: false, scared: false }); }
+  props = props.filter(p => Math.hypot(p.x - cx, p.y - cy) > 80);
+  hazards = hazards.filter(h => Math.hypot(h.x - cx, h.y - cy) > 90);
+}
+// the woodcutters bring their stockpile to a village wave (and to anyone who walks up to the camp)
+function deliverCampStock(announce) {
+  const n = Math.min(campStock, WOOD_MAX - wood);
+  if (n <= 0) return;
+  campStock -= n; wood += n;
+  if (announce) addFloatText(player.x, player.y - 60, `Woodcutters brought ${n} 🪵`, '#d9b27c', 18);
+  else addFloatText(player.x, player.y - 50, `+${n} 🪵`, '#d9b27c');
+  sfx('coin');
+}
+function updateCamp(dt) {
+  if (!camp) return;
+  if (Math.hypot(camp.x - player.x, camp.y - player.y) < 90 && campStock > 0 && wood < WOOD_MAX) deliverCampStock(false);
+  for (const v of camp.workers) {
+    v.moving = false;
+    let near = null, nd = 260;
+    for (const e of enemies) { const d = Math.hypot(e.x - v.x, e.y - v.y); if (d < nd) { nd = d; near = e; } }
+    v.scared = !!near;
+    let tx = null, ty = null, sp = 62;
+    if (near) { // run directly away from the closest enemy, staying inside the world
+      const a = Math.atan2(v.y - near.y, v.x - near.x);
+      tx = Math.max(60, Math.min(WORLD_W - 60, v.x + Math.cos(a) * 200)); ty = Math.max(60, Math.min(WORLD_H - 60, v.y + Math.sin(a) * 200)); sp = 125;
+    } else if (v.carry > 0) {
+      tx = camp.x + 36; ty = camp.y + 40;
+      if (Math.hypot(tx - v.x, ty - v.y) < 14) { campStock = Math.min(CAMP_MAX, campStock + v.carry); v.carry = 0; sfx('chop', camp.x, camp.y); }
+    } else {
+      if (v.tgt && !pickups.includes(v.tgt)) v.tgt = null;
+      if (!v.tgt) {
+        let bd = 760;
+        for (const pk of pickups) {
+          if (pk.type !== 'wood' || pk.claim || (pk.age || 0) < 6 || Math.hypot(pk.x - player.x, pk.y - player.y) < 120) continue;
+          const d = Math.hypot(pk.x - camp.x, pk.y - camp.y); if (d < bd) { bd = d; v.tgt = pk; }
+        }
+        if (v.tgt) v.tgt.claim = v;
+      }
+      if (v.tgt) {
+        tx = v.tgt.x; ty = v.tgt.y;
+        if (Math.hypot(tx - v.x, ty - v.y) < 16) { v.carry = Math.min(v.tgt.n, 2); v.tgt.n -= v.carry; if (v.tgt.n <= 0) pickups.splice(pickups.indexOf(v.tgt), 1); else v.tgt.claim = null; v.tgt = null; }
+      } else { tx = v.hx; ty = v.hy; sp = 36; }
+    }
+    if (tx != null) {
+      const d = Math.hypot(tx - v.x, ty - v.y);
+      if (d > 5) { v.x += (tx - v.x) / d * sp * dt; v.y += (ty - v.y) / d * sp * dt; v.moving = true; }
+    }
+    // a worker who was sent running should not forget a claimed pile
+    if (near && v.tgt) { v.tgt.claim = null; v.tgt = null; }
+  }
+}
 // villagers fetch logs, haul them to a house and mend it; they flee to the houses when enemies close in
 function updateVillagers(dt) {
   if (!village) return;
   const alive = village.houses.filter(h => !h.dead);
   for (const v of village.villagers) {
     let tx = null, ty = null, sp = 70; v.moving = false;
-    if (village.scared) { // run for the nearest house
+    v.scared = enemyNear(v.x, v.y, 230);
+    if (v.scared) { // run for the nearest house
       const h = alive.length ? alive.reduce((a, b) => Math.hypot(a.x - v.x, a.y - v.y) < Math.hypot(b.x - v.x, b.y - v.y) ? a : b) : null;
       if (h) { tx = h.x; ty = h.y + 30; sp = 110; }
     } else if (v.carry > 0) {
@@ -1841,7 +1909,7 @@ function stepSimulation(dt) {
 
   // --- pickups (magnetised when close or after a clear) ---
   for (let i = pickups.length - 1; i >= 0; i--) {
-    const pk = pickups[i]; pk.bob += dt * 4;
+    const pk = pickups[i]; pk.bob += dt * 4; pk.age = (pk.age || 0) + dt;
     const dist = Math.hypot(pk.x - player.x, pk.y - player.y);
     if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim)) continue;
     const mag = clearTimer !== null ? 560 : (dist < 95 ? 320 : 0);
@@ -1863,7 +1931,7 @@ function stepSimulation(dt) {
     if (h.timer > 2.0) forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - h.x, e.y - h.y) < h.r + e.r * 0.5 && e.hitFlash <= 0) damageEnemy(e, 22, 0, 40, true); });
   }
 
-  updateCompanions(dt); updateVillage(dt); updateVillagers(dt);
+  updateCompanions(dt); updateVillage(dt); updateVillagers(dt); updateCamp(dt);
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;
@@ -2201,6 +2269,10 @@ function render() {
     for (const h of village.houses) dr.push({ y: h.y, f: () => drawHouse(h) });
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
+  if (camp) {
+    dr.push({ y: camp.y, f: () => drawCamp() });
+    for (const v of camp.workers) dr.push({ y: v.y, f: () => drawVillager(v) });
+  }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
   dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
@@ -2336,6 +2408,7 @@ function drawMinimap() {
     if (e.type === 'dragon') { mctx.fillStyle = '#ff2a2a'; mctx.beginPath(); mctx.arc(e.x * sx, e.y * sy, 5, 0, TAU); mctx.fill(); }
     else { mctx.fillStyle = e.type === 'archer' ? '#69db7c' : (e.type === 'bomber' ? '#ff922b' : '#ff6b6b'); mctx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4); }
   }
+  if (camp) { mctx.fillStyle = '#e8a65a'; mctx.fillRect(camp.x * sx - 3, camp.y * sy - 3, 6, 5); }
   if (village) for (const h of village.houses) { mctx.fillStyle = h.dead ? '#5a2a1a' : '#ffa94d'; mctx.fillRect(h.x * sx - 3, h.y * sy - 3, 6, 6); }
   mctx.fillStyle = '#69db7c'; for (const c of companions) if (!c.down) mctx.fillRect(c.x * sx - 2, c.y * sy - 2, 4, 4);
   mctx.fillStyle = '#4dd4ff'; mctx.beginPath(); mctx.arc(player.x * sx, player.y * sy, 3.5, 0, TAU); mctx.fill();
@@ -2708,7 +2781,7 @@ function drawHouse(h) {
   ctx.restore();
 }
 function drawVillager(v) {
-  const scared = village.scared;
+  const scared = v.scared;
   const run = scared || v.moving, bob = Math.sin(time * (scared ? 14 : v.moving ? 10 : 2.5) + v.ph) * (scared ? 3 : v.moving ? 2 : 1.2), sx = v.moving || scared ? 0 : Math.sin(time * 1.3 + v.ph) * 2;
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();
@@ -2716,6 +2789,29 @@ function drawVillager(v) {
   if (v.carry > 0 && !scared) { ctx.save(); ctx.translate(0, -13 + bob * 0.2); ctx.rotate(0.3); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-9, -3, 18, 5); ctx.fillStyle = '#d9b27c'; ctx.fillRect(7, -3, 2, 5); ctx.restore(); }
   ctx.strokeStyle = '#ffdbac'; ctx.lineWidth = 2;
   if (scared) { ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-8, -22 + bob); ctx.moveTo(4, -12); ctx.lineTo(8, -22 - bob); ctx.stroke(); ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -28); }
+  ctx.restore();
+}
+function drawCamp() {
+  const c = camp, x = c.x, y = c.y;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(0, 8, 56, 17, 0, 0, TAU); ctx.fill();
+  // tent
+  ctx.fillStyle = '#b5784a'; ctx.beginPath(); ctx.moveTo(-44, 4); ctx.lineTo(-4, -50); ctx.lineTo(36, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#d9a066'; ctx.beginPath(); ctx.moveTo(-4, -50); ctx.lineTo(36, 4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3b2a1c'; ctx.beginPath(); ctx.moveTo(-14, 4); ctx.lineTo(-4, -22); ctx.lineTo(8, 4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-4, -50); ctx.lineTo(-4, -62); ctx.stroke();
+  ctx.fillStyle = '#e8590c'; ctx.beginPath(); ctx.moveTo(-4, -62); ctx.lineTo(10, -57); ctx.lineTo(-4, -52); ctx.closePath(); ctx.fill();
+  // stockpile of logs grows with the stock
+  const n = Math.min(10, Math.ceil(campStock / 2.4));
+  for (let i = 0; i < n; i++) {
+    const col = i % 3, row = Math.floor(i / 3);
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(34 + col * 7 - row * 3, 4 - row * 6, 7, 5);
+    ctx.fillStyle = '#d9b27c'; ctx.fillRect(34 + col * 7 - row * 3 + 5, 4 - row * 6, 2, 5);
+  }
+  if (campStock > 0) { ctx.fillStyle = '#ffe9c2'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`🪵 ${campStock}`, 46, -18); }
+  // little fire
+  drawGlow(-62, -2, 26, '#ff9f43', 0.35 + 0.1 * Math.sin(time * 9));
+  ctx.fillStyle = '#ff922b'; ctx.beginPath(); ctx.ellipse(-62, -4, 4, 7 + Math.sin(time * 11) * 1.5, 0, 0, TAU); ctx.fill();
   ctx.restore();
 }
 function drawGrave(c) {
@@ -3588,6 +3684,9 @@ function drawSunShadows() {
   if (village) {
     for (const h of village.houses) if (vis(h) && !h.dead) { poly(h.x, h.y + 6, 36, 70, 36); }
     for (const v of village.villagers) man(v, 0.9);
+  }
+  if (camp) {
+    for (const v of camp.workers) man(v, 0.9);
   }
   ctx.fill();
 }

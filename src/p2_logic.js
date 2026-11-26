@@ -40,7 +40,7 @@ function resetGame() {
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
-  wood = 0; treesFelled = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
+  wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
@@ -150,6 +150,7 @@ function startWave(w) {
     bannerText = 'BLOOD MOON'; bannerSub = 'The dark hungers · double gold';
     sfx('roar'); flash('#b0001a', 0.4); shake = Math.max(shake, 8);
   }
+  if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
 function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }

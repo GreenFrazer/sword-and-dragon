@@ -46,6 +46,23 @@ ok(run('village.villagers.every(v=>!v.carry)')&&!run("pickups.some(p=>p.type==='
 ok(run('village.houses.reduce((a,h)=>a+h.hp,0)')>hp0+run('village.houses[1].hp+village.houses[2].hp')-1,'a house was repaired');
 run("(()=>{const h=village.houses[1];h.dead=true;h.hp=0;wood=6;player.x=h.x;player.y=h.y+60;})()");frames(80);ok(run('!village.houses[1].dead')&&run('wood')===0,'player rebuilt a dead house with 6 logs');
 run('wood=5');run('renderShop()');ok(true,'shop renders with timber');
+// ---- woodcutters' camp ----
+run('wave=4;startWave(4);trees.forEach(t=>{t.regrow=9;t.fell=0});pickups.length=0;campStock=0;wood=0');
+ok(run('!!camp&&!village&&camp.workers.length===3'),'camp with 3 workers on a non-village wave');
+run('player.x=camp.x+500;player.y=camp.y;if(player.x>WORLD_W-100)player.x=camp.x-500');
+run('pickups.push({x:camp.x+120,y:camp.y+90,type:"wood",bob:0,n:4,age:0})');
+frames(1200);
+ok(run('campStock')>=3&&!run('pickups.some(p=>p.type==="wood")'),'workers hauled a pile to the camp stock ('+run('campStock')+')');
+// flee: put an enemy next to a worker and check it moves away
+run('enemies.length=0;waveQueue=["grunt"]');
+const d0=run('(()=>{const v=camp.workers[0];spawnEnemy("grunt");const e=enemies[0];e.x=v.x-60;e.y=v.y;e.hp=1e9;e.maxHp=1e9;e.speed=0;globalThis.__e=e;globalThis.__v=v;return Math.hypot(v.x-e.x,v.y-e.y)})()');
+for(let i=0;i<30;i++){run('enemies.length=1;player.hp=player.maxHp;spawnTimer=99;waveQueue=["grunt"]');step()}
+const d1=run('Math.hypot(__v.x-__e.x,__v.y-__e.y)');ok(d1>d0+30&&run('__v.scared'),'worker runs away from an enemy ('+Math.round(d0)+' -> '+Math.round(d1)+')');
+// stock reaches the player on a village wave
+run('enemies.length=0;campStock=7;wood=0;wave=5;startWave(5)');
+ok(run('!!village&&!camp&&wood===7&&campStock===0'),'stockpile delivered at village wave start');
+// village villagers flee individually
+run('enemies.length=0;spawnEnemy("grunt");enemies[0].x=village.villagers[0].x+40;enemies[0].y=village.villagers[0].y;');frames(2);
 // full flow still runs
 run('startWave(3);state="play"');frames(10);
 console.log(process.exitCode?'WOOD TEST FAILED':'wood: all checks passed');

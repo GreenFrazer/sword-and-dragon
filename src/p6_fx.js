@@ -590,5 +590,8 @@ function drawSunShadows() {
     for (const h of village.houses) if (vis(h) && !h.dead) { poly(h.x, h.y + 6, 36, 70, 36); }
     for (const v of village.villagers) man(v, 0.9);
   }
+  if (camp) {
+    for (const v of camp.workers) man(v, 0.9);
+  }
   ctx.fill();
 }

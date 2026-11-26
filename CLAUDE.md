@@ -29,6 +29,7 @@ Consequences:
 - **Player stats:** base values live on `player`; gear bonuses come from `player.g` via helpers (`atkDmg()`, `critCh()`, `vampAmt()`, `cdrMul()`, `goldMul()`) in `p5_gear.js`. Use these instead of reading `player.damage` directly.
 - **Persistence:** `meta` (embers, Forge levels, unlocked weapons) and `bestWave` use `localStorage` inside `try/catch`. Some viewers block it, so there is a copy/paste save code (`metaCode()` / `loadCode()` in `p8b_menu.js`, also shown on the game-over screen).
 - **Timber:** trees carry `hp/fell/regrow/grow/shake`; always test `treeAlive(t)` before using a tree (collision, shadows, minimap). Wood piles are `pickups` of type `'wood'` (`n` logs, `claim` set when a villager targets one). `wood` is a run stock (cap `WOOD_MAX`), reset in `resetGame()`. Villager hauling is `updateVillagers()` in `p2b_village.js`. Normal swings call `checkPropsInRadius(..., true)` so they don't chop trees by accident.
+- **Camp:** on non-village waves `makeCamp()` (p2b_village.js) sets `camp = {x, y, workers[]}`; `updateCamp()` runs the workers (flee, fetch piles older than 6s, deposit into `campStock`). `campStock` persists for the run and is handed over by `deliverCampStock()`. Villagers and camp workers share `drawVillager()` and the `v.scared` flag.
 - **Menu:** title UI is `p8b_menu.js` (`renderMenu`, `menuKey`, `beginRun`); backdrop is `p8a_titlebg.js`. HTML ids used by code include `title-modal`, `menu-list`, `menu-panel`, `start-btn`, `forge-btn`, `go-code`; keep them if you edit markup.
 
 ## Testing

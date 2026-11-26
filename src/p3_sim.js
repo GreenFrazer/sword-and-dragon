@@ -158,7 +158,7 @@ function stepSimulation(dt) {
 
   // --- pickups (magnetised when close or after a clear) ---
   for (let i = pickups.length - 1; i >= 0; i--) {
-    const pk = pickups[i]; pk.bob += dt * 4;
+    const pk = pickups[i]; pk.bob += dt * 4; pk.age = (pk.age || 0) + dt;
     const dist = Math.hypot(pk.x - player.x, pk.y - player.y);
     if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim)) continue;
     const mag = clearTimer !== null ? 560 : (dist < 95 ? 320 : 0);
@@ -180,7 +180,7 @@ function stepSimulation(dt) {
     if (h.timer > 2.0) forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - h.x, e.y - h.y) < h.r + e.r * 0.5 && e.hitFlash <= 0) damageEnemy(e, 22, 0, 40, true); });
   }
 
-  updateCompanions(dt); updateVillage(dt); updateVillagers(dt);
+  updateCompanions(dt); updateVillage(dt); updateVillagers(dt); updateCamp(dt);
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;

@@ -9,6 +9,7 @@ const TAU = Math.PI * 2;
 
 var storageOK = (function () { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })();
 var bloodMoon = false, bloodMoons = 0, bmT = 0;
+var camp = null, campStock = 0, CAMP_MAX = 24;
 var wood = 0, treesFelled = 0, WOOD_MAX = 12, treeFx = 0;
 var fxDirty = true, ponds = [], grassBlades = [], lavaLights = [];
 let W = 0, H = 0, DPR = 1, vig = null;

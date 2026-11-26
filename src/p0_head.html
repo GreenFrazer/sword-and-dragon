@@ -294,6 +294,48 @@
     #minimap { left: 10px; bottom: auto; top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px); width: 112px; height: 87px; }
     #controls { bottom: max(12px, env(safe-area-inset-bottom)); }
   }
+
+  /* ======================= GAME OVER v2: one clear way back in ======================= */
+  #gameover-modal { padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); touch-action: pan-y; }
+  .go-kick { font-family: var(--serif); font-size: 10px; letter-spacing: .35em; color: #c9583a; margin-bottom: 6px; }
+  #go-title { font-size: clamp(21px, 6.4vw, 40px); white-space: nowrap; margin-bottom: 4px; }
+  #go-title.rec { filter: drop-shadow(0 3px 0 #2a0c04) drop-shadow(0 0 26px rgba(255,200,80,.8)); }
+  #go-hook { margin: 0 0 14px; font-size: 15px; color: #e8dcc6; max-width: 440px; }
+  #go-hook b { font-style: normal; color: var(--gold); }
+  #go-offer { width: min(440px, 100%); margin-bottom: 16px; padding: 12px; border: 1px solid rgba(255,179,71,.35); background: linear-gradient(180deg, rgba(60,24,10,.55), rgba(10,6,12,.6)); box-shadow: inset 0 0 30px rgba(255,120,30,.08); }
+  .go-emb { display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--serif); color: var(--gold); }
+  .go-emb svg { width: 22px; height: 22px; filter: drop-shadow(0 0 6px #ff7a1a); }
+  .go-emb b { font-size: 26px; line-height: 1; animation: goPop .7s .2s both cubic-bezier(.2,1.6,.4,1); }
+  .go-emb i { font-style: normal; font-size: 10px; letter-spacing: .3em; color: #b8a77a; }
+  .go-plus { font-size: 13px; font-weight: 800; color: #2a0c04; background: linear-gradient(180deg, #ffd76a, #ff9a3c); padding: 2px 7px; border-radius: 2px; animation: goPop .5s both; }
+  @keyframes goPop { from { transform: scale(.3); opacity: 0; } }
+  .go-tp { margin: 10px 0 8px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #cbbfae; }
+  .go-fx { display: flex; flex-direction: column; gap: 8px; }
+  .go-f { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 8px 10px; cursor: pointer; text-align: left; border: 1px solid #6b5a3a; border-left: 3px solid var(--ember2); background: linear-gradient(180deg, #2a2030, #16121c); font-family: var(--serif); color: var(--bone); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .12s, border-color .15s; animation: goPop .45s both; }
+  .go-f:nth-child(2) { animation-delay: .08s; }
+  .go-f:hover, .go-f:focus-visible { border-color: var(--gold); transform: translateY(-1px); }
+  .go-f:active { transform: scale(.98); }
+  .go-f > svg { width: 30px; height: 30px; flex: none; }
+  .go-f span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .go-f span b { font-size: 14px; color: var(--gold); letter-spacing: .04em; }
+  .go-f span em { font-family: Georgia, serif; font-size: 12px; color: #cbbfae; }
+  .go-f u { text-decoration: none; flex: none; display: flex; align-items: center; gap: 3px; padding: 6px 10px; font-weight: 800; font-size: 15px; color: #2a0c04; background: linear-gradient(180deg, #ffd76a, #ff9a3c 70%, #c2410c); }
+  .go-f u svg { width: 13px; height: 13px; }
+  .go-done { margin-top: 10px; font-family: var(--serif); font-size: 12px; letter-spacing: .14em; color: #8ce99a; animation: goPop .4s both; }
+  .go-prog { margin-top: 10px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #cbbfae; }
+  .go-bar { height: 6px; margin-top: 6px; background: rgba(0,0,0,.5); border: 1px solid #4a3d3a; overflow: hidden; }
+  .go-bar i { display: block; height: 100%; background: linear-gradient(90deg, #c2410c, #ffd76a); box-shadow: 0 0 8px #ff9a3c; }
+  #again-btn { width: min(440px, 100%); padding: 18px 20px; font-size: 20px; letter-spacing: .3em; animation: goGlow 1.4s ease-in-out infinite alternate; }
+  #again-btn .kb { display: block; margin-top: 3px; font-size: 9px; letter-spacing: .3em; opacity: .55; }
+  @keyframes goGlow { from { box-shadow: inset 0 2px 0 rgba(255,255,255,.5); filter: brightness(1); } to { box-shadow: inset 0 2px 0 rgba(255,255,255,.5); filter: brightness(1.15) drop-shadow(0 0 14px rgba(255,140,40,.7)); } }
+  @media (pointer: coarse) { #again-btn .kb { display: none; } }
+  .go-row { display: flex; gap: 8px; width: min(440px, 100%); margin: 12px 0 16px; }
+  .go-sec { flex: 1; min-height: 44px; padding: 8px 6px; font-family: var(--serif); font-weight: 800; font-size: 11px; letter-spacing: .14em; color: var(--gold); background: rgba(255,120,30,.08); border: 1px solid rgba(255,179,71,.45); cursor: pointer; touch-action: manipulation; }
+  .go-sec:hover { background: rgba(255,120,30,.25); }
+  #go-card { width: min(440px, 100%); height: auto; border: 1px solid #6b4a1e; border-radius: 4px; box-shadow: 0 6px 28px rgba(0,0,0,.6); }
+  #gameover-stats { margin: 8px 0 6px; font-size: 13px; }
+  #gameover-stats:empty { display: none; }
+  .go-txt { background: none; border: none; color: #8fb8e0; font-family: Georgia, serif; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; }
 </style>
 </head>
 <body>
@@ -376,17 +418,22 @@
 </div>
 
 <div class="modal" id="gameover-modal">
-  <h2>YOU FELL IN BATTLE</h2>
-  <p id="gameover-stats">Reached Wave 1</p>
-  <canvas id="go-card" width="600" height="340" style="width:min(420px,86vw);height:auto;border:1px solid #6b4a1e;border-radius:8px;box-shadow:0 6px 28px rgba(0,0,0,.6),0 0 24px rgba(255,140,40,.25);margin:4px 0 10px"></canvas>
-  <button class="btn-restart" id="go-share" style="margin-bottom:12px;font-size:14px;padding:11px 28px;background:linear-gradient(180deg,#ff9a3c,#c1440e)">⚔ SHARE YOUR RUN · CHALLENGE A FRIEND</button>
-  <div class="tm-pd" id="go-code-note" style="margin:0 0 4px;max-width:420px">Your progress can't be stored in some viewers. Copy this save code (paste it into Notes) and load it from the Forge next time:</div>
+  <div class="go-kick">THE WYRM CLAIMS ANOTHER HERO</div>
+  <h2 id="go-title">YOU FELL IN BATTLE</h2>
+  <p id="go-hook"></p>
+  <div id="go-offer"></div>
+  <button class="btn-restart" id="again-btn">RISE AGAIN<span class="kb">ENTER</span></button>
+  <div class="go-row">
+    <button class="go-sec" id="go-share">⚔ SHARE RUN</button>
+    <button class="go-sec" id="forge-btn">THE FORGE</button>
+    <button class="go-sec" id="go-menu-btn">MAIN MENU</button>
+  </div>
+  <canvas id="go-card" width="600" height="340"></canvas>
+  <p id="gameover-stats"></p>
+  <button class="go-txt" id="go-link">📲 Play on another device · save link</button>
+  <div class="tm-pd" id="go-code-note" style="margin:6px 0 4px;max-width:420px">Your progress can't be stored in some viewers. Copy this save code (paste it into Notes) and load it from the Forge next time:</div>
   <textarea id="go-code" rows="2" readonly style="width:min(420px,86vw);background:rgba(0,0,0,0.4);color:#cbbfae;border:1px solid #4a3d3a;font-family:monospace;font-size:10px;padding:6px;resize:none;user-select:text;-webkit-user-select:text;margin-bottom:6px"></textarea>
-  <button class="btn-restart" id="go-copy" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">COPY SAVE CODE</button>
-  <button class="btn-restart" id="go-link" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#5aa0d8,#2a5f94)">📲 PLAY ON ANOTHER DEVICE · SAVE LINK</button>
-  <button class="btn-restart" id="again-btn">PLAY AGAIN</button>
-  <button class="btn-restart" id="forge-btn" style="margin-top:10px;">VISIT THE FORGE</button>
-  <button class="btn-restart" id="go-menu-btn" style="margin-top:10px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">MAIN MENU</button>
+  <button class="go-sec" id="go-copy" style="margin-bottom:14px">COPY SAVE CODE</button>
 </div>
 
 <div id="feat-toast" style="position:fixed;left:50%;top:-120px;transform:translateX(-50%);z-index:60;pointer-events:none;min-width:240px;max-width:88vw;padding:10px 20px 10px 16px;background:linear-gradient(180deg,#2a1a0c,#120a06);border:1px solid #ffb347;border-left:5px solid #ffb347;box-shadow:0 8px 30px rgba(0,0,0,.7),0 0 26px rgba(255,150,40,.4);color:#fff3d6;font-family:Georgia,serif;transition:top .5s cubic-bezier(.2,1.4,.4,1)"></div>

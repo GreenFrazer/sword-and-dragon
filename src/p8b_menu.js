@@ -191,7 +191,7 @@ function drawRunCard(earned) {
     st.forEach((s, i) => { const x = 30 + i * 140; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 6, 178, 128, 62); g.fillStyle = '#ffb347'; g.fillRect(x - 6, 178, 3, 62); g.fillStyle = '#fff'; g.font = '700 28px Georgia,serif'; g.fillText(String(s[0]), x + 6, 214); g.fillStyle = '#c9b79c'; g.font = '11px sans-serif'; g.fillText(s[1], x + 6, 232); });
     g.fillStyle = '#ffd98a'; g.font = '600 15px Georgia,serif'; g.fillText('Can you beat me? greenfrazer.github.io/sword-and-dragon', 26, 316);
     runCardText = `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Can you beat me?`;
-    $('go-share').textContent = '⚔ SHARE YOUR RUN · CHALLENGE A FRIEND';
+    $('go-share').textContent = '⚔ SHARE RUN';
   } catch (e) {}
 }
 (function () {
@@ -207,7 +207,7 @@ function drawRunCard(earned) {
       }
       if (navigator.share) { await navigator.share({ text, url }); return; }
     } catch (e) { if (e && e.name === 'AbortError') return; }
-    try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED — PASTE IT TO A FRIEND'; } catch (e) { b.textContent = 'LONG-PRESS THE CARD TO SAVE IT'; }
+    try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED'; } catch (e) { b.textContent = 'HOLD THE CARD'; }
   });
 })();
 
@@ -245,4 +245,32 @@ function stepFeats(dt) {
 function featsHtml() {
   const d = featsDone();
   return `<div class="tm-ph" style="margin-top:18px">DEEDS <span class="tm-bal" style="margin-left:auto;font-size:13px">${d} / ${FEATS.length}</span></div><div class="tm-keys-grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">` + FEATS.map(f => { const on = meta.feats && meta.feats[f.id]; return `<div class="tm-k" style="opacity:${on ? 1 : .55};border-left:3px solid ${on ? '#ffb347' : '#4a3d3a'}"><span style="margin-right:8px">${on ? '🏆' : '🔒'}</span><span><b>${f.name}</b><br><small>${f.desc} · +${f.e} embers</small></span></div>`; }).join('') + '</div>';
+}
+
+// ---------- game over: a reason to go again, and the Forge right where you fell ----------
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+function renderGameOver(earned, prevBest) {
+  const rec = wave > prevBest && prevBest > 0, toBeat = prevBest + 1 - wave, nextDragon = Math.ceil(wave / 3) * 3;
+  const t = $('go-title'); t.textContent = rec ? 'NEW RECORD · WAVE ' + wave : 'FALLEN ON WAVE ' + wave; setClassOn(t, 'rec', rec);
+  let hook = prevBest === 0 ? 'Your first hunt is over. Every run earns embers; spend them and you will go further.'
+    : rec ? `You went past your old best of wave ${prevBest}. The ballads will need a new verse.`
+    : toBeat === 1 ? `<b>One more wave</b> would have been a new record (wave ${prevBest}).`
+    : toBeat <= 3 ? `<b>${toBeat} waves</b> short of your record (wave ${prevBest}).`
+    : `Your record stands at wave ${prevBest}.`;
+  hook += wave % 3 === 0 ? ' The dragon still circles overhead.' : ` The next dragon waits at <b>wave ${nextDragon}</b>.`;
+  $('go-hook').innerHTML = hook;
+  renderGoOffer(earned);
+}
+function setClassOn(el, c, on) { if (el && el.classList) el.classList[on ? 'add' : 'remove'](c); }
+function renderGoOffer(earned, bought) {
+  const box = $('go-offer'); if (!box) return;
+  const opts = FORGE.map((f, i) => ({ i, f, lvl: meta[f.id] || 0 })).filter(o => o.lvl < o.f.max).map(o => Object.assign(o, { cost: o.f.cost(o.lvl) })).sort((a, b) => a.cost - b.cost);
+  const can = opts.filter(o => meta.embers >= o.cost).slice(0, 2);
+  let h = `<div class="go-emb">${earned ? `<span class="go-plus">+${earned}</span>` : ''}${SVG_EMBER}<b>${meta.embers}</b><i>EMBERS</i></div>`;
+  if (bought) h += `<div class="go-done">✔ ${bought.toUpperCase()} TEMPERED · IT RIDES WITH YOU NEXT RUN</div>`;
+  if (can.length) h += `<div class="go-tp">Temper your hero before you rise:</div><div class="go-fx">` + can.map(o => `<button class="go-f" data-f="${o.i}">${SVGF[o.f.id] || ''}<span><b>${o.f.name.toUpperCase()} ${ROMAN[o.lvl + 1] || ''}</b><em>${o.f.desc}</em></span><u>${o.cost}${SVG_EMBER}</u></button>`).join('') + '</div>';
+  else if (opts.length) { const o = opts[0], pct = Math.min(100, Math.round(meta.embers / o.cost * 100)); h += `<div class="go-prog">${o.cost - meta.embers} more embers to temper ${o.f.name} ${ROMAN[o.lvl + 1] || ''}.</div><div class="go-bar"><i style="width:${pct}%"></i></div>`; }
+  else h += '<div class="go-done">THE FORGE HAS NOTHING LEFT TO TEACH YOU</div>';
+  box.innerHTML = h;
+  box.querySelectorAll('.go-f').forEach(b => { b.onclick = () => { const f = FORGE[+b.dataset.f]; buyForge(+b.dataset.f); flash('#ffb347', 0.25); $('go-code').value = metaCode(); renderGoOffer(earned, f.name); }; });
 }

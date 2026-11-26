@@ -420,10 +420,13 @@ function damagePlayer(amount, fromX, fromY) {
   }
   if (player.hp <= 0) {
     player.hp = 0; state = 'gameover'; sfx('death');
-    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; goSaveUI(); $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
+    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; goSaveUI(); 
+    const prevBest = bestWave;
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${bloodMoons ? ` • 🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : ''}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    // the share card already shows wave, kills, combo, gold and embers; this line carries only the extras
+    $('gameover-stats').textContent = [bloodMoons ? `🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : '', frenzyCount ? `🔥 ${frenzyCount} frenz${frenzyCount > 1 ? 'ies' : 'y'}` : '', runOmen ? `${runOmen.name} ×${runOmen.mul}` : '', re.daily ? `🌅 daily hunt +${re.daily} · ${meta.streak}-day streak` : ''].filter(Boolean).join(' • ');
     $('gameover-modal').style.display = 'flex'; if (typeof drawRunCard === 'function') drawRunCard(earned);
+    if (typeof renderGameOver === 'function') renderGameOver(earned, prevBest);
   }
 }
 function cashOutRun() {

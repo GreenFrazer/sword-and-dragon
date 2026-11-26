@@ -452,7 +452,7 @@ bindBtn('btn-dash', () => triggerDash());
 bindBtn('btn-spin', () => triggerSpin());
 bindBtn('btn-ult', () => triggerUlt());
 bindBtn('btn-cast', () => triggerCast());
-$('forge-btn').addEventListener('click', () => showTitle());
+$('forge-btn').addEventListener('click', () => { showTitle(); menuIdx = MENU.findIndex(m => m.id === 'forge'); renderMenu(); });
 $('go-menu-btn').addEventListener('click', () => showTitle());
 $('mute').addEventListener('click', () => toggleMute());
 $('music-btn').addEventListener('click', () => { initAudio(); toggleMusic(); });

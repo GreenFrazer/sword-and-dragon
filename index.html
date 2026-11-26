@@ -294,6 +294,48 @@
     #minimap { left: 10px; bottom: auto; top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px); width: 112px; height: 87px; }
     #controls { bottom: max(12px, env(safe-area-inset-bottom)); }
   }
+
+  /* ======================= GAME OVER v2: one clear way back in ======================= */
+  #gameover-modal { padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); touch-action: pan-y; }
+  .go-kick { font-family: var(--serif); font-size: 10px; letter-spacing: .35em; color: #c9583a; margin-bottom: 6px; }
+  #go-title { font-size: clamp(21px, 6.4vw, 40px); white-space: nowrap; margin-bottom: 4px; }
+  #go-title.rec { filter: drop-shadow(0 3px 0 #2a0c04) drop-shadow(0 0 26px rgba(255,200,80,.8)); }
+  #go-hook { margin: 0 0 14px; font-size: 15px; color: #e8dcc6; max-width: 440px; }
+  #go-hook b { font-style: normal; color: var(--gold); }
+  #go-offer { width: min(440px, 100%); margin-bottom: 16px; padding: 12px; border: 1px solid rgba(255,179,71,.35); background: linear-gradient(180deg, rgba(60,24,10,.55), rgba(10,6,12,.6)); box-shadow: inset 0 0 30px rgba(255,120,30,.08); }
+  .go-emb { display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--serif); color: var(--gold); }
+  .go-emb svg { width: 22px; height: 22px; filter: drop-shadow(0 0 6px #ff7a1a); }
+  .go-emb b { font-size: 26px; line-height: 1; animation: goPop .7s .2s both cubic-bezier(.2,1.6,.4,1); }
+  .go-emb i { font-style: normal; font-size: 10px; letter-spacing: .3em; color: #b8a77a; }
+  .go-plus { font-size: 13px; font-weight: 800; color: #2a0c04; background: linear-gradient(180deg, #ffd76a, #ff9a3c); padding: 2px 7px; border-radius: 2px; animation: goPop .5s both; }
+  @keyframes goPop { from { transform: scale(.3); opacity: 0; } }
+  .go-tp { margin: 10px 0 8px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #cbbfae; }
+  .go-fx { display: flex; flex-direction: column; gap: 8px; }
+  .go-f { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 8px 10px; cursor: pointer; text-align: left; border: 1px solid #6b5a3a; border-left: 3px solid var(--ember2); background: linear-gradient(180deg, #2a2030, #16121c); font-family: var(--serif); color: var(--bone); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .12s, border-color .15s; animation: goPop .45s both; }
+  .go-f:nth-child(2) { animation-delay: .08s; }
+  .go-f:hover, .go-f:focus-visible { border-color: var(--gold); transform: translateY(-1px); }
+  .go-f:active { transform: scale(.98); }
+  .go-f > svg { width: 30px; height: 30px; flex: none; }
+  .go-f span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .go-f span b { font-size: 14px; color: var(--gold); letter-spacing: .04em; }
+  .go-f span em { font-family: Georgia, serif; font-size: 12px; color: #cbbfae; }
+  .go-f u { text-decoration: none; flex: none; display: flex; align-items: center; gap: 3px; padding: 6px 10px; font-weight: 800; font-size: 15px; color: #2a0c04; background: linear-gradient(180deg, #ffd76a, #ff9a3c 70%, #c2410c); }
+  .go-f u svg { width: 13px; height: 13px; }
+  .go-done { margin-top: 10px; font-family: var(--serif); font-size: 12px; letter-spacing: .14em; color: #8ce99a; animation: goPop .4s both; }
+  .go-prog { margin-top: 10px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #cbbfae; }
+  .go-bar { height: 6px; margin-top: 6px; background: rgba(0,0,0,.5); border: 1px solid #4a3d3a; overflow: hidden; }
+  .go-bar i { display: block; height: 100%; background: linear-gradient(90deg, #c2410c, #ffd76a); box-shadow: 0 0 8px #ff9a3c; }
+  #again-btn { width: min(440px, 100%); padding: 18px 20px; font-size: 20px; letter-spacing: .3em; animation: goGlow 1.4s ease-in-out infinite alternate; }
+  #again-btn .kb { display: block; margin-top: 3px; font-size: 9px; letter-spacing: .3em; opacity: .55; }
+  @keyframes goGlow { from { box-shadow: inset 0 2px 0 rgba(255,255,255,.5); filter: brightness(1); } to { box-shadow: inset 0 2px 0 rgba(255,255,255,.5); filter: brightness(1.15) drop-shadow(0 0 14px rgba(255,140,40,.7)); } }
+  @media (pointer: coarse) { #again-btn .kb { display: none; } }
+  .go-row { display: flex; gap: 8px; width: min(440px, 100%); margin: 12px 0 16px; }
+  .go-sec { flex: 1; min-height: 44px; padding: 8px 6px; font-family: var(--serif); font-weight: 800; font-size: 11px; letter-spacing: .14em; color: var(--gold); background: rgba(255,120,30,.08); border: 1px solid rgba(255,179,71,.45); cursor: pointer; touch-action: manipulation; }
+  .go-sec:hover { background: rgba(255,120,30,.25); }
+  #go-card { width: min(440px, 100%); height: auto; border: 1px solid #6b4a1e; border-radius: 4px; box-shadow: 0 6px 28px rgba(0,0,0,.6); }
+  #gameover-stats { margin: 8px 0 6px; font-size: 13px; }
+  #gameover-stats:empty { display: none; }
+  .go-txt { background: none; border: none; color: #8fb8e0; font-family: Georgia, serif; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; }
 </style>
 </head>
 <body>
@@ -376,17 +418,22 @@
 </div>
 
 <div class="modal" id="gameover-modal">
-  <h2>YOU FELL IN BATTLE</h2>
-  <p id="gameover-stats">Reached Wave 1</p>
-  <canvas id="go-card" width="600" height="340" style="width:min(420px,86vw);height:auto;border:1px solid #6b4a1e;border-radius:8px;box-shadow:0 6px 28px rgba(0,0,0,.6),0 0 24px rgba(255,140,40,.25);margin:4px 0 10px"></canvas>
-  <button class="btn-restart" id="go-share" style="margin-bottom:12px;font-size:14px;padding:11px 28px;background:linear-gradient(180deg,#ff9a3c,#c1440e)">⚔ SHARE YOUR RUN · CHALLENGE A FRIEND</button>
-  <div class="tm-pd" id="go-code-note" style="margin:0 0 4px;max-width:420px">Your progress can't be stored in some viewers. Copy this save code (paste it into Notes) and load it from the Forge next time:</div>
+  <div class="go-kick">THE WYRM CLAIMS ANOTHER HERO</div>
+  <h2 id="go-title">YOU FELL IN BATTLE</h2>
+  <p id="go-hook"></p>
+  <div id="go-offer"></div>
+  <button class="btn-restart" id="again-btn">RISE AGAIN<span class="kb">ENTER</span></button>
+  <div class="go-row">
+    <button class="go-sec" id="go-share">⚔ SHARE RUN</button>
+    <button class="go-sec" id="forge-btn">THE FORGE</button>
+    <button class="go-sec" id="go-menu-btn">MAIN MENU</button>
+  </div>
+  <canvas id="go-card" width="600" height="340"></canvas>
+  <p id="gameover-stats"></p>
+  <button class="go-txt" id="go-link">📲 Play on another device · save link</button>
+  <div class="tm-pd" id="go-code-note" style="margin:6px 0 4px;max-width:420px">Your progress can't be stored in some viewers. Copy this save code (paste it into Notes) and load it from the Forge next time:</div>
   <textarea id="go-code" rows="2" readonly style="width:min(420px,86vw);background:rgba(0,0,0,0.4);color:#cbbfae;border:1px solid #4a3d3a;font-family:monospace;font-size:10px;padding:6px;resize:none;user-select:text;-webkit-user-select:text;margin-bottom:6px"></textarea>
-  <button class="btn-restart" id="go-copy" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">COPY SAVE CODE</button>
-  <button class="btn-restart" id="go-link" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#5aa0d8,#2a5f94)">📲 PLAY ON ANOTHER DEVICE · SAVE LINK</button>
-  <button class="btn-restart" id="again-btn">PLAY AGAIN</button>
-  <button class="btn-restart" id="forge-btn" style="margin-top:10px;">VISIT THE FORGE</button>
-  <button class="btn-restart" id="go-menu-btn" style="margin-top:10px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">MAIN MENU</button>
+  <button class="go-sec" id="go-copy" style="margin-bottom:14px">COPY SAVE CODE</button>
 </div>
 
 <div id="feat-toast" style="position:fixed;left:50%;top:-120px;transform:translateX(-50%);z-index:60;pointer-events:none;min-width:240px;max-width:88vw;padding:10px 20px 10px 16px;background:linear-gradient(180deg,#2a1a0c,#120a06);border:1px solid #ffb347;border-left:5px solid #ffb347;box-shadow:0 8px 30px rgba(0,0,0,.7),0 0 26px rgba(255,150,40,.4);color:#fff3d6;font-family:Georgia,serif;transition:top .5s cubic-bezier(.2,1.4,.4,1)"></div>
@@ -853,7 +900,7 @@ bindBtn('btn-dash', () => triggerDash());
 bindBtn('btn-spin', () => triggerSpin());
 bindBtn('btn-ult', () => triggerUlt());
 bindBtn('btn-cast', () => triggerCast());
-$('forge-btn').addEventListener('click', () => showTitle());
+$('forge-btn').addEventListener('click', () => { showTitle(); menuIdx = MENU.findIndex(m => m.id === 'forge'); renderMenu(); });
 $('go-menu-btn').addEventListener('click', () => showTitle());
 $('mute').addEventListener('click', () => toggleMute());
 $('music-btn').addEventListener('click', () => { initAudio(); toggleMusic(); });
@@ -1308,10 +1355,13 @@ function damagePlayer(amount, fromX, fromY) {
   }
   if (player.hp <= 0) {
     player.hp = 0; state = 'gameover'; sfx('death');
-    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; goSaveUI(); $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
+    const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; goSaveUI(); 
+    const prevBest = bestWave;
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${bloodMoons ? ` • 🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : ''}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    // the share card already shows wave, kills, combo, gold and embers; this line carries only the extras
+    $('gameover-stats').textContent = [bloodMoons ? `🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : '', frenzyCount ? `🔥 ${frenzyCount} frenz${frenzyCount > 1 ? 'ies' : 'y'}` : '', runOmen ? `${runOmen.name} ×${runOmen.mul}` : '', re.daily ? `🌅 daily hunt +${re.daily} · ${meta.streak}-day streak` : ''].filter(Boolean).join(' • ');
     $('gameover-modal').style.display = 'flex'; if (typeof drawRunCard === 'function') drawRunCard(earned);
+    if (typeof renderGameOver === 'function') renderGameOver(earned, prevBest);
   }
 }
 function cashOutRun() {
@@ -4239,7 +4289,7 @@ function drawRunCard(earned) {
     st.forEach((s, i) => { const x = 30 + i * 140; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 6, 178, 128, 62); g.fillStyle = '#ffb347'; g.fillRect(x - 6, 178, 3, 62); g.fillStyle = '#fff'; g.font = '700 28px Georgia,serif'; g.fillText(String(s[0]), x + 6, 214); g.fillStyle = '#c9b79c'; g.font = '11px sans-serif'; g.fillText(s[1], x + 6, 232); });
     g.fillStyle = '#ffd98a'; g.font = '600 15px Georgia,serif'; g.fillText('Can you beat me? greenfrazer.github.io/sword-and-dragon', 26, 316);
     runCardText = `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Can you beat me?`;
-    $('go-share').textContent = '⚔ SHARE YOUR RUN · CHALLENGE A FRIEND';
+    $('go-share').textContent = '⚔ SHARE RUN';
   } catch (e) {}
 }
 (function () {
@@ -4255,7 +4305,7 @@ function drawRunCard(earned) {
       }
       if (navigator.share) { await navigator.share({ text, url }); return; }
     } catch (e) { if (e && e.name === 'AbortError') return; }
-    try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED — PASTE IT TO A FRIEND'; } catch (e) { b.textContent = 'LONG-PRESS THE CARD TO SAVE IT'; }
+    try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED'; } catch (e) { b.textContent = 'HOLD THE CARD'; }
   });
 })();
 
@@ -4293,6 +4343,34 @@ function stepFeats(dt) {
 function featsHtml() {
   const d = featsDone();
   return `<div class="tm-ph" style="margin-top:18px">DEEDS <span class="tm-bal" style="margin-left:auto;font-size:13px">${d} / ${FEATS.length}</span></div><div class="tm-keys-grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">` + FEATS.map(f => { const on = meta.feats && meta.feats[f.id]; return `<div class="tm-k" style="opacity:${on ? 1 : .55};border-left:3px solid ${on ? '#ffb347' : '#4a3d3a'}"><span style="margin-right:8px">${on ? '🏆' : '🔒'}</span><span><b>${f.name}</b><br><small>${f.desc} · +${f.e} embers</small></span></div>`; }).join('') + '</div>';
+}
+
+// ---------- game over: a reason to go again, and the Forge right where you fell ----------
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+function renderGameOver(earned, prevBest) {
+  const rec = wave > prevBest && prevBest > 0, toBeat = prevBest + 1 - wave, nextDragon = Math.ceil(wave / 3) * 3;
+  const t = $('go-title'); t.textContent = rec ? 'NEW RECORD · WAVE ' + wave : 'FALLEN ON WAVE ' + wave; setClassOn(t, 'rec', rec);
+  let hook = prevBest === 0 ? 'Your first hunt is over. Every run earns embers; spend them and you will go further.'
+    : rec ? `You went past your old best of wave ${prevBest}. The ballads will need a new verse.`
+    : toBeat === 1 ? `<b>One more wave</b> would have been a new record (wave ${prevBest}).`
+    : toBeat <= 3 ? `<b>${toBeat} waves</b> short of your record (wave ${prevBest}).`
+    : `Your record stands at wave ${prevBest}.`;
+  hook += wave % 3 === 0 ? ' The dragon still circles overhead.' : ` The next dragon waits at <b>wave ${nextDragon}</b>.`;
+  $('go-hook').innerHTML = hook;
+  renderGoOffer(earned);
+}
+function setClassOn(el, c, on) { if (el && el.classList) el.classList[on ? 'add' : 'remove'](c); }
+function renderGoOffer(earned, bought) {
+  const box = $('go-offer'); if (!box) return;
+  const opts = FORGE.map((f, i) => ({ i, f, lvl: meta[f.id] || 0 })).filter(o => o.lvl < o.f.max).map(o => Object.assign(o, { cost: o.f.cost(o.lvl) })).sort((a, b) => a.cost - b.cost);
+  const can = opts.filter(o => meta.embers >= o.cost).slice(0, 2);
+  let h = `<div class="go-emb">${earned ? `<span class="go-plus">+${earned}</span>` : ''}${SVG_EMBER}<b>${meta.embers}</b><i>EMBERS</i></div>`;
+  if (bought) h += `<div class="go-done">✔ ${bought.toUpperCase()} TEMPERED · IT RIDES WITH YOU NEXT RUN</div>`;
+  if (can.length) h += `<div class="go-tp">Temper your hero before you rise:</div><div class="go-fx">` + can.map(o => `<button class="go-f" data-f="${o.i}">${SVGF[o.f.id] || ''}<span><b>${o.f.name.toUpperCase()} ${ROMAN[o.lvl + 1] || ''}</b><em>${o.f.desc}</em></span><u>${o.cost}${SVG_EMBER}</u></button>`).join('') + '</div>';
+  else if (opts.length) { const o = opts[0], pct = Math.min(100, Math.round(meta.embers / o.cost * 100)); h += `<div class="go-prog">${o.cost - meta.embers} more embers to temper ${o.f.name} ${ROMAN[o.lvl + 1] || ''}.</div><div class="go-bar"><i style="width:${pct}%"></i></div>`; }
+  else h += '<div class="go-done">THE FORGE HAS NOTHING LEFT TO TEACH YOU</div>';
+  box.innerHTML = h;
+  box.querySelectorAll('.go-f').forEach(b => { b.onclick = () => { const f = FORGE[+b.dataset.f]; buyForge(+b.dataset.f); flash('#ffb347', 0.25); $('go-code').value = metaCode(); renderGoOffer(earned, f.name); }; });
 }
 // ======================= START =======================
 resetGame();

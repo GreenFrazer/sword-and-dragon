@@ -347,6 +347,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 
 var storageOK = (function () { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })();
+var bloodMoon = false, bloodMoons = 0, bmT = 0;
 var fxDirty = true, ponds = [], grassBlades = [], lavaLights = [];
 let W = 0, H = 0, DPR = 1, vig = null;
 function resizeCanvas() {
@@ -852,7 +853,7 @@ function newPlayer() {
 function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
-  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
+  bloodMoon = false; bloodMoons = 0; bmT = 0; wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
@@ -925,9 +926,17 @@ function startWave(w) {
       for (let i = 0; i < 2; i++) waveQueue.push(i ? 'brute' : 'grunt');
     }
   }
+  bloodMoon = false;
+  if (w >= 4 && w % 3 === 1 && Math.random() < 0.8) { // BLOOD MOON: a plain wave turns into a dark, crimson-lit swarm for double gold
+    bloodMoon = true; bloodMoons++; bmT = 0;
+    const extra = Math.ceil(waveQueue.length * 0.4);
+    for (let i = 0; i < extra; i++) waveQueue.push(i % 4 === 3 ? 'brute' : (i % 3 === 2 && w >= 3 ? 'archer' : 'grunt'));
+    bannerText = 'BLOOD MOON'; bannerSub = 'The dark hungers · double gold';
+    sfx('roar'); flash('#b0001a', 0.4); shake = Math.max(shake, 8);
+  }
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
-function maxAlive() { return Math.min(10, 4 + Math.floor(wave / 2) + (village ? 1 : 0)); }
+function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }
 
 function spawnEnemy(type) {
   let ex = 100, ey = 90;
@@ -965,7 +974,7 @@ function spawnEnemy(type) {
     en = { ...base, type: 'grunt', hp, maxHp: hp, speed: 138, r: 20, damage: Math.round(13 * ds) };
   }
   if (runOmen) { if (runOmen.spd) en.speed *= runOmen.spd; const hm = type === 'dragon' ? (runOmen.drg || 1) : (runOmen.hp || 1); if (hm !== 1) { en.hp = Math.round(en.hp * hm); en.maxHp = en.hp; } }
-  if (type !== 'dragon' && wave >= 3 && Math.random() < Math.min(0.2, 0.04 + wave * 0.012)) makeElite(en);
+  if (type !== 'dragon' && wave >= 3 && Math.random() < (bloodMoon ? 0.22 : Math.min(0.2, 0.04 + wave * 0.012))) makeElite(en);
   if (type === 'dragon') introT = 2.8;
   enemies.push(en);
   spawnBurst(ex, ey - 10, '#c9a227', 10, 'spark');
@@ -1183,7 +1192,7 @@ function damagePlayer(amount, fromX, fromY) {
     player.hp = 0; state = 'gameover'; sfx('death');
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${bloodMoons ? ` • 🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : ''}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }
@@ -1612,7 +1621,7 @@ function stepSimulation(dt) {
   shake = Math.max(0, shake - dt * 28);
   zoomKick = Math.max(0, zoomKick - dt * 0.18);
   flashA = Math.max(0, flashA - dt * 2.2);
-  bannerT = Math.max(0, bannerT - dt);
+  bannerT = Math.max(0, bannerT - dt); bmT += dt;
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);
@@ -2126,6 +2135,7 @@ function render() {
   }
   // glows (additive lighting)
   for (const g of glows) drawGlow(g.x, g.y, g.r, g.color, g.life / g.maxLife * 0.85);
+  if (bloodMoon) for (const e of enemies) if (e.type !== 'dragon') { const ex = Math.cos(e.facing) * 4; drawGlow(e.x - 5 + ex, e.y - e.r - 14, 13, '#ff1a2e', 0.9); drawGlow(e.x + 5 + ex, e.y - e.r - 14, 13, '#ff1a2e', 0.9); }
   for (const e of enemies) {
     if (e.type === 'dragon' && e.aiState === 'breath_fire') drawGlow(e.x + Math.cos(e.facing) * 120, e.y - 30 + Math.sin(e.facing) * 60, 170, e.skin.glow, 0.45 + 0.2 * Math.sin(time * 30));
     if (e.type === 'bomber' && e.fuse > 0) drawGlow(e.x, e.y - 30, 50, '#ff922b', 0.6);
@@ -2154,7 +2164,7 @@ function render() {
   // ---------- screen-space overlays ----------
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (biome.tint) { ctx.fillStyle = biome.tint; ctx.fillRect(0, 0, W, H); }
-  lightingPass(); drawFogRays(); drawWeather(); colorGrade();
+  lightingPass(); drawBloodMoon(); drawFogRays(); drawWeather(); colorGrade();
   for (const a of ambient) {
     if (biome.amb === 'ember') drawGlow(a.x, a.y, a.s * 2.5, a.col, 0.55 + 0.3 * Math.sin(a.ph * 3));
     else if (biome.amb === 'snow') { ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(a.x, a.y, a.s * 0.6, 0, TAU); ctx.fill(); }
@@ -2661,7 +2671,7 @@ function claimDaily() {
   const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
 }
 function runEmbers() {
-  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25);
   if (runOmen) e = Math.floor(e * runOmen.mul);
   return { base: e, daily: claimDaily() };
 }
@@ -2687,7 +2697,7 @@ function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might
 function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }
-function goldMul() { return (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
+function goldMul() { return (bloodMoon ? 2 : 1) * (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
 
 // ---------- gear / loot ----------
 let gear = { weapon: null, armor: null, trinket: null };
@@ -2919,13 +2929,14 @@ function darkLevel() {
   const prog = Math.max(0, Math.min(1, 1 - (enemies.length + waveQueue.length) / Math.max(1, waveTotal)));
   let d = DARKB[Math.max(0, biomeIdx)] + prog * 0.08 + (weather === 'storm' ? 0.12 : weather === 'rain' ? 0.06 : weather === 'blizzard' ? 0.04 : 0);
   if (introT > 0) d += 0.08;
+  if (bloodMoon) d = Math.max(d, 0.74);
   d -= lightFlash * 0.5;
-  return Math.max(0, Math.min(0.68, d));
+  return Math.max(0, Math.min(bloodMoon ? 0.8 : 0.68, d));
 }
 function lightingPass() {
   if (fxDirty || !lightCv) initFxCanvases();
   const dark = darkLevel(); if (dark < 0.02) return;
-  const k = 0.5, l = lightCtx, z = baseScale() * (1 + zoomKick), a = NIGHT[Math.max(0, biomeIdx)];
+  const k = 0.5, l = lightCtx, z = baseScale() * (1 + zoomKick), a = bloodMoon ? [64, 0, 10] : NIGHT[Math.max(0, biomeIdx)];
   l.globalCompositeOperation = 'source-over'; l.globalAlpha = 1; l.clearRect(0, 0, lightCv.width, lightCv.height);
   l.fillStyle = `rgba(${a[0]},${a[1]},${a[2]},${dark})`; l.fillRect(0, 0, lightCv.width, lightCv.height);
   l.globalCompositeOperation = 'destination-out';
@@ -2934,7 +2945,7 @@ function lightingPass() {
     if (sx < -rr || sy < -rr || sx > lightCv.width + rr || sy > lightCv.height + rr) return;
     l.globalAlpha = Math.min(1, i); l.drawImage(lightSpr, sx - rr, sy - rr, rr * 2, rr * 2);
   };
-  add(player.x, player.y - 20, 310 + 14 * Math.sin(time * 9), 1);
+  add(player.x, player.y - 20, (bloodMoon ? 230 : 310) + 14 * Math.sin(time * 9), 1);
   for (const c of companions) if (!c.down) add(c.x, c.y - 20, c.type === 'cleric' ? 190 : 150, 0.85);
   for (const c of companions) if (c.down) add(c.gx, c.gy - 10, 80, 0.7);
   if (village) for (const h of village.houses) { if (h.dead) add(h.x, h.y - 14, 150 + 20 * Math.sin(time * 9 + h.x), 0.9); else { add(h.x - 22, h.y - 28, 100, 0.7); add(h.x + 22, h.y - 28, 100, 0.7); } }
@@ -3034,6 +3045,23 @@ function colorGrade() {
   ctx.save(); ctx.globalCompositeOperation = 'overlay';
   const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, g[0]); gr.addColorStop(1, g[1]);
   ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+
+// ---------- BLOOD MOON: crimson moon, red vignette, tag ----------
+function drawBloodMoon() {
+  if (!bloodMoon || state === 'title') return;
+  const m = Math.min(W, H), r = m * 0.06, rise = Math.min(1, bmT / 2.5), x = W * 0.5, y = H * 0.19 + (1 - rise) * H * 0.3, pul = 0.85 + 0.15 * Math.sin(time * 1.7);
+  ctx.save(); ctx.globalAlpha = rise;
+  drawGlow(x, y, r * 5.5, '#ff1a2e', 0.32 * pul); drawGlow(x, y, r * 2.8, '#ff4a3a', 0.45 * pul);
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  g.addColorStop(0, '#ff8a70'); g.addColorStop(0.6, '#d3202e'); g.addColorStop(1, '#6e0614');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(70,0,10,0.35)';
+  for (const c of [[-0.35, -0.2, 0.22], [0.3, 0.1, 0.17], [-0.05, 0.4, 0.13], [0.35, -0.4, 0.09]]) { ctx.beginPath(); ctx.arc(x + c[0] * r, y + c[1] * r, c[2] * r, 0, TAU); ctx.fill(); }
+  ctx.restore();
+  const v = ctx.createRadialGradient(W / 2, H / 2, m * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+  v.addColorStop(0, 'rgba(120,0,16,0)'); v.addColorStop(1, `rgba(120,0,16,${0.4 + 0.06 * Math.sin(time * 2.3)})`); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.font = `800 ${Math.max(11, Math.min(14, W / 40))}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ff8b97'; ctx.fillText('BLOOD MOON · ×2 GOLD', x, y + r + 20);
 }
 
 // ---------- boss intro cinematic ----------
@@ -3380,6 +3408,7 @@ const SUN_COL = ['0,0,0', '30,12,0', '24,44,96', '10,0,0'];
 const SUN_ALPHA = [0.27, 0.3, 0.24, 0.38];
 function sunProg() { return Math.max(0, Math.min(1, 1 - (enemies.length + waveQueue.length) / Math.max(1, waveTotal))); }
 function drawSunShadows() {
+  if (bloodMoon) return;
   const bi = Math.max(0, biomeIdx), a = Math.PI * (0.16 + 0.68 * sunProg()); // sun swings from one side of the sky to the other
   const low = 0.55 + 0.9 * Math.abs(Math.cos(a));                           // low sun = longer shadows
   const dx = Math.cos(a) * low, dy = (0.38 + Math.sin(a) * 0.3) * low;

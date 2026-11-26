@@ -36,7 +36,7 @@ function newPlayer() {
 function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
-  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
+  bloodMoon = false; bloodMoons = 0; bmT = 0; wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
@@ -109,9 +109,17 @@ function startWave(w) {
       for (let i = 0; i < 2; i++) waveQueue.push(i ? 'brute' : 'grunt');
     }
   }
+  bloodMoon = false;
+  if (w >= 4 && w % 3 === 1 && Math.random() < 0.8) { // BLOOD MOON: a plain wave turns into a dark, crimson-lit swarm for double gold
+    bloodMoon = true; bloodMoons++; bmT = 0;
+    const extra = Math.ceil(waveQueue.length * 0.4);
+    for (let i = 0; i < extra; i++) waveQueue.push(i % 4 === 3 ? 'brute' : (i % 3 === 2 && w >= 3 ? 'archer' : 'grunt'));
+    bannerText = 'BLOOD MOON'; bannerSub = 'The dark hungers · double gold';
+    sfx('roar'); flash('#b0001a', 0.4); shake = Math.max(shake, 8);
+  }
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
-function maxAlive() { return Math.min(10, 4 + Math.floor(wave / 2) + (village ? 1 : 0)); }
+function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }
 
 function spawnEnemy(type) {
   let ex = 100, ey = 90;
@@ -149,7 +157,7 @@ function spawnEnemy(type) {
     en = { ...base, type: 'grunt', hp, maxHp: hp, speed: 138, r: 20, damage: Math.round(13 * ds) };
   }
   if (runOmen) { if (runOmen.spd) en.speed *= runOmen.spd; const hm = type === 'dragon' ? (runOmen.drg || 1) : (runOmen.hp || 1); if (hm !== 1) { en.hp = Math.round(en.hp * hm); en.maxHp = en.hp; } }
-  if (type !== 'dragon' && wave >= 3 && Math.random() < Math.min(0.2, 0.04 + wave * 0.012)) makeElite(en);
+  if (type !== 'dragon' && wave >= 3 && Math.random() < (bloodMoon ? 0.22 : Math.min(0.2, 0.04 + wave * 0.012))) makeElite(en);
   if (type === 'dragon') introT = 2.8;
   enemies.push(en);
   spawnBurst(ex, ey - 10, '#c9a227', 10, 'spark');
@@ -367,7 +375,7 @@ function damagePlayer(amount, fromX, fromY) {
     player.hp = 0; state = 'gameover'; sfx('death');
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${bloodMoons ? ` • 🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : ''}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }

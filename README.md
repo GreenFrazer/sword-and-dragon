@@ -34,6 +34,7 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 - **Village defence:** raiders attack houses and villagers; save them for gold and a chance to recruit a companion (squire, ranger or cleric). Fallen companions leave a grave you can revive them at.
 - **Weapons:** Longsword, Greatsword, Twin Daggers and Spear, each with different speed, reach and crit.
 - **Loot:** gear in weapon, armour and trinket slots with Common to Legendary rarity, random bonuses and legendary effects.
+- **Blood Moons:** from wave 4, some plain waves turn crimson and dark, with a bigger swarm, red-eyed foes, more elites and double gold (plus bonus embers).
 - **Elite enemies** (Swift, Vampiric, Volatile, Guarded) that always drop loot.
 - **Blessings and Evolutions:** level-up choices, plus special Evolutions when a build is complete.
 - **Cast** ability and the **Meteor Storm** ultimate.

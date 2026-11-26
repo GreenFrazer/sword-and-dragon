@@ -78,13 +78,14 @@ function darkLevel() {
   const prog = Math.max(0, Math.min(1, 1 - (enemies.length + waveQueue.length) / Math.max(1, waveTotal)));
   let d = DARKB[Math.max(0, biomeIdx)] + prog * 0.08 + (weather === 'storm' ? 0.12 : weather === 'rain' ? 0.06 : weather === 'blizzard' ? 0.04 : 0);
   if (introT > 0) d += 0.08;
+  if (bloodMoon) d = Math.max(d, 0.74);
   d -= lightFlash * 0.5;
-  return Math.max(0, Math.min(0.68, d));
+  return Math.max(0, Math.min(bloodMoon ? 0.8 : 0.68, d));
 }
 function lightingPass() {
   if (fxDirty || !lightCv) initFxCanvases();
   const dark = darkLevel(); if (dark < 0.02) return;
-  const k = 0.5, l = lightCtx, z = baseScale() * (1 + zoomKick), a = NIGHT[Math.max(0, biomeIdx)];
+  const k = 0.5, l = lightCtx, z = baseScale() * (1 + zoomKick), a = bloodMoon ? [64, 0, 10] : NIGHT[Math.max(0, biomeIdx)];
   l.globalCompositeOperation = 'source-over'; l.globalAlpha = 1; l.clearRect(0, 0, lightCv.width, lightCv.height);
   l.fillStyle = `rgba(${a[0]},${a[1]},${a[2]},${dark})`; l.fillRect(0, 0, lightCv.width, lightCv.height);
   l.globalCompositeOperation = 'destination-out';
@@ -93,7 +94,7 @@ function lightingPass() {
     if (sx < -rr || sy < -rr || sx > lightCv.width + rr || sy > lightCv.height + rr) return;
     l.globalAlpha = Math.min(1, i); l.drawImage(lightSpr, sx - rr, sy - rr, rr * 2, rr * 2);
   };
-  add(player.x, player.y - 20, 310 + 14 * Math.sin(time * 9), 1);
+  add(player.x, player.y - 20, (bloodMoon ? 230 : 310) + 14 * Math.sin(time * 9), 1);
   for (const c of companions) if (!c.down) add(c.x, c.y - 20, c.type === 'cleric' ? 190 : 150, 0.85);
   for (const c of companions) if (c.down) add(c.gx, c.gy - 10, 80, 0.7);
   if (village) for (const h of village.houses) { if (h.dead) add(h.x, h.y - 14, 150 + 20 * Math.sin(time * 9 + h.x), 0.9); else { add(h.x - 22, h.y - 28, 100, 0.7); add(h.x + 22, h.y - 28, 100, 0.7); } }
@@ -193,6 +194,23 @@ function colorGrade() {
   ctx.save(); ctx.globalCompositeOperation = 'overlay';
   const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, g[0]); gr.addColorStop(1, g[1]);
   ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+
+// ---------- BLOOD MOON: crimson moon, red vignette, tag ----------
+function drawBloodMoon() {
+  if (!bloodMoon || state === 'title') return;
+  const m = Math.min(W, H), r = m * 0.06, rise = Math.min(1, bmT / 2.5), x = W * 0.5, y = H * 0.19 + (1 - rise) * H * 0.3, pul = 0.85 + 0.15 * Math.sin(time * 1.7);
+  ctx.save(); ctx.globalAlpha = rise;
+  drawGlow(x, y, r * 5.5, '#ff1a2e', 0.32 * pul); drawGlow(x, y, r * 2.8, '#ff4a3a', 0.45 * pul);
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  g.addColorStop(0, '#ff8a70'); g.addColorStop(0.6, '#d3202e'); g.addColorStop(1, '#6e0614');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(70,0,10,0.35)';
+  for (const c of [[-0.35, -0.2, 0.22], [0.3, 0.1, 0.17], [-0.05, 0.4, 0.13], [0.35, -0.4, 0.09]]) { ctx.beginPath(); ctx.arc(x + c[0] * r, y + c[1] * r, c[2] * r, 0, TAU); ctx.fill(); }
+  ctx.restore();
+  const v = ctx.createRadialGradient(W / 2, H / 2, m * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+  v.addColorStop(0, 'rgba(120,0,16,0)'); v.addColorStop(1, `rgba(120,0,16,${0.4 + 0.06 * Math.sin(time * 2.3)})`); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.font = `800 ${Math.max(11, Math.min(14, W / 40))}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ff8b97'; ctx.fillText('BLOOD MOON · ×2 GOLD', x, y + r + 20);
 }
 
 // ---------- boss intro cinematic ----------
@@ -539,6 +557,7 @@ const SUN_COL = ['0,0,0', '30,12,0', '24,44,96', '10,0,0'];
 const SUN_ALPHA = [0.27, 0.3, 0.24, 0.38];
 function sunProg() { return Math.max(0, Math.min(1, 1 - (enemies.length + waveQueue.length) / Math.max(1, waveTotal))); }
 function drawSunShadows() {
+  if (bloodMoon) return;
   const bi = Math.max(0, biomeIdx), a = Math.PI * (0.16 + 0.68 * sunProg()); // sun swings from one side of the sky to the other
   const low = 0.55 + 0.9 * Math.abs(Math.cos(a));                           // low sun = longer shadows
   const dx = Math.cos(a) * low, dy = (0.38 + Math.sin(a) * 0.3) * low;

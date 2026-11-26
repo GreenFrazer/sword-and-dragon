@@ -155,6 +155,7 @@ function render() {
   }
   // glows (additive lighting)
   for (const g of glows) drawGlow(g.x, g.y, g.r, g.color, g.life / g.maxLife * 0.85);
+  if (bloodMoon) for (const e of enemies) if (e.type !== 'dragon') { const ex = Math.cos(e.facing) * 4; drawGlow(e.x - 5 + ex, e.y - e.r - 14, 13, '#ff1a2e', 0.9); drawGlow(e.x + 5 + ex, e.y - e.r - 14, 13, '#ff1a2e', 0.9); }
   for (const e of enemies) {
     if (e.type === 'dragon' && e.aiState === 'breath_fire') drawGlow(e.x + Math.cos(e.facing) * 120, e.y - 30 + Math.sin(e.facing) * 60, 170, e.skin.glow, 0.45 + 0.2 * Math.sin(time * 30));
     if (e.type === 'bomber' && e.fuse > 0) drawGlow(e.x, e.y - 30, 50, '#ff922b', 0.6);
@@ -183,7 +184,7 @@ function render() {
   // ---------- screen-space overlays ----------
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (biome.tint) { ctx.fillStyle = biome.tint; ctx.fillRect(0, 0, W, H); }
-  lightingPass(); drawFogRays(); drawWeather(); colorGrade();
+  lightingPass(); drawBloodMoon(); drawFogRays(); drawWeather(); colorGrade();
   for (const a of ambient) {
     if (biome.amb === 'ember') drawGlow(a.x, a.y, a.s * 2.5, a.col, 0.55 + 0.3 * Math.sin(a.ph * 3));
     else if (biome.amb === 'snow') { ctx.globalAlpha = 0.85; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(a.x, a.y, a.s * 0.6, 0, TAU); ctx.fill(); }

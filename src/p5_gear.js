@@ -32,7 +32,7 @@ function claimDaily() {
   const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
 }
 function runEmbers() {
-  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40);
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25);
   if (runOmen) e = Math.floor(e * runOmen.mul);
   return { base: e, daily: claimDaily() };
 }
@@ -58,7 +58,7 @@ function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might
 function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }
-function goldMul() { return (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
+function goldMul() { return (bloodMoon ? 2 : 1) * (runOmen && runOmen.gold || 1) * (1 + gM().gold + meta.fort * 0.1 + (hasBuff('charm') ? 0.5 : 0)); }
 
 // ---------- gear / loot ----------
 let gear = { weapon: null, armor: null, trinket: null };

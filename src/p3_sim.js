@@ -36,7 +36,7 @@ function stepSimulation(dt) {
   shake = Math.max(0, shake - dt * 28);
   zoomKick = Math.max(0, zoomKick - dt * 0.18);
   flashA = Math.max(0, flashA - dt * 2.2);
-  bannerT = Math.max(0, bannerT - dt);
+  bannerT = Math.max(0, bannerT - dt); bmT += dt;
   player.invuln = Math.max(0, player.invuln - dt); player.hitFlash = Math.max(0, player.hitFlash - dt);
   player.dashCd = Math.max(0, player.dashCd - dt / cdrMul()); player.spinCd = Math.max(0, player.spinCd - dt / cdrMul());
   player.barrier = Math.max(0, (player.barrier || 0) - dt);

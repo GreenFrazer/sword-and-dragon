@@ -376,7 +376,7 @@ function damagePlayer(amount, fromX, fromY) {
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
     $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${bloodMoons ? ` • 🌑 ${bloodMoons} blood moon${bloodMoons > 1 ? 's' : ''}` : ''}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
-    $('gameover-modal').style.display = 'flex';
+    $('gameover-modal').style.display = 'flex'; if (typeof drawRunCard === 'function') drawRunCard(earned);
   }
 }
 function cashOutRun() {

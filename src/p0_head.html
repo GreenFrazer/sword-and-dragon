@@ -321,6 +321,8 @@
 <div class="modal" id="gameover-modal">
   <h2>YOU FELL IN BATTLE</h2>
   <p id="gameover-stats">Reached Wave 1</p>
+  <canvas id="go-card" width="600" height="340" style="width:min(420px,86vw);height:auto;border:1px solid #6b4a1e;border-radius:8px;box-shadow:0 6px 28px rgba(0,0,0,.6),0 0 24px rgba(255,140,40,.25);margin:4px 0 10px"></canvas>
+  <button class="btn-restart" id="go-share" style="margin-bottom:12px;font-size:14px;padding:11px 28px;background:linear-gradient(180deg,#ff9a3c,#c1440e)">⚔ SHARE YOUR RUN · CHALLENGE A FRIEND</button>
   <div class="tm-pd" style="margin:0 0 4px;max-width:420px">Your progress can't be stored in some viewers. Copy this save code (paste it into Notes) and load it from the Forge next time:</div>
   <textarea id="go-code" rows="2" readonly style="width:min(420px,86vw);background:rgba(0,0,0,0.4);color:#cbbfae;border:1px solid #4a3d3a;font-family:monospace;font-size:10px;padding:6px;resize:none;user-select:text;-webkit-user-select:text;margin-bottom:6px"></textarea>
   <button class="btn-restart" id="go-copy" style="margin-bottom:14px;font-size:13px;padding:10px 26px;background:linear-gradient(180deg,#8c93a6,#4a4f5e)">COPY SAVE CODE</button>

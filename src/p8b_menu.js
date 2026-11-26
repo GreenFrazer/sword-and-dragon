@@ -135,3 +135,42 @@ function showTitle() {
   state = 'title'; panelFocus = false; menuIdx = 0; subIdx = 0; beginning = false;
   $('title-modal').style.display = 'flex'; renderMenu();
 }
+
+// ======================= SHAREABLE RUN CARD =======================
+var runCardText = '';
+function drawRunCard(earned) {
+  try {
+    const c = $('go-card'); if (!c || !c.getContext) return; const g = c.getContext('2d'), W = 600, H = 340;
+    const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#1a0a0c'); grd.addColorStop(0.6, '#3a1208'); grd.addColorStop(1, '#8a2a08');
+    g.fillStyle = grd; g.fillRect(0, 0, W, H);
+    const mg = g.createRadialGradient(440, 110, 10, 440, 110, 120); mg.addColorStop(0, 'rgba(255,200,120,.9)'); mg.addColorStop(1, 'rgba(255,120,40,0)');
+    g.fillStyle = mg; g.fillRect(300, 0, 300, 260);
+    g.fillStyle = '#0c0506'; g.beginPath(); g.moveTo(0, H); g.lineTo(0, 270); for (let x = 0; x <= W; x += 30) g.lineTo(x, 270 - 24 * Math.abs(Math.sin(x * 0.021 + 1)) - 10); g.lineTo(W, H); g.fill();
+    g.fillStyle = '#ffb347'; g.font = '600 13px Georgia,serif'; g.fillText('S W O R D  &  D R A G O N  —  A S H E S  O F  T H E  W Y R M', 26, 34);
+    g.fillStyle = '#fff3d6'; g.font = '700 74px Georgia,serif'; g.fillText('WAVE ' + wave, 26, 118);
+    g.fillStyle = '#ffd98a'; g.font = 'italic 20px Georgia,serif';
+    const rank = wave >= 15 ? 'Wyrm-Bane' : wave >= 9 ? 'Dragon Slayer' : wave >= 6 ? 'Veteran' : wave >= 3 ? 'Squire' : 'Recruit';
+    g.fillText(rank + ' · ' + WEAPONS[selectedWeapon].name, 30, 150);
+    const st = [[kills, 'FOES SLAIN'], [bestCombo, 'BEST COMBO'], [gold, 'GOLD'], ['+' + earned, 'EMBERS']];
+    st.forEach((s, i) => { const x = 30 + i * 140; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 6, 178, 128, 62); g.fillStyle = '#ffb347'; g.fillRect(x - 6, 178, 3, 62); g.fillStyle = '#fff'; g.font = '700 28px Georgia,serif'; g.fillText(String(s[0]), x + 6, 214); g.fillStyle = '#c9b79c'; g.font = '11px sans-serif'; g.fillText(s[1], x + 6, 232); });
+    g.fillStyle = '#ffd98a'; g.font = '600 15px Georgia,serif'; g.fillText('Can you beat me? greenfrazer.github.io/sword-and-dragon', 26, 316);
+    runCardText = `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Can you beat me?`;
+    $('go-share').textContent = '⚔ SHARE YOUR RUN · CHALLENGE A FRIEND';
+  } catch (e) {}
+}
+(function () {
+  const b = $('go-share'); if (!b) return;
+  b.addEventListener('click', async () => {
+    const url = 'https://greenfrazer.github.io/sword-and-dragon/', text = runCardText || 'Can you beat my run in Sword & Dragon?';
+    try {
+      const c = $('go-card');
+      const blob = await new Promise(r => c.toBlob ? c.toBlob(r, 'image/png') : r(null));
+      if (blob && typeof File !== 'undefined' && navigator.canShare) {
+        const f = new File([blob], 'sword-and-dragon-run.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text, url }); return; }
+      }
+      if (navigator.share) { await navigator.share({ text, url }); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED — PASTE IT TO A FRIEND'; } catch (e) { b.textContent = 'LONG-PRESS THE CARD TO SAVE IT'; }
+  });
+})();

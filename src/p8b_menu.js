@@ -190,14 +190,15 @@ function drawRunCard(earned) {
     const st = [[kills, 'FOES SLAIN'], [bestCombo, 'BEST COMBO'], [gold, 'GOLD'], ['+' + earned, 'EMBERS']];
     st.forEach((s, i) => { const x = 30 + i * 140; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 6, 178, 128, 62); g.fillStyle = '#ffb347'; g.fillRect(x - 6, 178, 3, 62); g.fillStyle = '#fff'; g.font = '700 28px Georgia,serif'; g.fillText(String(s[0]), x + 6, 214); g.fillStyle = '#c9b79c'; g.font = '11px sans-serif'; g.fillText(s[1], x + 6, 232); });
     g.fillStyle = '#ffd98a'; g.font = '600 15px Georgia,serif'; g.fillText('Can you beat me? greenfrazer.github.io/sword-and-dragon', 26, 316);
-    runCardText = `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Can you beat me?`;
-    $('go-share').textContent = '⚔ SHARE RUN';
+    const beat = rival && wave > rival.w;
+    runCardText = beat ? `I beat your Wave ${rival.w} — reached Wave ${wave} (${rank}) in Sword & Dragon with ${kills} foes slain. Your move.` : `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Tap to take me on:`;
+    $('go-share').textContent = beat ? '⚔ SEND IT BACK' : '⚔ CHALLENGE A FRIEND';
   } catch (e) {}
 }
 (function () {
   const b = $('go-share'); if (!b) return;
   b.addEventListener('click', async () => {
-    const url = 'https://greenfrazer.github.io/sword-and-dragon/', text = runCardText || 'Can you beat my run in Sword & Dragon?';
+    const url = duelLink(), text = runCardText || 'Can you beat my run in Sword & Dragon?';
     try {
       const c = $('go-card');
       const blob = await new Promise(r => c.toBlob ? c.toBlob(r, 'image/png') : r(null));
@@ -238,7 +239,7 @@ function stepFeats(dt) {
   if (featShow > 0) { featShow -= dt; if (featShow <= 0) { const t = $('feat-toast'); if (t) t.style.top = '-120px'; } }
   else if (featQ.length) {
     const f = featQ.shift(), t = $('feat-toast'); featShow = 3.2;
-    if (t) { t.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#ffb347">DEED ACHIEVED · ${featsDone()}/${FEATS.length}</div><div style="font-size:18px;font-weight:700">${f.name}</div><div style="font-size:12px;color:#c9b79c">${f.desc} — <b style="color:#ffd76a">+${f.e} embers</b></div>`; t.style.top = '64px'; }
+    if (t) { t.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#ffb347">${f.kick || 'DEED ACHIEVED · ' + featsDone() + '/' + FEATS.length}</div><div style="font-size:18px;font-weight:700">${f.name}</div><div style="font-size:12px;color:#c9b79c">${f.desc} — <b style="color:#ffd76a">+${f.e} embers</b></div>`; t.style.top = '64px'; }
     try { sfx('legend'); } catch (e) {}
   }
 }
@@ -259,6 +260,8 @@ function renderGameOver(earned, prevBest) {
     : toBeat <= 3 ? `<b>${toBeat} waves</b> short of your record (wave ${prevBest}).`
     : `Your record stands at wave ${prevBest}.`;
   hook += wave % 3 === 0 ? ' The dragon still circles overhead.' : ` The next dragon waits at <b>wave ${nextDragon}</b>.`;
+  if (rival) hook = wave > rival.w ? `<b>You beat your rival's wave ${rival.w}.</b> Send the challenge back and make them chase you.`
+    : `Your rival reached <b>wave ${rival.w}</b>. ` + (rival.w + 1 - wave === 1 ? '<b>One more wave</b> and you have them.' : `<b>${rival.w + 1 - wave} more waves</b> to beat them.`);
   $('go-hook').innerHTML = hook;
   renderGoOffer(earned);
 }
@@ -324,3 +327,46 @@ function coachTick() {
   }
 }
 (function () { const b = $('co-skip'); if (b && b.addEventListener) b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); coachFinish(); }); })();
+
+// ======================= RIVAL CHALLENGE LINKS =======================
+// Sharing a run makes a link (#duel=WAVE.WEAPON.KILLS). Whoever opens it gets that run as a rival to beat.
+var rival = null;
+try { const r = JSON.parse(localStorage.getItem('swordDragonRival') || 'null'); if (r && r.w > 0) rival = { w: +r.w, wp: WEAPONS[r.wp] ? r.wp : 'sword', k: +r.k || 0, beat: !!r.beat }; } catch (e) {}
+const BASE_URL = 'https://greenfrazer.github.io/sword-and-dragon/';
+function duelLink() { return BASE_URL + '#duel=' + wave + '.' + selectedWeapon + '.' + kills; }
+function saveRival() { try { if (rival) localStorage.setItem('swordDragonRival', JSON.stringify({ w: rival.w, wp: rival.wp, k: rival.k, beat: !!rival.beat })); else localStorage.removeItem('swordDragonRival'); } catch (e) {} }
+function importDuelFromHash() {
+  if (typeof location === 'undefined') return;
+  const m = /[#&]duel=(\d{1,3})\.([a-z]+)\.(\d{1,5})/.exec(location.hash || ''); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  const w = +m[1]; if (!(w >= 1 && w <= 999)) return;
+  rival = { w, wp: WEAPONS[m[2]] ? m[2] : 'sword', k: +m[3], beat: false }; saveRival(); renderDuel();
+}
+function renderDuel() {
+  const el = $('tm-duel'); if (!el) return;
+  setClassOn(el, 'on', !!rival);
+  if (!rival) { el.innerHTML = ''; return; }
+  const wn = WEAPONS[rival.wp] ? WEAPONS[rival.wp].name : 'blade';
+  el.innerHTML = `<svg class="dg" viewBox="0 0 40 40"><path d="M6 34 L26 14 M14 34 L34 14" stroke="#ffd76a" stroke-width="3" stroke-linecap="round"/><path d="M26 14 L33 6 L34 14Z M34 14 L34 6 L26 7Z" fill="#ffd76a"/><path d="M4 30 L10 36 M12 30 L18 36" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round"/></svg>`
+    + (rival.beat ? `<div class="duel-k">RIVAL BESTED</div><div class="duel-t">You beat their <b>wave ${rival.w}</b>.</div><div class="duel-s">Share your run from the game-over screen to send the challenge back.</div><div class="duel-row"><button class="duel-x" id="duel-x">CLEAR RIVAL</button></div>`
+    : `<div class="duel-k">A HUNTER DARES YOU</div><div class="duel-t">Beat <b>wave ${rival.w}</b></div><div class="duel-s">They fell there with the ${wn}, ${rival.k} foes slain. Pass them for +25 embers.</div><div class="duel-row"><button class="duel-go" id="duel-go">ACCEPT THE CHALLENGE</button><button class="duel-x" id="duel-x">NOT NOW</button></div>`);
+  const go = $('duel-go'); if (go) go.onclick = () => { initAudio(); beginRun(); };
+  const x = $('duel-x'); if (x) x.onclick = () => { rival = null; saveRival(); renderDuel(); uiTone(300); };
+}
+// called from updateHUD every frame of play
+function rivalTick() {
+  if (!rival) { setText('rival-text', ''); return; }
+  const past = wave > rival.w;
+  setText('rival-text', past ? '★ RIVAL BESTED' : 'RIVAL · WAVE ' + rival.w); setClass('rival-text', 'beat', past);
+  if (past && rival.run !== player) {
+    rival.run = player;
+    if (!rival.beat) { // first time only: the bonus and the fanfare
+      rival.beat = true; meta.embers += 25; saveMeta();
+      featQ.push({ kick: 'RIVAL SURPASSED', name: 'You passed wave ' + rival.w, desc: 'Your friend\'s run is behind you', e: 25 });
+      flash('#ffd76a', 0.35);
+    }
+    saveRival();
+  }
+}
+var _renderMenuBase = renderMenu;
+renderMenu = function () { _renderMenuBase(); renderDuel(); };

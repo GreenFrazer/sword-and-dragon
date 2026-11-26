@@ -12,6 +12,14 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
 <title>Sword & Dragon — Ashes of the Wyrm</title>
+<meta name="description" content="A free action RPG for your browser and phone. Fight wave after wave, defend villages and slay a dragon every third wave." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sword &amp; Dragon" />
+<meta property="og:title" content="Sword &amp; Dragon — Ashes of the Wyrm" />
+<meta property="og:description" content="A hunter has thrown down the gauntlet. Fight wave after wave, defend the villages and slay the dragon. Free, in your browser." />
+<meta property="og:url" content="https://greenfrazer.github.io/sword-and-dragon/" />
+<meta property="og:image" content="https://greenfrazer.github.io/sword-and-dragon/icons/icon-512.png" />
+<meta name="twitter:card" content="summary" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0e1a0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
@@ -402,6 +410,23 @@
     .bc-pips { justify-content: flex-start; margin-top: 6px; } .bc-rank { margin-top: 6px; }
     .bc-cat { top: 13px; }
   }
+
+  /* ======================= RIVAL CHALLENGE LINKS ======================= */
+  #tm-duel { display: none; position: relative; margin: 0 0 2.4vh; padding: 12px 16px 12px 64px; max-width: 760px; border: 1px solid #ff7a1a; background: linear-gradient(90deg, rgba(140,30,10,.55), rgba(20,8,14,.75) 70%); box-shadow: 0 0 30px rgba(255,90,20,.35), inset 0 0 24px rgba(255,120,30,.12); font-family: var(--serif); animation: duelIn .6s cubic-bezier(.2,1.4,.4,1) both; }
+  #tm-duel.on { display: block; }
+  @keyframes duelIn { from { opacity: 0; transform: translateY(-12px); } }
+  #tm-duel svg.dg { position: absolute; left: 14px; top: 50%; width: 38px; height: 38px; transform: translateY(-50%); filter: drop-shadow(0 0 8px #ff7a1a); }
+  .duel-k { font-size: 10px; letter-spacing: .32em; color: #ffb347; }
+  .duel-t { margin-top: 3px; font-size: clamp(16px, 2.2vw, 22px); color: #fff3d6; letter-spacing: .04em; }
+  .duel-t b { color: var(--gold); }
+  .duel-s { margin-top: 2px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #d6cbb8; }
+  .duel-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .duel-go { font-family: var(--serif); font-weight: 800; font-size: 13px; letter-spacing: .2em; padding: 10px 18px; min-height: 44px; border: none; color: #2a0c04; cursor: pointer; background: linear-gradient(180deg, #ffd76a, #ff9a3c 55%, #c2410c); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); animation: goGlow 1.4s ease-in-out infinite alternate; touch-action: manipulation; }
+  .duel-x { font-family: var(--serif); font-size: 10px; letter-spacing: .2em; padding: 10px 12px; min-height: 44px; background: none; border: 1px solid rgba(255,215,106,.25); color: #b8a77a; cursor: pointer; touch-action: manipulation; }
+  #rival-text { margin-top: 2px; font-size: 9px; letter-spacing: .22em; color: #ff8a5c; }
+  #rival-text:empty { display: none; }
+  #rival-text.beat { color: #8ce99a; }
+  @media (max-width: 600px) { #tm-duel { padding: 10px 12px 10px 54px; } #tm-duel svg.dg { left: 10px; width: 32px; height: 32px; } }
 </style>
 </head>
 <body>
@@ -419,7 +444,7 @@
         <span class="hh-chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="5" width="12" height="6.5" rx="1.5" fill="#9c6b3c" stroke="#5a3a1c" stroke-width="1"/><ellipse cx="13.2" cy="8.25" rx="2" ry="3.25" fill="#e8c48c" stroke="#5a3a1c" stroke-width="1"/><circle cx="13.2" cy="8.25" r="1" fill="#b98a52"/></svg><b id="wood-text">0</b></span>
         <span class="hh-chip"><svg viewBox="0 0 16 16"><path d="M13.5 1.5 L6 9 L7 10 L14.5 2.5Z" fill="#dfe6f2" stroke="#7a8296" stroke-width=".8"/><path d="M3.5 8.5 L7.5 12.5 M5 11 L2 14" stroke="#ffb347" stroke-width="1.8" stroke-linecap="round"/></svg>LV<b id="sword-text">1</b></span>
       </div>
-      <div id="biome-text">Emerald Meadow</div>
+      <div id="biome-text">Emerald Meadow</div><div id="rival-text"></div>
     </div>
   </div>
   <div id="hud-foes">
@@ -461,6 +486,7 @@
       <svg class="tm-blade" viewBox="0 0 560 22" preserveAspectRatio="none"><defs><linearGradient id="bl" x1="0" x2="1"><stop offset="0" stop-color="#ffb347" stop-opacity="0"/><stop offset=".08" stop-color="#ffd76a"/><stop offset=".6" stop-color="#ff7a1a" stop-opacity=".7"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></linearGradient></defs><path d="M40 11 L560 11" stroke="url(#bl)" stroke-width="2"/><path d="M0 11 L30 4 L44 11 L30 18Z" fill="#ffd76a"/><rect x="26" y="1" width="5" height="20" fill="#d9a441"/><circle cx="12" cy="11" r="2.5" fill="#ff7a1a"/></svg>
       <div class="tm-sub">ASHES OF THE WYRM</div>
     </header>
+    <div id="tm-duel"></div>
     <div class="tm-main"><nav id="menu-list"></nav><section id="menu-panel"></section></div>
     <button class="btn-restart" id="tm-go">BEGIN THE HUNT</button>
     <footer class="tm-foot"><span id="title-best"></span><span class="tm-keys-hint">↑ ↓ NAVIGATE &nbsp;·&nbsp; ENTER SELECT &nbsp;·&nbsp; ESC BACK</span><span class="tm-bal"><svg viewBox="0 0 24 24"><path d="M12 2 C13 7 19 9 19 15 A7 7 0 0 1 5 15 C5 11 8 10 9 6 C10 8 11 8 11 8 C11 6 11 4 12 2Z" fill="#ff7a1a"/></svg><b id="embers-text">0</b> EMBERS</span></footer>
@@ -3066,6 +3092,7 @@ function setClass(id, cls, on) { const k = id + '.' + cls; if (hudCache[k] === o
 
 function updateHUD() {
   if (typeof coachTick === 'function') coachTick();
+  if (typeof rivalTick === 'function') rivalTick();
   setStyle('pausebtn', 'display', 'block');
   setText('hp-text', `${Math.ceil(player.hp)} / ${player.maxHp}`);
   const hpR = Math.max(0, Math.min(1, player.hp / player.maxHp));
@@ -4374,14 +4401,15 @@ function drawRunCard(earned) {
     const st = [[kills, 'FOES SLAIN'], [bestCombo, 'BEST COMBO'], [gold, 'GOLD'], ['+' + earned, 'EMBERS']];
     st.forEach((s, i) => { const x = 30 + i * 140; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 6, 178, 128, 62); g.fillStyle = '#ffb347'; g.fillRect(x - 6, 178, 3, 62); g.fillStyle = '#fff'; g.font = '700 28px Georgia,serif'; g.fillText(String(s[0]), x + 6, 214); g.fillStyle = '#c9b79c'; g.font = '11px sans-serif'; g.fillText(s[1], x + 6, 232); });
     g.fillStyle = '#ffd98a'; g.font = '600 15px Georgia,serif'; g.fillText('Can you beat me? greenfrazer.github.io/sword-and-dragon', 26, 316);
-    runCardText = `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Can you beat me?`;
-    $('go-share').textContent = '⚔ SHARE RUN';
+    const beat = rival && wave > rival.w;
+    runCardText = beat ? `I beat your Wave ${rival.w} — reached Wave ${wave} (${rank}) in Sword & Dragon with ${kills} foes slain. Your move.` : `I reached Wave ${wave} (${rank}) in Sword & Dragon — ${kills} foes slain, combo ×${bestCombo}. Tap to take me on:`;
+    $('go-share').textContent = beat ? '⚔ SEND IT BACK' : '⚔ CHALLENGE A FRIEND';
   } catch (e) {}
 }
 (function () {
   const b = $('go-share'); if (!b) return;
   b.addEventListener('click', async () => {
-    const url = 'https://greenfrazer.github.io/sword-and-dragon/', text = runCardText || 'Can you beat my run in Sword & Dragon?';
+    const url = duelLink(), text = runCardText || 'Can you beat my run in Sword & Dragon?';
     try {
       const c = $('go-card');
       const blob = await new Promise(r => c.toBlob ? c.toBlob(r, 'image/png') : r(null));
@@ -4422,7 +4450,7 @@ function stepFeats(dt) {
   if (featShow > 0) { featShow -= dt; if (featShow <= 0) { const t = $('feat-toast'); if (t) t.style.top = '-120px'; } }
   else if (featQ.length) {
     const f = featQ.shift(), t = $('feat-toast'); featShow = 3.2;
-    if (t) { t.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#ffb347">DEED ACHIEVED · ${featsDone()}/${FEATS.length}</div><div style="font-size:18px;font-weight:700">${f.name}</div><div style="font-size:12px;color:#c9b79c">${f.desc} — <b style="color:#ffd76a">+${f.e} embers</b></div>`; t.style.top = '64px'; }
+    if (t) { t.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#ffb347">${f.kick || 'DEED ACHIEVED · ' + featsDone() + '/' + FEATS.length}</div><div style="font-size:18px;font-weight:700">${f.name}</div><div style="font-size:12px;color:#c9b79c">${f.desc} — <b style="color:#ffd76a">+${f.e} embers</b></div>`; t.style.top = '64px'; }
     try { sfx('legend'); } catch (e) {}
   }
 }
@@ -4443,6 +4471,8 @@ function renderGameOver(earned, prevBest) {
     : toBeat <= 3 ? `<b>${toBeat} waves</b> short of your record (wave ${prevBest}).`
     : `Your record stands at wave ${prevBest}.`;
   hook += wave % 3 === 0 ? ' The dragon still circles overhead.' : ` The next dragon waits at <b>wave ${nextDragon}</b>.`;
+  if (rival) hook = wave > rival.w ? `<b>You beat your rival's wave ${rival.w}.</b> Send the challenge back and make them chase you.`
+    : `Your rival reached <b>wave ${rival.w}</b>. ` + (rival.w + 1 - wave === 1 ? '<b>One more wave</b> and you have them.' : `<b>${rival.w + 1 - wave} more waves</b> to beat them.`);
   $('go-hook').innerHTML = hook;
   renderGoOffer(earned);
 }
@@ -4508,10 +4538,54 @@ function coachTick() {
   }
 }
 (function () { const b = $('co-skip'); if (b && b.addEventListener) b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); coachFinish(); }); })();
+
+// ======================= RIVAL CHALLENGE LINKS =======================
+// Sharing a run makes a link (#duel=WAVE.WEAPON.KILLS). Whoever opens it gets that run as a rival to beat.
+var rival = null;
+try { const r = JSON.parse(localStorage.getItem('swordDragonRival') || 'null'); if (r && r.w > 0) rival = { w: +r.w, wp: WEAPONS[r.wp] ? r.wp : 'sword', k: +r.k || 0, beat: !!r.beat }; } catch (e) {}
+const BASE_URL = 'https://greenfrazer.github.io/sword-and-dragon/';
+function duelLink() { return BASE_URL + '#duel=' + wave + '.' + selectedWeapon + '.' + kills; }
+function saveRival() { try { if (rival) localStorage.setItem('swordDragonRival', JSON.stringify({ w: rival.w, wp: rival.wp, k: rival.k, beat: !!rival.beat })); else localStorage.removeItem('swordDragonRival'); } catch (e) {} }
+function importDuelFromHash() {
+  if (typeof location === 'undefined') return;
+  const m = /[#&]duel=(\d{1,3})\.([a-z]+)\.(\d{1,5})/.exec(location.hash || ''); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  const w = +m[1]; if (!(w >= 1 && w <= 999)) return;
+  rival = { w, wp: WEAPONS[m[2]] ? m[2] : 'sword', k: +m[3], beat: false }; saveRival(); renderDuel();
+}
+function renderDuel() {
+  const el = $('tm-duel'); if (!el) return;
+  setClassOn(el, 'on', !!rival);
+  if (!rival) { el.innerHTML = ''; return; }
+  const wn = WEAPONS[rival.wp] ? WEAPONS[rival.wp].name : 'blade';
+  el.innerHTML = `<svg class="dg" viewBox="0 0 40 40"><path d="M6 34 L26 14 M14 34 L34 14" stroke="#ffd76a" stroke-width="3" stroke-linecap="round"/><path d="M26 14 L33 6 L34 14Z M34 14 L34 6 L26 7Z" fill="#ffd76a"/><path d="M4 30 L10 36 M12 30 L18 36" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round"/></svg>`
+    + (rival.beat ? `<div class="duel-k">RIVAL BESTED</div><div class="duel-t">You beat their <b>wave ${rival.w}</b>.</div><div class="duel-s">Share your run from the game-over screen to send the challenge back.</div><div class="duel-row"><button class="duel-x" id="duel-x">CLEAR RIVAL</button></div>`
+    : `<div class="duel-k">A HUNTER DARES YOU</div><div class="duel-t">Beat <b>wave ${rival.w}</b></div><div class="duel-s">They fell there with the ${wn}, ${rival.k} foes slain. Pass them for +25 embers.</div><div class="duel-row"><button class="duel-go" id="duel-go">ACCEPT THE CHALLENGE</button><button class="duel-x" id="duel-x">NOT NOW</button></div>`);
+  const go = $('duel-go'); if (go) go.onclick = () => { initAudio(); beginRun(); };
+  const x = $('duel-x'); if (x) x.onclick = () => { rival = null; saveRival(); renderDuel(); uiTone(300); };
+}
+// called from updateHUD every frame of play
+function rivalTick() {
+  if (!rival) { setText('rival-text', ''); return; }
+  const past = wave > rival.w;
+  setText('rival-text', past ? '★ RIVAL BESTED' : 'RIVAL · WAVE ' + rival.w); setClass('rival-text', 'beat', past);
+  if (past && rival.run !== player) {
+    rival.run = player;
+    if (!rival.beat) { // first time only: the bonus and the fanfare
+      rival.beat = true; meta.embers += 25; saveMeta();
+      featQ.push({ kick: 'RIVAL SURPASSED', name: 'You passed wave ' + rival.w, desc: 'Your friend\'s run is behind you', e: 25 });
+      flash('#ffd76a', 0.35);
+    }
+    saveRival();
+  }
+}
+var _renderMenuBase = renderMenu;
+renderMenu = function () { _renderMenuBase(); renderDuel(); };
 // ======================= START =======================
 resetGame();
 showTitle();
 try { importSaveFromHash(); } catch (e) {}
+try { importDuelFromHash(); } catch (e) {}
 requestAnimationFrame(update);
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && /^https?:/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {} }
 </script>

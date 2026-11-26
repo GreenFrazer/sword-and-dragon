@@ -12,6 +12,14 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png" />
 <link rel="icon" type="image/png" href="icons/icon-192.png" />
 <title>Sword & Dragon — Ashes of the Wyrm</title>
+<meta name="description" content="A free action RPG for your browser and phone. Fight wave after wave, defend villages and slay a dragon every third wave." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Sword &amp; Dragon" />
+<meta property="og:title" content="Sword &amp; Dragon — Ashes of the Wyrm" />
+<meta property="og:description" content="A hunter has thrown down the gauntlet. Fight wave after wave, defend the villages and slay the dragon. Free, in your browser." />
+<meta property="og:url" content="https://greenfrazer.github.io/sword-and-dragon/" />
+<meta property="og:image" content="https://greenfrazer.github.io/sword-and-dragon/icons/icon-512.png" />
+<meta name="twitter:card" content="summary" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0e1a0c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
@@ -402,6 +410,23 @@
     .bc-pips { justify-content: flex-start; margin-top: 6px; } .bc-rank { margin-top: 6px; }
     .bc-cat { top: 13px; }
   }
+
+  /* ======================= RIVAL CHALLENGE LINKS ======================= */
+  #tm-duel { display: none; position: relative; margin: 0 0 2.4vh; padding: 12px 16px 12px 64px; max-width: 760px; border: 1px solid #ff7a1a; background: linear-gradient(90deg, rgba(140,30,10,.55), rgba(20,8,14,.75) 70%); box-shadow: 0 0 30px rgba(255,90,20,.35), inset 0 0 24px rgba(255,120,30,.12); font-family: var(--serif); animation: duelIn .6s cubic-bezier(.2,1.4,.4,1) both; }
+  #tm-duel.on { display: block; }
+  @keyframes duelIn { from { opacity: 0; transform: translateY(-12px); } }
+  #tm-duel svg.dg { position: absolute; left: 14px; top: 50%; width: 38px; height: 38px; transform: translateY(-50%); filter: drop-shadow(0 0 8px #ff7a1a); }
+  .duel-k { font-size: 10px; letter-spacing: .32em; color: #ffb347; }
+  .duel-t { margin-top: 3px; font-size: clamp(16px, 2.2vw, 22px); color: #fff3d6; letter-spacing: .04em; }
+  .duel-t b { color: var(--gold); }
+  .duel-s { margin-top: 2px; font-family: Georgia, serif; font-style: italic; font-size: 13px; color: #d6cbb8; }
+  .duel-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .duel-go { font-family: var(--serif); font-weight: 800; font-size: 13px; letter-spacing: .2em; padding: 10px 18px; min-height: 44px; border: none; color: #2a0c04; cursor: pointer; background: linear-gradient(180deg, #ffd76a, #ff9a3c 55%, #c2410c); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); animation: goGlow 1.4s ease-in-out infinite alternate; touch-action: manipulation; }
+  .duel-x { font-family: var(--serif); font-size: 10px; letter-spacing: .2em; padding: 10px 12px; min-height: 44px; background: none; border: 1px solid rgba(255,215,106,.25); color: #b8a77a; cursor: pointer; touch-action: manipulation; }
+  #rival-text { margin-top: 2px; font-size: 9px; letter-spacing: .22em; color: #ff8a5c; }
+  #rival-text:empty { display: none; }
+  #rival-text.beat { color: #8ce99a; }
+  @media (max-width: 600px) { #tm-duel { padding: 10px 12px 10px 54px; } #tm-duel svg.dg { left: 10px; width: 32px; height: 32px; } }
 </style>
 </head>
 <body>
@@ -419,7 +444,7 @@
         <span class="hh-chip"><svg viewBox="0 0 16 16"><rect x="1.5" y="5" width="12" height="6.5" rx="1.5" fill="#9c6b3c" stroke="#5a3a1c" stroke-width="1"/><ellipse cx="13.2" cy="8.25" rx="2" ry="3.25" fill="#e8c48c" stroke="#5a3a1c" stroke-width="1"/><circle cx="13.2" cy="8.25" r="1" fill="#b98a52"/></svg><b id="wood-text">0</b></span>
         <span class="hh-chip"><svg viewBox="0 0 16 16"><path d="M13.5 1.5 L6 9 L7 10 L14.5 2.5Z" fill="#dfe6f2" stroke="#7a8296" stroke-width=".8"/><path d="M3.5 8.5 L7.5 12.5 M5 11 L2 14" stroke="#ffb347" stroke-width="1.8" stroke-linecap="round"/></svg>LV<b id="sword-text">1</b></span>
       </div>
-      <div id="biome-text">Emerald Meadow</div>
+      <div id="biome-text">Emerald Meadow</div><div id="rival-text"></div>
     </div>
   </div>
   <div id="hud-foes">
@@ -461,6 +486,7 @@
       <svg class="tm-blade" viewBox="0 0 560 22" preserveAspectRatio="none"><defs><linearGradient id="bl" x1="0" x2="1"><stop offset="0" stop-color="#ffb347" stop-opacity="0"/><stop offset=".08" stop-color="#ffd76a"/><stop offset=".6" stop-color="#ff7a1a" stop-opacity=".7"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></linearGradient></defs><path d="M40 11 L560 11" stroke="url(#bl)" stroke-width="2"/><path d="M0 11 L30 4 L44 11 L30 18Z" fill="#ffd76a"/><rect x="26" y="1" width="5" height="20" fill="#d9a441"/><circle cx="12" cy="11" r="2.5" fill="#ff7a1a"/></svg>
       <div class="tm-sub">ASHES OF THE WYRM</div>
     </header>
+    <div id="tm-duel"></div>
     <div class="tm-main"><nav id="menu-list"></nav><section id="menu-panel"></section></div>
     <button class="btn-restart" id="tm-go">BEGIN THE HUNT</button>
     <footer class="tm-foot"><span id="title-best"></span><span class="tm-keys-hint">↑ ↓ NAVIGATE &nbsp;·&nbsp; ENTER SELECT &nbsp;·&nbsp; ESC BACK</span><span class="tm-bal"><svg viewBox="0 0 24 24"><path d="M12 2 C13 7 19 9 19 15 A7 7 0 0 1 5 15 C5 11 8 10 9 6 C10 8 11 8 11 8 C11 6 11 4 12 2Z" fill="#ff7a1a"/></svg><b id="embers-text">0</b> EMBERS</span></footer>

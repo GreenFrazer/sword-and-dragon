@@ -169,10 +169,12 @@ function spawnEnemy(type) {
       const d = [tw.y, WORLD_H - tw.y, tw.x, WORLD_W - tw.x], m = Math.min(...d), c = d.map((v, i) => v < m + 220 ? i : -1).filter(i => i >= 0);
       edge = c[Math.floor(Math.random() * c.length)];
     }
-    if (edge === 0) { ex = rand(100, WORLD_W - 100); ey = 90; }
-    else if (edge === 1) { ex = rand(100, WORLD_W - 100); ey = WORLD_H - 90; }
-    else if (edge === 2) { ex = 90; ey = rand(100, WORLD_H - 100); }
-    else { ex = WORLD_W - 90; ey = rand(100, WORLD_H - 100); }
+    // a raid enters along the stretch of edge facing its own town, not anywhere along that edge
+    const along = (lo, hi, c) => tw && t < 10 ? Math.max(lo, Math.min(hi, c + rand(-260, 260))) : rand(lo, hi);
+    if (edge === 0) { ex = along(100, WORLD_W - 100, tw && tw.x); ey = 90; }
+    else if (edge === 1) { ex = along(100, WORLD_W - 100, tw && tw.x); ey = WORLD_H - 90; }
+    else if (edge === 2) { ex = 90; ey = along(100, WORLD_H - 100, tw && tw.y); }
+    else { ex = WORLD_W - 90; ey = along(100, WORLD_H - 100, tw && tw.y); }
     if (Math.hypot(ex - player.x, ey - player.y) > 340) break;
   }
   const sc = 1 + (wave - 1) * 0.14, ds = 1 + (wave - 1) * 0.05;

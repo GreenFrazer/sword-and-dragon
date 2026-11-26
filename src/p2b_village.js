@@ -55,7 +55,8 @@ function townSites(n) {
   for (let i = 0; i < 300; i++) {
     let a = { x: rand(520, 780), y: rand(460, WORLD_H - 460) }, b = { x: rand(WORLD_W - 780, WORLD_W - 520), y: rand(460, WORLD_H - 460) };
     if (flip) { const t = a; a = b; b = t; }
-    const d = Math.hypot(a.x - b.x, a.y - b.y), sc = d + (far(a.x, a.y) ? 1000 : 0) + (far(b.x, b.y) ? 1000 : 0);
+    // separation comes first (a pair under 620 apart never beats one over it), then keeping clear of the player, then distance
+    const d = Math.hypot(a.x - b.x, a.y - b.y), sc = (d >= 620 ? 10000 : 0) + (far(a.x, a.y) ? 1000 : 0) + (far(b.x, b.y) ? 1000 : 0) + d;
     if (sc > bs) { bs = sc; best = [a, b]; }
     if (d > 650 && far(a.x, a.y) && far(b.x, b.y)) return [a, b];
   }

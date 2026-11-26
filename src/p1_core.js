@@ -231,6 +231,14 @@ function sfx(name, wx, wy) {
       nz({ dur: 0.5, vol: v(0.4), brown: true, fl: [3000, 120, 0.8], pan, rev: 0.4 });
       fm({ f: 660, ratio: 3.5, idx: 5, dur: 0.6, vol: v(0.1), pan, rev: 0.4, pv });
       voice({ f: 300, slide: 1200, dur: 0.12, type: 'sawtooth', vol: v(0.06), fl: [800, 5000, 1], pan, rev: 0.2 }); break;
+    case 'scroll': // parchment unfurl and a bright accept chime
+      nz({ dur: 0.18, vol: 0.12, atk: 0.03, fl: [1800, 5200, 1.2, 'bandpass'], rev: 0.15 });
+      fm({ f: 1047, ratio: 2, idx: 1.5, dur: 0.3, vol: 0.08, delay: 0.08, rev: 0.35 });
+      fm({ f: 1568, ratio: 2, idx: 1.2, dur: 0.4, vol: 0.07, delay: 0.16, rev: 0.4 }); break;
+    case 'quest': // quest complete fanfare: rising major arpeggio over a warm chord
+      [523, 659, 784, 1047].forEach((f, i) => fm({ f, ratio: 2, idx: 1.4, dur: 0.5, vol: 0.09, delay: i * 0.09, rev: 0.4 }));
+      voice({ f: 262, dur: 0.9, type: 'triangle', vol: 0.08, atk: 0.04, delay: 0.3, rev: 0.4 });
+      voice({ f: 392, dur: 0.9, type: 'triangle', vol: 0.06, atk: 0.04, delay: 0.3, rev: 0.4 }); break;
     case 'boom':
       duck(0.35, 0.3, 0.5);
       voice({ f: 100, slide: 26, dur: 0.9, type: 'sine', vol: v(0.55), rel: 0.1, rev: 0.25, ...P });

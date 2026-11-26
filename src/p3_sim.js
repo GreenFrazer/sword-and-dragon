@@ -70,7 +70,7 @@ function stepSimulation(dt) {
     spawnTimer -= dt;
     if (spawnTimer <= 0 && enemies.length < maxAlive()) { spawnEnemy(waveQueue.shift()); spawnTimer = 1.3; }
   } else if (enemies.length === 0) {
-    if (clearTimer === null) { clearTimer = slainT > 0 ? 3.7 : 1.7; settleVillage(); if (!villageResult) { addFloatText(player.x, player.y - 80, 'WAVE CLEARED!', '#ffd43b', 26); flash('#ffe066', 0.18); } }
+    if (clearTimer === null) { clearTimer = slainT > 0 ? 3.7 : 1.7; settleVillage(); questWaveEnd(); if (!villageResult) { addFloatText(player.x, player.y - 80, 'WAVE CLEARED!', '#ffd43b', 26); flash('#ffe066', 0.18); } }
     else { clearTimer -= dt; if (clearTimer <= 0) { clearTimer = null; openUpgradeModal(); return; } }
   }
 
@@ -196,7 +196,7 @@ function stepSimulation(dt) {
     else updateMelee(e, edt);
   });
   separateEnemies();
-  stepRare(edt);
+  stepRare(edt); stepQuest(dt);
 
   // --- projectiles ---
   for (let i = projectiles.length - 1; i >= 0; i--) {

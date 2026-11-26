@@ -25,7 +25,7 @@ if(!charged)fail('no charge');const e=run('({hp:__e.hp,stun:__e.stun})');if(e.hp
 if(run('player.mountCd')<=0)fail('no cooldown');console.log('charge ok, dmg',99999-e.hp,'steeds',run('steeds.length'));
 // remount, then a hit throws the hero off
 run('enemies.length=0;player.mountCd=0;player.invuln=0');for(let i=0;i<90;i++)step();if(!run('player.mount'))fail('no remount '+run('JSON.stringify({s:state,cd:player.mountCd,c:player.mountCast,x:player.x,at:player.atkTimer,sp:player.spinTime,d:player.dashTime,n:nearestFoeDist(),j:joy.dx})'));
-run('player.invuln=0;damagePlayer(10,player.x+50,player.y)');if(run('player.mount'))fail('not dazed off');
+run('player.invuln=0;player.shieldT=0;damagePlayer(10,player.x+50,player.y)');if(run('player.mount'))fail('not dazed off');
 // render path with horse (stub canvas)
 run('player.mountCd=0;player.invuln=0');for(let i=0;i<90;i++)step();run('player.dashTime=0.1;ghosts.push({x:player.x,y:player.y,facing:0,walkPhase:1,life:0.2});render()');
 console.log('mount: all checks passed');

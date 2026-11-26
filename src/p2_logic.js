@@ -41,7 +41,7 @@ function resetGame() {
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
-  projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
+  projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; questsDone = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
   runOmen = meta.omenOn ? todaysOmen() : null;
@@ -75,7 +75,7 @@ function chopTree(t, dmg, fromX) {
   if (t.hp <= 0) fellTree(t);
 }
 function fellTree(t) {
-  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++;
+  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++; questEvent('timber');
   sfx('timber', t.x, t.y); shake = Math.max(shake, 5);
   spawnBurst(t.x, t.y - 44, biome.leaf1, 14, 'dot'); spawnBurst(t.x, t.y - 44, biome.leaf2, 8, 'dot'); spawnSmoke(t.x, t.y, 2);
   const logs = 3 + (Math.random() < 0.5 ? 1 : 0);
@@ -158,6 +158,7 @@ function startWave(w) {
   }
   if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
+  spawnHerald(w);
 }
 function maxAlive() { const two = village && village.towns.length > 1; return Math.min(two ? 15 : 12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (two ? 3 : 0) + (bloodMoon ? 2 : 0)); }
 
@@ -236,7 +237,7 @@ function triggerSpin() {
     if (Math.hypot(e.x - player.x, e.y - player.y) <= R + e.r) {
       hits++;
       if (e.hasShield) {
-        e.hasShield = false; e.stun = 1.1;
+        e.hasShield = false; e.stun = 1.1; questEvent('shield');
         addFloatText(e.x, e.y - 38, 'SHIELD SHATTERED!', '#ffd43b'); spawnBurst(e.x, e.y, '#adb5bd', 14);
       }
       const crit = Math.random() < critCh();
@@ -298,7 +299,7 @@ function explosionFx(x, y, r, color, big) {
   shake = Math.max(shake, big ? 14 : 9); sfx('boom');
 }
 function destroyProp(idx) {
-  const p = props[idx]; props.splice(idx, 1);
+  const p = props[idx]; props.splice(idx, 1); questEvent('crate');
   if (p.type === 'tnt') {
     explosionFx(p.x, p.y, 175, '#ff922b', true);
     addFloatText(p.x, p.y - 30, 'BOOM!', '#ff922b', 20);
@@ -329,7 +330,7 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
       e.vx += Math.cos(angle) * knockback * 0.45; e.vy += Math.sin(angle) * knockback * 0.45;
       spawnBurst(e.x + Math.cos(e.facing) * 16, e.y - 20 + Math.sin(e.facing) * 16, '#dee2e6', 8, 'spark'); sfx('block');
       if (e.shieldHits >= e.maxShieldHits) {
-        e.hasShield = false; e.stun = 1.2; addFloatText(e.x, e.y - 40, 'SHIELD BROKEN!', '#ffd43b'); shake = 6; gainUlt(4);
+        e.hasShield = false; e.stun = 1.2; questEvent('shield'); addFloatText(e.x, e.y - 40, 'SHIELD BROKEN!', '#ffd43b'); shake = 6; gainUlt(4);
       } else {
         const chip = Math.max(6, Math.round(amount * 0.35)); e.hp -= chip;
         addFloatText(e.x, e.y - 32, `BLOCK (${chip})`, '#ced4da'); gainUlt(1);
@@ -362,7 +363,7 @@ function igniteFrenzy() {
 }
 function killEnemy(e) {
   const idx = enemies.indexOf(e); if (idx === -1) return;
-  enemies.splice(idx, 1);
+  enemies.splice(idx, 1); questEvent('kill', e);
   kills++; combo++; comboT = 3.2; bestCombo = Math.max(bestCombo, combo);
   if (frenzyT > 0) frenzyT = Math.min(14, frenzyT + 0.6);
   else if (combo >= FRENZY_AT && frenzyCd <= 0) igniteFrenzy();
@@ -409,6 +410,7 @@ function damagePlayer(amount, fromX, fromY) {
     addFloatText(player.x, player.y - 46, 'BLOCKED', '#ffe066', 16); return;
   }
   if (player.mount) dismount('dazed');
+  questEvent('hurt');
   let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);

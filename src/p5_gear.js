@@ -32,7 +32,7 @@ function claimDaily() {
   const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
 }
 function runEmbers() {
-  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25 + rareKills * 30);
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25 + rareKills * 30 + questsDone * 15);
   if (runOmen) e = Math.floor(e * runOmen.mul);
   return { base: e, daily: claimDaily() };
 }

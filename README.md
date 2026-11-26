@@ -42,6 +42,7 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 - **Blessings and Evolutions:** level-up choices, plus special Evolutions when a build is complete.
 - **Warhorse and Cavalry Charge:** walk with no foe nearby and the hero whistles up a warhorse (a short cast bar over their head). Mounted, you ride about 70% faster, which makes crossing between two towns quick. Gallop into a foe for a **Cavalry Charge**: a big hit to everything nearby that stuns, flings foes and shatters shields, then the hero leaps from the saddle. Taking a hit throws you off (dazed), and reining in beside a foe makes you dismount to fight. No button needed, so it works the same on touch.
 - **Rare Hunts:** on some non-boss waves (from wave 2) a named **Rare Elite** stalks in with a silver nameplate, a ★ on the minimap and an off-screen arrow. It fights like a raid boss in miniature, with telegraphed abilities you beat by where you stand: **Flame Pools** under your feet (they burn other foes too, so lure the pack in), a **Leaping Slam** onto your spot and a **Frontal Cleave**. At half health it rallies minions; at a quarter it runs for the map edge, and if it gets there it escapes with its hoard. Slay it for two high-rarity loot drops, a gold shower and +30 embers.
+- **Herald's Bounties (quests):** on non-boss waves from wave 2, a Herald waits near you with a glowing gold **!**. Walk up to accept a bounty suited to the wave (slay archers or brutes, break shields, fell trees, smash crates, land Cavalry Charges, hit a combo, kill the rare, or slay foes without being hit). A quest tracker shows progress; when it's done the Herald shows a gold **?**: walk back for gold, an item, a heal and +15 embers. A finished bounty is still paid if the wave ends first; an unfinished one is lost.
 - **Cast** ability and the **Meteor Storm** ultimate.
 - **The Forge:** embers earned every run buy permanent upgrades (Vitality, Might, Fortune, Second Wind) and unlock weapons.
 - **Visual effects:** a sun that arcs across each wave casting long shadows from everything (the dragon's shadow sweeps the ground when it flies), dynamic lighting, bloom, colour grading, weather (rain, storms, blizzards, ash), fog, fireflies, animated grass, a boss intro and a custom animated title screen.
@@ -69,6 +70,7 @@ src/              Source parts, concatenated in order by build.sh
   p5_gear.js      Weapons, Forge, loot, elites, evolutions, Cast
   p5b_mount.js    Warhorse mount and Cavalry Charge
   p5c_rare.js     Rare Hunts: named rare elites, their abilities and rewards
+  p5d_quest.js    Herald's Bounties: quest giver, quest pool, tracker
   p6_fx.js        Lighting, bloom, weather, fog, music
   p8a_titlebg.js  Animated title-screen backdrop
   p8b_menu.js     Title menu (Armoury, Forge, Chronicle)
@@ -79,6 +81,7 @@ tests/wood7.js    Headless timber scenario test (chop, haul, repair, regrow)
 tests/towns7.js   Headless two-town test (layout, raids, wave length)
 tests/mount7.js   Headless warhorse test (summon, gallop, charge, dazed)
 tests/rare7.js    Headless rare-hunt test (abilities, pools, rally, flee, hoard)
+tests/quest7.js   Headless quest test (every bounty type, turn-in, courier, failure)
 ```
 
 `theme.css` is kept as a separate reference; the build uses the copy already inlined in `p0_head.html`, so edit both if you change styles.

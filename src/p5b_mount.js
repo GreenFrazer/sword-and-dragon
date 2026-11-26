@@ -34,7 +34,7 @@ function cavalryCharge(tgt) {
     if (Math.hypot(e.x - player.x, e.y - player.y) > R + e.r) return;
     hits++;
     if (e.type !== 'dragon') e.stun = Math.max(e.stun || 0, 1.3);
-    if (e.hasShield) { e.hasShield = false; addFloatText(e.x, e.y - 40, 'SHIELD SHATTERED!', '#ffd43b'); }
+    if (e.hasShield) { e.hasShield = false; questEvent('shield'); addFloatText(e.x, e.y - 40, 'SHIELD SHATTERED!', '#ffd43b'); }
     const crit = Math.random() < critCh(), a = Math.atan2(e.y - player.y, e.x - player.x);
     // foes are flung away from the rider's line, the struck one hardest
     damageEnemy(e, Math.round(base * (crit ? 2 : 1) * (e === tgt ? 1.4 : 1)), (a + dir) / 2 + (Math.abs(a - dir) > Math.PI ? Math.PI : 0), e === tgt ? 640 : 480, true, crit);
@@ -47,7 +47,7 @@ function cavalryCharge(tgt) {
   for (let i = 0; i < 14; i++) { const a = dir + Math.PI + rand(-1.1, 1.1), s = rand(120, 320); if (particles.length < MAXP) particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.6, life: 0.7, maxLife: 0.7, color: biome.path2, size: rand(5, 10), kind: 'smoke', g: 0 }); }
   shake = Math.max(shake, 16); hitStop = Math.max(hitStop, 0.09); zoomKick = Math.max(zoomKick, 0.07); flash('#fff1c2', 0.25);
   addFloatText(player.x, player.y - 84, 'CAVALRY CHARGE!', '#ffd43b', 26);
-  sfx('charge', player.x, player.y);
+  sfx('charge', player.x, player.y); questEvent('charge');
   // the hero leaps from the saddle into the fray: brief guard, carried momentum
   player.invuln = Math.max(player.invuln, 0.6); player.vx = Math.cos(dir) * 120; player.vy = Math.sin(dir) * 120;
   player.atkCooldown = 0; dismount('charge');

@@ -38,6 +38,13 @@
   #music-btn { position: absolute; top: 86px; right: 60px; z-index: 12; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #8a7346; background: rgba(18,22,16,0.8); color: #fff; font-size: 19px; cursor: pointer; }
   #music-btn.off { color: #777; text-decoration: line-through; opacity: 0.7; }
   #mute { position: absolute; top: 86px; right: 14px; z-index: 12; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #8a7346; background: rgba(18,22,16,0.8); color: #fff; font-size: 17px; cursor: pointer; }
+  #quest-hud { position: absolute; top: 128px; left: 14px; z-index: 10; pointer-events: none; display: none; width: 210px; padding: 7px 10px 8px; background: linear-gradient(180deg, rgba(28,20,10,0.86), rgba(18,13,7,0.78)); border: 1px solid rgba(255,212,59,0.55); border-left: 3px solid #ffd43b; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.45); font-family: Georgia, 'Times New Roman', serif; }
+  #qh-title { color: #ffd43b; font-weight: 700; font-size: 14px; letter-spacing: 0.3px; text-shadow: 0 1px 2px #000; }
+  #qh-obj { color: #f1e6c8; font-size: 12px; margin-top: 2px; text-shadow: 0 1px 2px #000; }
+  #qh-bar { height: 5px; margin-top: 5px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden; }
+  #qh-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #c98a1c, #ffe066); transition: width 0.25s; }
+  #quest-hud.done { border-color: #ffe066; animation: qhGlow 1s infinite alternate; }
+  @keyframes qhGlow { from { box-shadow: 0 0 4px rgba(255,212,59,0.3); } to { box-shadow: 0 0 16px rgba(255,212,59,0.75); } }
   #party { position: absolute; top: 128px; left: 14px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; gap: 5px; }
   .party-row { background: rgba(18,22,16,0.78); border: 1px solid #5c7a4a; border-radius: 7px; padding: 3px 8px; width: 150px; color: #e9f5e1; font-size: 11px; font-weight: 700; }
   .pbw { height: 6px; background: #1f2a1a; border-radius: 3px; margin-top: 2px; overflow: hidden; }
@@ -303,6 +310,8 @@
     #combo { top: calc(max(10px, env(safe-area-inset-top)) + 162px); }
     #buff-hud { top: calc(max(10px, env(safe-area-inset-top)) + 214px); }
     #party { top: calc(max(10px, env(safe-area-inset-top)) + 162px); left: 10px; }
+    #quest-hud { top: calc(max(10px, env(safe-area-inset-top)) + 162px); left: 10px; width: 168px; padding: 5px 8px 6px; }
+    #qh-title { font-size: 12px; } #qh-obj { font-size: 11px; }
     #minimap { left: 10px; bottom: auto; top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px); width: 112px; height: 87px; }
     #controls { bottom: max(12px, env(safe-area-inset-bottom)); }
   }
@@ -456,6 +465,7 @@
     <b id="enemies-text">0</b><small>FOES</small>
   </div>
 </div>
+<div id="quest-hud"><div id="qh-title"></div><div id="qh-obj"></div><div id="qh-bar"><i id="qh-fill"></i></div></div>
 <div id="party"></div>
 <div id="buff-hud"></div>
 <div id="village-hud"><div id="village-text">🏠 VILLAGE 3/3</div><div id="village-bar-wrap"><div id="village-bar"></div></div></div>
@@ -778,6 +788,14 @@ function sfx(name, wx, wy) {
       nz({ dur: 0.5, vol: v(0.4), brown: true, fl: [3000, 120, 0.8], pan, rev: 0.4 });
       fm({ f: 660, ratio: 3.5, idx: 5, dur: 0.6, vol: v(0.1), pan, rev: 0.4, pv });
       voice({ f: 300, slide: 1200, dur: 0.12, type: 'sawtooth', vol: v(0.06), fl: [800, 5000, 1], pan, rev: 0.2 }); break;
+    case 'scroll': // parchment unfurl and a bright accept chime
+      nz({ dur: 0.18, vol: 0.12, atk: 0.03, fl: [1800, 5200, 1.2, 'bandpass'], rev: 0.15 });
+      fm({ f: 1047, ratio: 2, idx: 1.5, dur: 0.3, vol: 0.08, delay: 0.08, rev: 0.35 });
+      fm({ f: 1568, ratio: 2, idx: 1.2, dur: 0.4, vol: 0.07, delay: 0.16, rev: 0.4 }); break;
+    case 'quest': // quest complete fanfare: rising major arpeggio over a warm chord
+      [523, 659, 784, 1047].forEach((f, i) => fm({ f, ratio: 2, idx: 1.4, dur: 0.5, vol: 0.09, delay: i * 0.09, rev: 0.4 }));
+      voice({ f: 262, dur: 0.9, type: 'triangle', vol: 0.08, atk: 0.04, delay: 0.3, rev: 0.4 });
+      voice({ f: 392, dur: 0.9, type: 'triangle', vol: 0.06, atk: 0.04, delay: 0.3, rev: 0.4 }); break;
     case 'boom':
       duck(0.35, 0.3, 0.5);
       voice({ f: 100, slide: 26, dur: 0.9, type: 'sine', vol: v(0.55), rel: 0.1, rev: 0.25, ...P });
@@ -1092,7 +1110,7 @@ function resetGame() {
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
-  projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
+  projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; questsDone = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
   runOmen = meta.omenOn ? todaysOmen() : null;
@@ -1126,7 +1144,7 @@ function chopTree(t, dmg, fromX) {
   if (t.hp <= 0) fellTree(t);
 }
 function fellTree(t) {
-  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++;
+  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++; questEvent('timber');
   sfx('timber', t.x, t.y); shake = Math.max(shake, 5);
   spawnBurst(t.x, t.y - 44, biome.leaf1, 14, 'dot'); spawnBurst(t.x, t.y - 44, biome.leaf2, 8, 'dot'); spawnSmoke(t.x, t.y, 2);
   const logs = 3 + (Math.random() < 0.5 ? 1 : 0);
@@ -1209,6 +1227,7 @@ function startWave(w) {
   }
   if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
+  spawnHerald(w);
 }
 function maxAlive() { const two = village && village.towns.length > 1; return Math.min(two ? 15 : 12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (two ? 3 : 0) + (bloodMoon ? 2 : 0)); }
 
@@ -1287,7 +1306,7 @@ function triggerSpin() {
     if (Math.hypot(e.x - player.x, e.y - player.y) <= R + e.r) {
       hits++;
       if (e.hasShield) {
-        e.hasShield = false; e.stun = 1.1;
+        e.hasShield = false; e.stun = 1.1; questEvent('shield');
         addFloatText(e.x, e.y - 38, 'SHIELD SHATTERED!', '#ffd43b'); spawnBurst(e.x, e.y, '#adb5bd', 14);
       }
       const crit = Math.random() < critCh();
@@ -1349,7 +1368,7 @@ function explosionFx(x, y, r, color, big) {
   shake = Math.max(shake, big ? 14 : 9); sfx('boom');
 }
 function destroyProp(idx) {
-  const p = props[idx]; props.splice(idx, 1);
+  const p = props[idx]; props.splice(idx, 1); questEvent('crate');
   if (p.type === 'tnt') {
     explosionFx(p.x, p.y, 175, '#ff922b', true);
     addFloatText(p.x, p.y - 30, 'BOOM!', '#ff922b', 20);
@@ -1380,7 +1399,7 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
       e.vx += Math.cos(angle) * knockback * 0.45; e.vy += Math.sin(angle) * knockback * 0.45;
       spawnBurst(e.x + Math.cos(e.facing) * 16, e.y - 20 + Math.sin(e.facing) * 16, '#dee2e6', 8, 'spark'); sfx('block');
       if (e.shieldHits >= e.maxShieldHits) {
-        e.hasShield = false; e.stun = 1.2; addFloatText(e.x, e.y - 40, 'SHIELD BROKEN!', '#ffd43b'); shake = 6; gainUlt(4);
+        e.hasShield = false; e.stun = 1.2; questEvent('shield'); addFloatText(e.x, e.y - 40, 'SHIELD BROKEN!', '#ffd43b'); shake = 6; gainUlt(4);
       } else {
         const chip = Math.max(6, Math.round(amount * 0.35)); e.hp -= chip;
         addFloatText(e.x, e.y - 32, `BLOCK (${chip})`, '#ced4da'); gainUlt(1);
@@ -1413,7 +1432,7 @@ function igniteFrenzy() {
 }
 function killEnemy(e) {
   const idx = enemies.indexOf(e); if (idx === -1) return;
-  enemies.splice(idx, 1);
+  enemies.splice(idx, 1); questEvent('kill', e);
   kills++; combo++; comboT = 3.2; bestCombo = Math.max(bestCombo, combo);
   if (frenzyT > 0) frenzyT = Math.min(14, frenzyT + 0.6);
   else if (combo >= FRENZY_AT && frenzyCd <= 0) igniteFrenzy();
@@ -1460,6 +1479,7 @@ function damagePlayer(amount, fromX, fromY) {
     addFloatText(player.x, player.y - 46, 'BLOCKED', '#ffe066', 16); return;
   }
   if (player.mount) dismount('dazed');
+  questEvent('hurt');
   let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);
@@ -2085,7 +2105,7 @@ function stepSimulation(dt) {
     spawnTimer -= dt;
     if (spawnTimer <= 0 && enemies.length < maxAlive()) { spawnEnemy(waveQueue.shift()); spawnTimer = 1.3; }
   } else if (enemies.length === 0) {
-    if (clearTimer === null) { clearTimer = slainT > 0 ? 3.7 : 1.7; settleVillage(); if (!villageResult) { addFloatText(player.x, player.y - 80, 'WAVE CLEARED!', '#ffd43b', 26); flash('#ffe066', 0.18); } }
+    if (clearTimer === null) { clearTimer = slainT > 0 ? 3.7 : 1.7; settleVillage(); questWaveEnd(); if (!villageResult) { addFloatText(player.x, player.y - 80, 'WAVE CLEARED!', '#ffd43b', 26); flash('#ffe066', 0.18); } }
     else { clearTimer -= dt; if (clearTimer <= 0) { clearTimer = null; openUpgradeModal(); return; } }
   }
 
@@ -2211,7 +2231,7 @@ function stepSimulation(dt) {
     else updateMelee(e, edt);
   });
   separateEnemies();
-  stepRare(edt);
+  stepRare(edt); stepQuest(dt);
 
   // --- projectiles ---
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -2544,6 +2564,7 @@ function render() {
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
   dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawRider(player); if (player.shieldT > 0) drawPlayerShield(); drawMountCast(); } });
+  if (herald) dr.push({ y: herald.y, f: drawHerald });
   for (const s of steeds) dr.push({ y: s.y, f: () => drawSteed(s) });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
@@ -2637,6 +2658,7 @@ function render() {
     else { ctx.globalAlpha = 0.85; ctx.fillStyle = a.col; ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ph); ctx.scale(1, 0.5 + 0.5 * Math.sin(a.ph * 2)); ctx.beginPath(); ctx.ellipse(0, 0, a.s * 1.2, a.s * 0.7, 0, 0, TAU); ctx.fill(); ctx.restore(); }
   }
   ctx.globalAlpha = 1;
+  drawHeraldGlyph();
   bloomPass();
   ctx.drawImage(vig, 0, 0, W, H);
   if (state !== 'title' && player.hp < player.maxHp * 0.3) {
@@ -2657,7 +2679,7 @@ function render() {
     ctx.strokeText(bannerSub, W / 2, H * 0.3 + 30); ctx.fillText(bannerSub, W / 2, H * 0.3 + 30);
     ctx.globalAlpha = 1;
   }
-  drawVillageIndicator(); drawRareIndicator();
+  drawVillageIndicator(); drawRareIndicator(); drawHeraldIndicator();
   drawIntro();
   drawSlain(); drawImpactScreen();
   if (joy.active) {
@@ -2683,6 +2705,7 @@ function drawMinimap() {
   if (camp) { mctx.fillStyle = '#e8a65a'; mctx.fillRect(camp.x * sx - 3, camp.y * sy - 3, 6, 5); }
   if (village) for (const h of village.houses) { mctx.fillStyle = h.dead ? '#5a2a1a' : '#ffa94d'; mctx.fillRect(h.x * sx - 3, h.y * sy - 3, 6, 6); }
   mctx.fillStyle = '#69db7c'; for (const c of companions) if (!c.down) mctx.fillRect(c.x * sx - 2, c.y * sy - 2, 4, 4);
+  if (herald && herald.st !== 'thanks') { mctx.font = '900 12px Georgia, serif'; mctx.textAlign = 'center'; mctx.lineWidth = 3; mctx.strokeStyle = '#2b1a05'; const ch = herald.st === 'offer' ? '!' : '?'; mctx.strokeText(ch, herald.x * sx, herald.y * sy + 4); mctx.fillStyle = herald.st === 'active' ? '#ced4da' : '#ffd43b'; mctx.fillText(ch, herald.x * sx, herald.y * sy + 4); }
   mctx.fillStyle = '#4dd4ff'; mctx.beginPath(); mctx.arc(player.x * sx, player.y * sy, 3.5, 0, TAU); mctx.fill();
   const z = baseScale() * (1 + zoomKick);
   mctx.strokeStyle = 'rgba(255,255,255,0.6)'; mctx.lineWidth = 1; mctx.strokeRect(cam.x * sx, cam.y * sy, Math.min(150, W / z * sx), Math.min(117, H / z * sy));
@@ -2813,8 +2836,8 @@ function drawPickup(pk) {
   }
 }
 
-const TYPE_COL = { rare: '#3b3f4a', grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
-const EYE_COL = { rare: '#e7f5ff', grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
+const TYPE_COL = { herald: '#7048e8', rare: '#3b3f4a', grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
+const EYE_COL = { herald: '#222', rare: '#e7f5ff', grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
 
 // ---------- procedural character animation: bob, lean, squash & stretch, lunge, springs, footsteps ----------
 function charAnim(ent, isPlayer) {
@@ -2940,6 +2963,12 @@ function drawHumanoid(ent, isPlayer) {
     ctx.strokeStyle = '#dee2e6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(15 * Math.cos(-1.2), 15 * Math.sin(-1.2)); ctx.lineTo(-pull, 0); ctx.lineTo(15 * Math.cos(1.2), 15 * Math.sin(1.2)); ctx.stroke();
     if (ent.aim > 0) { ctx.strokeStyle = '#d6b88a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-pull, 0); ctx.lineTo(18, 0); ctx.stroke(); }
     ctx.restore();
+  } else if (type === 'herald') { // unrolled bounty scroll
+    ctx.save(); ctx.translate(whx, why - 4);
+    ctx.fillStyle = '#f3e3b5'; ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1.2; ctx.fillRect(-2, -14, 14, 22); ctx.strokeRect(-2, -14, 14, 22);
+    ctx.fillStyle = '#c9a46a'; ctx.fillRect(-4, -16, 18, 4); ctx.fillRect(-4, 7, 18, 4);
+    ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 1; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(1, -9 + i * 4); ctx.lineTo(9, -9 + i * 4); ctx.stroke(); }
+    ctx.fillStyle = '#c92a2a'; ctx.beginPath(); ctx.arc(5, 5, 2.4, 0, TAU); ctx.fill(); ctx.restore();
   } else if (type === 'cleric') {
     ctx.strokeStyle = '#a47148'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(whx, why + 8); ctx.lineTo(whx + Math.cos(wa) * 6, why - 36); ctx.stroke();
     drawGlow(whx + Math.cos(wa) * 6, why - 38, 16 + (ent.windup > 0 ? 10 : 0), '#69db7c', 0.85);
@@ -2977,7 +3006,8 @@ function drawHumanoid(ent, isPlayer) {
   ctx.globalAlpha = 1;
 
   if (an) ctx.restore();
-  if (ent.ally) {
+  if (type === 'herald') { /* no health bar */ }
+  else if (ent.ally) {
     const bw = 42, pct = Math.max(0, ent.hp / ent.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(-bw / 2, -66, bw, 6);
     ctx.fillStyle = pct > 0.4 ? '#69db7c' : '#ffa94d'; ctx.fillRect(-bw / 2 + 1, -65, (bw - 2) * pct, 4);
@@ -3157,6 +3187,7 @@ function updateHUD() {
   setStyle('foe-ring', 'strokeDashoffset', (169.6 * (hudFx.tot ? foes / hudFx.tot : 1)).toFixed(1));
   setClass('hud-foes', 'clear', foes === 0);
   const boss = enemies.find(e => e.type === 'dragon');
+  updateQuestHud();
   const rare = boss ? null : enemies.find(e => e.rare);
   setClass('boss-hud', 'rare', !!rare);
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }
@@ -3222,7 +3253,7 @@ function claimDaily() {
   const b = dailyBonus(); meta.streak = streakNow() + 1; meta.lastDay = dayNum(); return b;
 }
 function runEmbers() {
-  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25 + rareKills * 30);
+  let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25 + rareKills * 30 + questsDone * 15);
   if (runOmen) e = Math.floor(e * runOmen.mul);
   return { base: e, daily: claimDaily() };
 }
@@ -3451,7 +3482,7 @@ function cavalryCharge(tgt) {
     if (Math.hypot(e.x - player.x, e.y - player.y) > R + e.r) return;
     hits++;
     if (e.type !== 'dragon') e.stun = Math.max(e.stun || 0, 1.3);
-    if (e.hasShield) { e.hasShield = false; addFloatText(e.x, e.y - 40, 'SHIELD SHATTERED!', '#ffd43b'); }
+    if (e.hasShield) { e.hasShield = false; questEvent('shield'); addFloatText(e.x, e.y - 40, 'SHIELD SHATTERED!', '#ffd43b'); }
     const crit = Math.random() < critCh(), a = Math.atan2(e.y - player.y, e.x - player.x);
     // foes are flung away from the rider's line, the struck one hardest
     damageEnemy(e, Math.round(base * (crit ? 2 : 1) * (e === tgt ? 1.4 : 1)), (a + dir) / 2 + (Math.abs(a - dir) > Math.PI ? Math.PI : 0), e === tgt ? 640 : 480, true, crit);
@@ -3464,7 +3495,7 @@ function cavalryCharge(tgt) {
   for (let i = 0; i < 14; i++) { const a = dir + Math.PI + rand(-1.1, 1.1), s = rand(120, 320); if (particles.length < MAXP) particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.6, life: 0.7, maxLife: 0.7, color: biome.path2, size: rand(5, 10), kind: 'smoke', g: 0 }); }
   shake = Math.max(shake, 16); hitStop = Math.max(hitStop, 0.09); zoomKick = Math.max(zoomKick, 0.07); flash('#fff1c2', 0.25);
   addFloatText(player.x, player.y - 84, 'CAVALRY CHARGE!', '#ffd43b', 26);
-  sfx('charge', player.x, player.y);
+  sfx('charge', player.x, player.y); questEvent('charge');
   // the hero leaps from the saddle into the fray: brief guard, carried momentum
   player.invuln = Math.max(player.invuln, 0.6); player.vx = Math.cos(dir) * 120; player.vy = Math.sin(dir) * 120;
   player.atkCooldown = 0; dismount('charge');
@@ -3775,6 +3806,151 @@ function drawRareIndicator() {
   ctx.restore();
   ctx.font = "900 15px 'Segoe UI', sans-serif"; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
   ctx.strokeText('★', x - Math.cos(a) * 20, y - Math.sin(a) * 20 + 5); ctx.fillStyle = '#f8f9fa'; ctx.fillText('★', x - Math.cos(a) * 20, y - Math.sin(a) * 20 + 5);
+}
+
+// ======================= HERALD'S BOUNTIES: WoW-style quests =======================
+// On non-boss waves from wave 2 a Herald waits near the hero with a gold "!". Walk up to accept a
+// bounty picked to suit the wave (archers, shields, the rare, trees, crates, charges...). A tracker
+// shows progress; when it is done the Herald shows a gold "?": walk back to collect gold, an item
+// and embers. Finish before the wave clears or the bounty is lost (a finished one is still paid).
+var herald = null, quest = null, questsDone = 0;
+const qCount = t => waveQueue.filter(x => x === t).length + enemies.filter(e => e.type === t).length;
+const QUESTS = [
+  { id: 'slay', title: 'Thin the Ranks', unit: 'goblins slain', need: w => 6 + Math.floor(w * 0.8), ok: () => waveQueue.length >= 8 },
+  { id: 'archer', title: 'Cut the Bowstrings', unit: 'archers slain', need: () => Math.min(5, qCount('archer')), ok: () => qCount('archer') >= 3 },
+  { id: 'brute', title: 'Giant Slayer', unit: 'brutes slain', need: () => Math.min(4, qCount('brute')), ok: () => qCount('brute') >= 3 },
+  { id: 'shield', title: 'Shieldbreaker', unit: 'shields broken', need: () => 3, ok: () => qCount('shield') >= 4 },
+  { id: 'rare', title: 'Wanted: Dead', unit: 'rare elite slain', need: () => 1, ok: () => qCount('rare') > 0, w: 4 },
+  { id: 'timber', title: 'Timber for the Town', unit: 'trees felled', need: () => 3, ok: () => trees.filter(treeAlive).length >= 8 },
+  { id: 'crate', title: 'Smash and Grab', unit: 'crates and barrels broken', need: () => 3, ok: () => props.length >= 4 },
+  { id: 'charge', title: 'Cavalry Drill', unit: 'Cavalry Charges landed', need: () => 2, ok: () => typeof cavalryCharge === 'function' },
+  { id: 'clean', title: 'Untouchable', unit: 'slain without being hit', need: () => 8, ok: () => waveQueue.length >= 10 },
+  { id: 'combo', title: 'Blood and Rhythm', unit: 'combo reached', need: w => 12 + Math.min(10, w), ok: () => waveQueue.length >= 14 }
+];
+
+function spawnHerald(w) {
+  herald = null; quest = null;
+  if (w < 2 || w % 3 === 0) return;
+  const pool = []; for (const q of QUESTS) if (q.ok()) for (let i = 0; i < (q.w || 1); i++) pool.push(q);
+  if (!pool.length) return;
+  const def = pool[Math.floor(Math.random() * pool.length)];
+  const a = rand(0, TAU), h = { x: Math.max(80, Math.min(WORLD_W - 80, player.x + Math.cos(a) * 170)), y: Math.max(90, Math.min(WORLD_H - 70, player.y + Math.sin(a) * 120)) };
+  pushOutOfTrees(h, 16);
+  herald = { ...h, type: 'herald', ally: true, fem: Math.random() < 0.5, facing: 0, walkPhase: 0, vx: 0, vy: 0, hitFlash: 0, invuln: 0, r: 16, st: 'offer', def, fade: 1 };
+}
+function acceptQuest() {
+  const d = herald.def;
+  quest = { id: d.id, title: d.title, unit: d.unit, need: Math.max(1, d.need(wave)), prog: 0 };
+  herald.st = 'active';
+  addFloatText(herald.x, herald.y - 100, 'Quest accepted: ' + d.title, '#ffd43b', 17); sfx('scroll');
+  addRing(herald.x, herald.y, 70, '#ffd43b', 0.4, 4);
+}
+// progress hooks, called from the game's own events
+function questEvent(kind, a) {
+  if (!quest || herald.st !== 'active') return;
+  const q = quest, add = n => { q.prog = Math.min(q.need, q.prog + n); if (q.prog >= q.need) questDone(); };
+  if (kind === 'kill') {
+    if (q.id === 'slay' || q.id === 'clean') add(1);
+    else if (q.id === a.type || (q.id === 'rare' && a.rare)) add(1);
+  } else if (kind === 'hurt') { if (q.id === 'clean' && q.prog > 0) { q.prog = 0; addFloatText(player.x, player.y - 92, 'Untouchable: count reset', '#ffa8a8', 14); } }
+  else if (kind === 'combo') { if (q.id === 'combo' && a > q.prog) { q.prog = Math.min(q.need, a); if (q.prog >= q.need) questDone(); } }
+  else if (kind === q.id) add(1); // shield, timber, crate, charge
+}
+function questDone() {
+  herald.st = 'done'; sfx('ready');
+  addFloatText(player.x, player.y - 96, quest.title + ' complete! Return to the Herald', '#ffe066', 17);
+}
+function questReward(atX, atY, courier) {
+  questsDone++;
+  const g = Math.round((40 + wave * 12) * goldMul());
+  for (let i = 0; i < 4; i++) pickups.push({ x: atX + rand(-30, 30), y: atY + 26 + rand(-8, 12), type: 'gold', val: Math.round(g / 4), bob: i });
+  spawnLoot(atX, atY + 40, 0.35 + Math.min(0.4, wave * 0.03));
+  healPlayer(Math.round(player.maxHp * 0.15));
+  bannerText = 'QUEST COMPLETE'; bannerSub = quest.title + ' · +' + g + ' gold · +15 embers'; bannerT = 2.6;
+  flash('#ffe066', 0.25); addRing(atX, atY, 140, '#ffd43b', 0.6, 7); spawnBurst(atX, atY - 50, '#ffd43b', 24, 'spark'); sfx('quest');
+  if (courier) addFloatText(player.x, player.y - 110, 'The Herald sends your reward', '#ffe066', 15);
+  herald.st = 'thanks'; quest = null;
+}
+// wave cleared: pay out a finished bounty, drop an unfinished one
+function questWaveEnd() {
+  if (!herald) return;
+  if (herald.st === 'done') questReward(player.x, player.y, true);
+  else if (herald.st === 'active') { addFloatText(player.x, player.y - 110, 'Bounty failed: ' + quest.title, '#ff8787', 16); quest = null; }
+  herald.st = 'thanks';
+}
+function stepQuest(dt) {
+  if (!herald) return;
+  const d = Math.hypot(player.x - herald.x, player.y - herald.y);
+  herald.facing = Math.atan2(player.y - herald.y, player.x - herald.x);
+  if (herald.st === 'offer' && d < 72) acceptQuest();
+  else if (herald.st === 'done' && d < 80) questReward(herald.x, herald.y, false);
+  else if (herald.st === 'active' && quest.id === 'combo') questEvent('combo', combo);
+  if (herald.st === 'thanks') { herald.fade -= dt * 0.5; if (herald.fade <= 0) herald = null; }
+}
+
+// ---------- drawing ----------
+function drawHerald() {
+  const h = herald; if (!h) return;
+  ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, h.fade));
+  drawHumanoid(h, false);
+  // feathered cap
+  ctx.translate(h.x, h.y);
+  ctx.fillStyle = '#5f3dc4'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(0, -51, 13, 5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -53, 9, Math.PI, TAU); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(6, -56); ctx.quadraticCurveTo(18, -70, 24, -64 + Math.sin(time * 3) * 2); ctx.stroke();
+  ctx.restore();
+}
+// the quest marker is drawn after lighting and darkness (screen space) so it always glows, even under a Blood Moon
+function drawHeraldGlyph() {
+  const h = herald; if (!h || !(h.st === 'offer' || h.st === 'done' || h.st === 'active')) return;
+  const p = worldToScreen(h.x, h.y - 88), z = baseScale() * (1 + zoomKick);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(z, z); drawQuestGlyph(0, 0, h.st === 'offer' ? '!' : '?', h.st === 'active'); ctx.restore();
+}
+function drawQuestGlyph(x, y, ch, grey) {
+  const b = Math.sin(time * 3.2) * 5;
+  if (!grey) drawGlow(x, y + b - 12, 34, '#ffd43b', 0.55 + 0.2 * Math.sin(time * 5));
+  ctx.font = "900 38px Georgia, 'Times New Roman', serif"; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 6; ctx.strokeStyle = '#2b1a05'; ctx.strokeText(ch, x, y + b);
+  const g = ctx.createLinearGradient(0, y + b - 30, 0, y + b);
+  if (grey) { g.addColorStop(0, '#dee2e6'); g.addColorStop(1, '#868e96'); } else { g.addColorStop(0, '#fff3bf'); g.addColorStop(0.5, '#ffd43b'); g.addColorStop(1, '#e8890c'); }
+  ctx.fillStyle = g; ctx.fillText(ch, x, y + b);
+}
+// screen-edge glyph pointing to the Herald when it has something for you
+function drawHeraldIndicator() {
+  const h = herald; if (!h || (h.st !== 'offer' && h.st !== 'done')) return;
+  const s = worldToScreen(h.x, h.y - 40);
+  if (s.x > 30 && s.x < W - 30 && s.y > 30 && s.y < H - 30) return;
+  const a = Math.atan2(s.y - H / 2, s.x - W / 2), m = 40;
+  const x = Math.max(m, Math.min(W - m, s.x)), y = Math.max(m + 70, Math.min(H - m - 100, s.y));
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+  ctx.fillStyle = '#ffd43b'; ctx.strokeStyle = '#2b1a05'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(4, -10); ctx.lineTo(4, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.save(); ctx.font = "900 26px Georgia, serif"; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = '#2b1a05';
+  ctx.strokeText(h.st === 'offer' ? '!' : '?', x - Math.cos(a) * 6, y + 9); ctx.fillStyle = '#ffd43b'; ctx.fillText(h.st === 'offer' ? '!' : '?', x - Math.cos(a) * 6, y + 9); ctx.restore();
+}
+// quest tracker (HTML, left column above the party list)
+function updateQuestHud() {
+  const h = herald, st = h ? h.st : '';
+  const show = st === 'offer' || st === 'active' || st === 'done';
+  setStyle('quest-hud', 'display', show ? 'block' : 'none');
+  setClass('quest-hud', 'done', st === 'done');
+  if (show) {
+    if (st === 'offer') { setText('qh-title', '❗ A Herald has a bounty'); setText('qh-obj', 'Walk to the Herald to accept'); setStyle('qh-fill', 'width', '0%'); }
+    else if (st === 'active') { setText('qh-title', quest.title); setText('qh-obj', `${quest.prog}/${quest.need} ${quest.unit}`); setStyle('qh-fill', 'width', `${Math.round(quest.prog / quest.need * 100)}%`); }
+    else { setText('qh-title', '✔ ' + h.def.title); setText('qh-obj', 'Return to the Herald for your reward'); setStyle('qh-fill', 'width', '100%'); }
+  }
+  // keep clear of the boss / rare nameplate where they share the top-left (phones, narrow windows)
+  const qh = $('quest-hud'), bh = $('boss-hud');
+  let dy = 0;
+  if (show && hudCache['boss-huddisplay'] === 'flex' && bh.getBoundingClientRect && qh.getBoundingClientRect) {
+    const b = bh.getBoundingClientRect(), q = qh.getBoundingClientRect();
+    if (b.left < q.right && b.right > q.left) dy = Math.max(0, Math.ceil(b.bottom + 8 - qh.offsetTop));
+  }
+  setStyle('quest-hud', 'transform', dy ? `translateY(${dy}px)` : '');
+  const off = show && qh.offsetHeight ? qh.offsetHeight + 8 + dy : 0;
+  setStyle('party', 'transform', off ? `translateY(${off}px)` : '');
 }
 // ======================= VISUAL FX: lighting, bloom, weather, fog, grass, ponds, intro, music =======================
 var impactT = 0, impactX = 0, impactY = 0, impactCd = 0, slainT = 0, slainX = 0, slainY = 0, slainName = '';

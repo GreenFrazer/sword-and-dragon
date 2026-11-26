@@ -105,6 +105,7 @@ function render() {
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
   dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawRider(player); if (player.shieldT > 0) drawPlayerShield(); drawMountCast(); } });
+  if (herald) dr.push({ y: herald.y, f: drawHerald });
   for (const s of steeds) dr.push({ y: s.y, f: () => drawSteed(s) });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
@@ -198,6 +199,7 @@ function render() {
     else { ctx.globalAlpha = 0.85; ctx.fillStyle = a.col; ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ph); ctx.scale(1, 0.5 + 0.5 * Math.sin(a.ph * 2)); ctx.beginPath(); ctx.ellipse(0, 0, a.s * 1.2, a.s * 0.7, 0, 0, TAU); ctx.fill(); ctx.restore(); }
   }
   ctx.globalAlpha = 1;
+  drawHeraldGlyph();
   bloomPass();
   ctx.drawImage(vig, 0, 0, W, H);
   if (state !== 'title' && player.hp < player.maxHp * 0.3) {
@@ -218,7 +220,7 @@ function render() {
     ctx.strokeText(bannerSub, W / 2, H * 0.3 + 30); ctx.fillText(bannerSub, W / 2, H * 0.3 + 30);
     ctx.globalAlpha = 1;
   }
-  drawVillageIndicator(); drawRareIndicator();
+  drawVillageIndicator(); drawRareIndicator(); drawHeraldIndicator();
   drawIntro();
   drawSlain(); drawImpactScreen();
   if (joy.active) {
@@ -244,6 +246,7 @@ function drawMinimap() {
   if (camp) { mctx.fillStyle = '#e8a65a'; mctx.fillRect(camp.x * sx - 3, camp.y * sy - 3, 6, 5); }
   if (village) for (const h of village.houses) { mctx.fillStyle = h.dead ? '#5a2a1a' : '#ffa94d'; mctx.fillRect(h.x * sx - 3, h.y * sy - 3, 6, 6); }
   mctx.fillStyle = '#69db7c'; for (const c of companions) if (!c.down) mctx.fillRect(c.x * sx - 2, c.y * sy - 2, 4, 4);
+  if (herald && herald.st !== 'thanks') { mctx.font = '900 12px Georgia, serif'; mctx.textAlign = 'center'; mctx.lineWidth = 3; mctx.strokeStyle = '#2b1a05'; const ch = herald.st === 'offer' ? '!' : '?'; mctx.strokeText(ch, herald.x * sx, herald.y * sy + 4); mctx.fillStyle = herald.st === 'active' ? '#ced4da' : '#ffd43b'; mctx.fillText(ch, herald.x * sx, herald.y * sy + 4); }
   mctx.fillStyle = '#4dd4ff'; mctx.beginPath(); mctx.arc(player.x * sx, player.y * sy, 3.5, 0, TAU); mctx.fill();
   const z = baseScale() * (1 + zoomKick);
   mctx.strokeStyle = 'rgba(255,255,255,0.6)'; mctx.lineWidth = 1; mctx.strokeRect(cam.x * sx, cam.y * sy, Math.min(150, W / z * sx), Math.min(117, H / z * sy));
@@ -374,8 +377,8 @@ function drawPickup(pk) {
   }
 }
 
-const TYPE_COL = { rare: '#3b3f4a', grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
-const EYE_COL = { rare: '#e7f5ff', grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
+const TYPE_COL = { herald: '#7048e8', rare: '#3b3f4a', grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
+const EYE_COL = { herald: '#222', rare: '#e7f5ff', grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
 
 // ---------- procedural character animation: bob, lean, squash & stretch, lunge, springs, footsteps ----------
 function charAnim(ent, isPlayer) {
@@ -501,6 +504,12 @@ function drawHumanoid(ent, isPlayer) {
     ctx.strokeStyle = '#dee2e6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(15 * Math.cos(-1.2), 15 * Math.sin(-1.2)); ctx.lineTo(-pull, 0); ctx.lineTo(15 * Math.cos(1.2), 15 * Math.sin(1.2)); ctx.stroke();
     if (ent.aim > 0) { ctx.strokeStyle = '#d6b88a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-pull, 0); ctx.lineTo(18, 0); ctx.stroke(); }
     ctx.restore();
+  } else if (type === 'herald') { // unrolled bounty scroll
+    ctx.save(); ctx.translate(whx, why - 4);
+    ctx.fillStyle = '#f3e3b5'; ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1.2; ctx.fillRect(-2, -14, 14, 22); ctx.strokeRect(-2, -14, 14, 22);
+    ctx.fillStyle = '#c9a46a'; ctx.fillRect(-4, -16, 18, 4); ctx.fillRect(-4, 7, 18, 4);
+    ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 1; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(1, -9 + i * 4); ctx.lineTo(9, -9 + i * 4); ctx.stroke(); }
+    ctx.fillStyle = '#c92a2a'; ctx.beginPath(); ctx.arc(5, 5, 2.4, 0, TAU); ctx.fill(); ctx.restore();
   } else if (type === 'cleric') {
     ctx.strokeStyle = '#a47148'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(whx, why + 8); ctx.lineTo(whx + Math.cos(wa) * 6, why - 36); ctx.stroke();
     drawGlow(whx + Math.cos(wa) * 6, why - 38, 16 + (ent.windup > 0 ? 10 : 0), '#69db7c', 0.85);
@@ -538,7 +547,8 @@ function drawHumanoid(ent, isPlayer) {
   ctx.globalAlpha = 1;
 
   if (an) ctx.restore();
-  if (ent.ally) {
+  if (type === 'herald') { /* no health bar */ }
+  else if (ent.ally) {
     const bw = 42, pct = Math.max(0, ent.hp / ent.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(-bw / 2, -66, bw, 6);
     ctx.fillStyle = pct > 0.4 ? '#69db7c' : '#ffa94d'; ctx.fillRect(-bw / 2 + 1, -65, (bw - 2) * pct, 4);
@@ -718,6 +728,7 @@ function updateHUD() {
   setStyle('foe-ring', 'strokeDashoffset', (169.6 * (hudFx.tot ? foes / hudFx.tot : 1)).toFixed(1));
   setClass('hud-foes', 'clear', foes === 0);
   const boss = enemies.find(e => e.type === 'dragon');
+  updateQuestHud();
   const rare = boss ? null : enemies.find(e => e.rare);
   setClass('boss-hud', 'rare', !!rare);
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }

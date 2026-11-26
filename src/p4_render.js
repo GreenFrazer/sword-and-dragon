@@ -676,6 +676,7 @@ function drawVillageIndicator() {
 
 // ======================= HUD =======================
 const hudCache = {};
+const hudFx = { ghost: 1, hold: 0, gold: 0, pop: 0, wave: -1, tot: 0 };
 function setText(id, v) { if (hudCache[id] === v) return; hudCache[id] = v; $(id).textContent = v; }
 function setStyle(id, prop, v) { const k = id + prop; if (hudCache[k] === v) return; hudCache[k] = v; $(id).style[prop] = v; }
 function setClass(id, cls, on) { const k = id + '.' + cls; if (hudCache[k] === on) return; hudCache[k] = on; $(id).classList[on ? 'add' : 'remove'](cls); }
@@ -683,9 +684,21 @@ function setClass(id, cls, on) { const k = id + '.' + cls; if (hudCache[k] === o
 function updateHUD() {
   setStyle('pausebtn', 'display', 'block');
   setText('hp-text', `${Math.ceil(player.hp)} / ${player.maxHp}`);
-  setStyle('hp-bar', 'width', `${(player.hp / player.maxHp) * 100}%`);
+  const hpR = Math.max(0, Math.min(1, player.hp / player.maxHp));
+  // damage trail: the gold ghost bar holds briefly, then drains down to the real health
+  if (hpR >= hudFx.ghost) { hudFx.ghost = hpR; hudFx.hold = 0; } else if (++hudFx.hold > 24) hudFx.ghost = Math.max(hpR, hudFx.ghost - 0.012);
+  setStyle('hp-bar', 'width', `${(hpR * 100).toFixed(1)}%`);
+  setStyle('hp-ghost', 'width', `${(hudFx.ghost * 100).toFixed(1)}%`);
+  setClass('hud-hero', 'low', hpR < 0.3 && player.hp > 0);
+  if (gold > hudFx.gold) hudFx.pop = 22; hudFx.gold = gold;
+  setClass('gold-chip', 'pop', hudFx.pop > 0 && hudFx.pop-- > 0);
   setText('wave-text', wave); setText('gold-text', gold); setText('wood-text', wood); setText('sword-text', player.swordTier);
-  setText('enemies-text', enemies.length + waveQueue.length); setText('biome-text', biome.name);
+  const foes = enemies.length + waveQueue.length;
+  if (hudFx.wave !== wave) { hudFx.wave = wave; hudFx.tot = 0; }
+  hudFx.tot = Math.max(hudFx.tot, foes);
+  setText('enemies-text', foes); setText('biome-text', biome.name);
+  setStyle('foe-ring', 'strokeDashoffset', (169.6 * (hudFx.tot ? foes / hudFx.tot : 1)).toFixed(1));
+  setClass('hud-foes', 'clear', foes === 0);
   const boss = enemies.find(e => e.type === 'dragon');
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }
   else setStyle('boss-hud', 'display', 'none');

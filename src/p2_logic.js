@@ -80,7 +80,7 @@ function fellTree(t) {
   spawnBurst(t.x, t.y - 44, biome.leaf1, 14, 'dot'); spawnBurst(t.x, t.y - 44, biome.leaf2, 8, 'dot'); spawnSmoke(t.x, t.y, 2);
   const logs = 3 + (Math.random() < 0.5 ? 1 : 0);
   if (pickups.filter(p => p.type === 'wood').length < 24)
-    pickups.push({ x: t.x + t.dir * -26, y: t.y + 12, type: 'wood', bob: rand(0, 6), n: logs });
+    pickups.push({ x: Math.max(40, Math.min(WORLD_W - 40, t.x + t.dir * 54)), y: t.y + 14, type: 'wood', bob: rand(0, 6), n: logs, age: 0 }); // lands where the tree falls, away from the player
 }
 function chopTreesInRadius(cx, cy, rad, dmg) {
   for (const t of trees) if (treeAlive(t) && Math.hypot(t.x - cx, t.y - cy) <= rad + t.r * 0.5) chopTree(t, dmg, cx);

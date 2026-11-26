@@ -160,7 +160,7 @@ function stepSimulation(dt) {
   for (let i = pickups.length - 1; i >= 0; i--) {
     const pk = pickups[i]; pk.bob += dt * 4; pk.age = (pk.age || 0) + dt;
     const dist = Math.hypot(pk.x - player.x, pk.y - player.y);
-    if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim)) continue;
+    if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim || pk.age < 0.9)) continue; // brief delay so the pile is seen landing
     const mag = clearTimer !== null ? 560 : (dist < 95 ? 320 : 0);
     if (mag > 0 && dist > 1) { pk.x += (player.x - pk.x) / dist * mag * dt; pk.y += (player.y - pk.y) / dist * mag * dt; }
     if (dist < 42) {

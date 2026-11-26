@@ -24,9 +24,10 @@ const ok=(c,m)=>{console.log(c?'ok  ':'FAIL',m);if(!c)process.exitCode=1};
 run('enemies.length=0;waveQueue.length=0;props.length=0;pickups.length=0;joy.dx=joy.dy=0');
 run('(()=>{const t=trees[0];player.x=t.x+30;player.y=t.y+10;})()');
 const felled0=run('treesFelled');
-frames(400);
+let guard=0;while(run('treesFelled')===felled0&&guard++<600)frames(1);
+ok(run("pickups.some(p=>p.type==='wood')"),'pile is visible the moment the tree falls (not instantly collected)');
+for(let i=0;i<400;i++)frames(1);
 ok(run('treesFelled')>=felled0+1,'idle player fells a nearby tree');
-ok(run("pickups.some(p=>p.type==='wood')")||run('wood')>0,'a wood pile dropped or was collected');
 frames(120);ok(run('wood')>=3,'player collected the pile ('+run('wood')+' logs)');
 ok(run('!pushOutOfTrees||true'),'collision helper present');
 // walking player must NOT chop

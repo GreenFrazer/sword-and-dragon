@@ -40,6 +40,7 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 - **Blood Moons:** from wave 4, some plain waves turn crimson and dark, with a bigger swarm, red-eyed foes, more elites and double gold (plus bonus embers).
 - **Elite enemies** (Swift, Vampiric, Volatile, Guarded) that always drop loot.
 - **Blessings and Evolutions:** level-up choices, plus special Evolutions when a build is complete.
+- **Warhorse and Cavalry Charge:** walk with no foe nearby and the hero whistles up a warhorse (a short cast bar over their head). Mounted, you ride about 70% faster, which makes crossing between two towns quick. Gallop into a foe for a **Cavalry Charge**: a big hit to everything nearby that stuns, flings foes and shatters shields, then the hero leaps from the saddle. Taking a hit throws you off (dazed), and reining in beside a foe makes you dismount to fight. No button needed, so it works the same on touch.
 - **Cast** ability and the **Meteor Storm** ultimate.
 - **The Forge:** embers earned every run buy permanent upgrades (Vitality, Might, Fortune, Second Wind) and unlock weapons.
 - **Visual effects:** a sun that arcs across each wave casting long shadows from everything (the dragon's shadow sweeps the ground when it flies), dynamic lighting, bloom, colour grading, weather (rain, storms, blizzards, ash), fog, fireflies, animated grass, a boss intro and a custom animated title screen.
@@ -65,6 +66,7 @@ src/              Source parts, concatenated in order by build.sh
   p3_sim.js       Simulation, camera, enemy and boss AI, main loop
   p4_render.js    Rendering and HUD updates
   p5_gear.js      Weapons, Forge, loot, elites, evolutions, Cast
+  p5b_mount.js    Warhorse mount and Cavalry Charge
   p6_fx.js        Lighting, bloom, weather, fog, music
   p8a_titlebg.js  Animated title-screen backdrop
   p8b_menu.js     Title menu (Armoury, Forge, Chronicle)
@@ -73,6 +75,7 @@ build.sh          Assembles src/ into index.html
 tests/sim7.js     Headless simulation test (Node.js)
 tests/wood7.js    Headless timber scenario test (chop, haul, repair, regrow)
 tests/towns7.js   Headless two-town test (layout, raids, wave length)
+tests/mount7.js   Headless warhorse test (summon, gallop, charge, dazed)
 ```
 
 `theme.css` is kept as a separate reference; the build uses the copy already inlined in `p0_head.html`, so edit both if you change styles.

@@ -41,7 +41,7 @@ function resetGame() {
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
-  projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
+  projectiles = []; meteors = []; rings = []; steeds = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
   runOmen = meta.omenOn ? todaysOmen() : null;
@@ -224,6 +224,7 @@ function triggerDash() {
 }
 function triggerSpin() {
   if (state !== 'play' || player.spinCd > 0) return;
+  if (player.mount) dismount('hop');
   player.spinCd = player.spinMaxCd; player.spinTime = 0.34; shake = 7;
   const R = player.range * 1.45, base = Math.round(atkDmg() * 1.55);
   let hits = 0;
@@ -403,6 +404,7 @@ function damagePlayer(amount, fromX, fromY) {
     spawnBurst(player.x + Math.cos(ang) * 34, player.y - 24 + Math.sin(ang) * 34, '#ffe066', 10, 'spark');
     addFloatText(player.x, player.y - 46, 'BLOCKED', '#ffe066', 16); return;
   }
+  if (player.mount) dismount('dazed');
   let dmg = Math.max(4, Math.round(amount * Math.max(0.15, 1 - player.armor - gM().dr - (hasBuff('salve') ? 0.2 : 0)) * (player.barrier > 0 ? 0.5 : 1)));
   player.hp -= dmg; player.invuln = 0.65; player.hitFlash = 0.2; shake = 10; flash('#ff2a2a', 0.28);
   combo = Math.floor(combo / 2);

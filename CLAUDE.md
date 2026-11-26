@@ -14,7 +14,7 @@ Single-file, zero-dependency HTML5 canvas action RPG. Read `README.md` for featu
 
 `build.sh` concatenates the parts in this order into one `<script>`:
 
-`p0_head.html` (HTML + CSS + markup, ends with `<script>`) → `p1_core.js` → `p2_logic.js` → `p2b_village.js` → `p3_sim.js` → `p4_render.js` → `p5_gear.js` → `p6_fx.js` → `p8a_titlebg.js` → `p8b_menu.js` → `p7_start.js` (last: starts the game).
+`p0_head.html` (HTML + CSS + markup, ends with `<script>`) → `p1_core.js` → `p2_logic.js` → `p2b_village.js` → `p3_sim.js` → `p4_render.js` → `p5_gear.js` → `p5b_mount.js` → `p6_fx.js` → `p6b_ambience.js` → `p8a_titlebg.js` → `p8b_menu.js` → `p7_start.js` (last: starts the game).
 
 Consequences:
 - All parts share one global scope. A later `function` declaration overrides an earlier one (for example `showTitle` and `renderTitleMenu` in `p8b_menu.js` replace the ones in `p5_gear.js`).
@@ -31,6 +31,7 @@ Consequences:
 - **Timber:** trees carry `hp/fell/regrow/grow/shake`; always test `treeAlive(t)` before using a tree (collision, shadows, minimap). Wood piles are `pickups` of type `'wood'` (`n` logs, `claim` set when a villager targets one). `wood` is a run stock (cap `WOOD_MAX`), reset in `resetGame()`. Villager hauling is `updateVillagers()` in `p2b_village.js`. Normal swings call `checkPropsInRadius(..., true)` so they don't chop trees by accident.
 - **Towns:** `village` is one aggregate object: `towns[]` (each `{x, y, idx, lost, houses, villagers}`), plus flat `houses[]` and `villagers[]` of all towns, so most code just iterates those. Houses carry `town` (index), villagers carry `t` (their town object), enemies carry `raid` (town index, set in `spawnEnemy`). `makeVillage()` builds one town on wave 2 and two from wave 5 (`townSites()`); the queue is enlarged and `maxAlive()` raised for two towns. Use `village.towns`, not `village.x/y`, for positions.
 - **Camp:** on non-village waves `makeCamp()` (p2b_village.js) sets `camp = {x, y, workers[]}`; `updateCamp()` runs the workers (flee, fetch piles older than 6s, deposit into `campStock`). `campStock` persists for the run and is handed over by `deliverCampStock()`. Villagers and camp workers share `drawVillager()` and the `v.scared` flag.
+- **Warhorse:** `p5b_mount.js`. `stepMount()` runs before player movement; `player.mount` disables auto-attacks and chopping and scales speed via `mountSpeedMul()`. Contact at a gallop calls `cavalryCharge()`; `damagePlayer()` dismounts (`dismount('dazed')`) and spin dismounts too. Draw the player through `drawRider()`, which handles both mounted and on-foot. `steeds` are riderless horses running off.
 - **Menu:** title UI is `p8b_menu.js` (`renderMenu`, `menuKey`, `beginRun`); backdrop is `p8a_titlebg.js`. HTML ids used by code include `title-modal`, `menu-list`, `menu-panel`, `start-btn`, `forge-btn`, `go-code`; keep them if you edit markup.
 
 ## Testing
@@ -40,6 +41,7 @@ Consequences:
 node tests/sim7.js sword 30000      # also: greatsword, daggers, spear
 node tests/wood7.js sword           # timber scenario (prints 'wood: all checks passed')
 node tests/towns7.js sword          # two-town layout, raids and wave length (about 90s)
+node tests/mount7.js sword          # warhorse: summon, gallop, charge, dazed (prints 'mount: all checks passed')
 ```
 
 `tests/sim7.js` runs the built `index.html` headlessly in a Node `vm` with a stubbed canvas and DOM. It navigates the menu, plays through waves (loot, elites, evolutions, bosses) and forces game over. Success prints `errors: 0`. Runs are random, so run a couple of weapons after risky changes; a crash prints `ERR frame N` with a stack.

@@ -578,7 +578,8 @@ function drawSunShadows() {
   }
   for (const p of props) if (vis(p)) poly(p.x, p.y + 2, 16, 34, 13);
   const man = (e, sc) => { if (vis(e)) { poly(e.x, e.y + 2, 8 * sc, 40 * sc, 5 * sc); blob(e.x + dx * 46 * sc, e.y + dy * 46 * sc, 8 * sc, 5 * sc); } };
-  man(player, 1);
+  if (player.mount && vis(player)) { poly(player.x - 22, player.y + 2, 6, 30, 4); poly(player.x + 22, player.y + 2, 6, 30, 4); blob(player.x + dx * 40, player.y + dy * 40, 30, 10); man({ x: player.x + dx * 30, y: player.y + dy * 30 }, 1); }
+  else man(player, 1);
   for (const c of companions) if (!c.down) man(c, 1);
   for (const e of enemies) {
     if (e.type === 'dragon') {

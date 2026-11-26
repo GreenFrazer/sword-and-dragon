@@ -84,7 +84,7 @@ function render() {
   // dash afterimages
   for (const g of ghosts) {
     ctx.globalAlpha = Math.max(0, g.life / 0.26) * 0.4;
-    drawHumanoid({ ...player, ghost: true, x: g.x, y: g.y, facing: g.facing, walkPhase: g.walkPhase, hitFlash: 0, invuln: 0 }, true);
+    drawRider({ ...player, _an: null, ghost: true, x: g.x, y: g.y, facing: g.facing, walkPhase: g.walkPhase, hitFlash: 0, invuln: 0 });
   }
   ctx.globalAlpha = 1;
 
@@ -103,7 +103,8 @@ function render() {
     for (const v of camp.workers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
-  dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
+  dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawRider(player); if (player.shieldT > 0) drawPlayerShield(); drawMountCast(); } });
+  for (const s of steeds) dr.push({ y: s.y, f: () => drawSteed(s) });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
@@ -400,12 +401,13 @@ function charAnim(ent, isPlayer) {
 }
 function drawHumanoid(ent, isPlayer) {
   const type = ent.type, scale = type === 'brute' ? 1.22 : (type === 'bomber' ? 0.9 : 1);
+  const ride = isPlayer && ent.mount; // in the saddle: the horse casts the shadow and the legs hang still
   ctx.save(); ctx.translate(ent.x, ent.y); ctx.scale(scale, scale);
-  ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.ellipse(0, 4, 18, 10, 0, 0, TAU); ctx.fill();
+  if (!ride) { ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.ellipse(0, 4, 18, 10, 0, 0, TAU); ctx.fill(); }
   const an = ent.ghost ? null : charAnim(ent, isPlayer);
   if (an) { // body animation (shadow stays planted on the ground)
     const nm = Math.min(1, an.sp / 240), ph = ent.walkPhase;
-    const bob = -Math.abs(Math.sin(ph)) * 3.4 * nm, breathe = 1 + 0.02 * Math.sin(time * 2.4 + an.id) * (1 - nm);
+    const bob = ride ? 0 : -Math.abs(Math.sin(ph)) * 3.4 * nm, breathe = 1 + 0.02 * Math.sin(time * 2.4 + an.id) * (1 - nm);
     let lunge = 0, lean = Math.max(-1, Math.min(1, an.sx / 240)) * 0.15 + Math.max(-1, Math.min(1, an.sy / 240)) * 0.02;
     if (isPlayer && player.atkTimer > 0) { const pr = 1 - player.atkTimer / player.atkDuration; lunge = Math.sin(Math.min(1, pr) * Math.PI) * 7; lean += Math.cos(ent.facing) * 0.12 * Math.sin(Math.min(1, pr) * Math.PI); }
     else if (!isPlayer && ent.windup > 0) { const pr = 1 - ent.windup / 0.38; lunge = pr < 0.7 ? -pr * 5 : (pr - 0.7) / 0.3 * 12 - 3.5; lean += Math.cos(ent.facing) * (pr < 0.7 ? -0.1 : 0.16); }
@@ -417,7 +419,7 @@ function drawHumanoid(ent, isPlayer) {
   if (ent.elite) drawEliteAura(ent);
   const flashing = ent.hitFlash > 0 || (type === 'bomber' && ent.fuse > 0 && Math.floor(time * 18) % 2 === 0);
   if ((isPlayer || ent.ally) && ent.invuln > 0 && Math.floor(ent.invuln * 20) % 2 === 0) ctx.globalAlpha *= 0.55;
-  const stride = Math.sin(ent.walkPhase) * 8;
+  const stride = ride ? 0 : Math.sin(ent.walkPhase) * 8;
   const fem = isPlayer ? meta.hero === 'f' : ent.fem;
   const aim = an ? an.vf : ent.facing, sideFlip = Math.cos(aim) >= 0 ? 1 : -1;
 

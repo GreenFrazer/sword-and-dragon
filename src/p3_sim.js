@@ -81,11 +81,13 @@ function stepSimulation(dt) {
 
   // --- player movement ---
   const inp = getInput();
+  stepMount(dt, inp);
+  if (state !== 'play') return;
   if (player.dashTime > 0) {
     player.dashTime -= dt; player.x += player.dashVx * dt; player.y += player.dashVy * dt;
     ghosts.push({ x: player.x, y: player.y, facing: player.facing, walkPhase: player.walkPhase, life: 0.26 });
   } else {
-    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0) + (frenzyT > 0 ? 0.18 : 0));
+    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0) + (frenzyT > 0 ? 0.18 : 0)) * mountSpeedMul();
     const ak = 1 - Math.pow(0.8, dt * 60); // frame-rate independent acceleration
     player.vx += (inp.ix * spdm - player.vx) * ak; player.vy += (inp.iy * spdm - player.vy) * ak;
     player.x += player.vx * dt; player.y += player.vy * dt;
@@ -103,7 +105,7 @@ function stepSimulation(dt) {
   let nearest = null, nd = Infinity;
   for (const e of enemies) { if (e.flying) continue; const d = Math.hypot(e.x - player.x, e.y - player.y) - e.r; if (d < nd) { nd = d; nearest = e; } }
   for (const p of props) { const d = Math.hypot(p.x - player.x, p.y - player.y) - p.r; if (d < nd) { nd = d; nearest = p; } }
-  if (nearest && nd <= player.range && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0) {
+  if (nearest && !player.mount && nd <= player.range && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0) {
     player.facing = Math.atan2(nearest.y - player.y, nearest.x - player.x);
     player.atkCooldown = player.atkRate / (1 + gM().atkspd + (frenzyT > 0 ? 0.35 : 0)); player.atkTimer = player.atkDuration; player.atkDir *= -1;
     hitStop = 0.025; shake = Math.max(shake, 3.5); sfx('swing');
@@ -137,7 +139,7 @@ function stepSimulation(dt) {
 
   // --- timber: chop a nearby tree when idle and nothing else is in reach ---
   tickTrees(dt);
-  if (!(nearest && nd <= player.range) && inp.mag < 0.15 && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0 && !enemies.some(e => !e.flying && Math.hypot(e.x - player.x, e.y - player.y) - e.r < player.range + 50)) {
+  if (!player.mount && !(nearest && nd <= player.range) && inp.mag < 0.15 && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0 && !enemies.some(e => !e.flying && Math.hypot(e.x - player.x, e.y - player.y) - e.r < player.range + 50)) {
     let tt = null, td = Infinity;
     for (const t of trees) { if (!treeAlive(t)) continue; const d = Math.hypot(t.x - player.x, t.y - player.y) - 14; if (d < td) { td = d; tt = t; } }
     if (tt && td <= player.range * 0.9) {

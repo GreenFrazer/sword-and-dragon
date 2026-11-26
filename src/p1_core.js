@@ -172,7 +172,7 @@ function taiko(t0, vol, f, bus) {
 
 // ---- sound effects ----
 const sfxLast = {};
-const SFX_GAP = { fuse: 90, fire: 70, zap: 70, shoot: 55, hit: 45, swing: 70 };
+const SFX_GAP = { hoof: 70, neigh: 600, whistle: 400, fuse: 90, fire: 70, zap: 70, shoot: 55, hit: 45, swing: 70 };
 function sfx(name, wx, wy) {
   if (!actx || muted) return;
   const n = performance.now();
@@ -215,6 +215,22 @@ function sfx(name, wx, wy) {
     case 'dash':
       nz({ dur: 0.22, vol: 0.2, atk: 0.02, fl: [1200, 7000, 1.2, 'bandpass'], rev: 0.2 });
       voice({ f: 500, slide: 120, dur: 0.18, type: 'sine', vol: 0.08 }); break;
+    case 'whistle': // two-note rider's whistle
+      voice({ f: 1500, slide: 2300, dur: 0.16, type: 'sine', vol: 0.06, vib: [7, 15], rev: 0.25 });
+      voice({ f: 1900, slide: 1300, dur: 0.24, type: 'sine', vol: 0.06, delay: 0.2, vib: [7, 15], rev: 0.3 }); break;
+    case 'neigh': // warbling whinny
+      voice({ f: 700, slide: 380, dur: 0.6, type: 'sawtooth', vol: v(0.05), vib: [18, 80], fl: [2600, 900, 3, 'bandpass'], rev: 0.3, ...P });
+      voice({ f: 980, slide: 520, dur: 0.45, type: 'square', vol: v(0.02), vib: [20, 60], fl: [3000, 1200, 2, 'bandpass'], rev: 0.3, ...P });
+      nz({ dur: 0.25, vol: v(0.06), delay: 0.55, fl: [900, 300, 1], pan }); break;
+    case 'hoof': // hollow clop on turf
+      voice({ f: 260 * (0.9 + Math.random() * 0.2), slide: 120, dur: 0.05, type: 'triangle', vol: 0.12 });
+      nz({ dur: 0.04, vol: 0.08, fl: [1400, 400, 1.5, 'bandpass'] }); break;
+    case 'charge': // gallop into a crash: thunderous hit with a bright clang
+      duck(0.3, 0.25, 0.4);
+      voice({ f: 120, slide: 34, dur: 0.6, type: 'sine', vol: v(0.5), rel: 0.08, rev: 0.25, ...P });
+      nz({ dur: 0.5, vol: v(0.4), brown: true, fl: [3000, 120, 0.8], pan, rev: 0.4 });
+      fm({ f: 660, ratio: 3.5, idx: 5, dur: 0.6, vol: v(0.1), pan, rev: 0.4, pv });
+      voice({ f: 300, slide: 1200, dur: 0.12, type: 'sawtooth', vol: v(0.06), fl: [800, 5000, 1], pan, rev: 0.2 }); break;
     case 'boom':
       duck(0.35, 0.3, 0.5);
       voice({ f: 100, slide: 26, dur: 0.9, type: 'sine', vol: v(0.55), rel: 0.1, rev: 0.25, ...P });

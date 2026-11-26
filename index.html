@@ -2058,6 +2058,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
+  drawSunShadows();
   // depth-sorted world
   const dr = [];
   for (const t of trees) dr.push({ y: t.y, f: () => drawTree(t) });
@@ -3332,6 +3333,47 @@ function drawImpactScreen() {
     ctx.lineWidth = 1 + (i % 3); ctx.beginPath(); ctx.moveTo(Math.cos(ang) * r0, Math.sin(ang) * r0); ctx.lineTo(Math.cos(ang) * (r0 + len), Math.sin(ang) * (r0 + len)); ctx.stroke();
   }
   ctx.restore(); ctx.globalAlpha = 1;
+}
+
+
+// ---------- SUN & LONG SHADOWS: the sun arcs across each wave and every object throws a directional shadow ----------
+const SUN_COL = ['0,0,0', '30,12,0', '24,44,96', '10,0,0'];
+const SUN_ALPHA = [0.27, 0.3, 0.24, 0.38];
+function sunProg() { return Math.max(0, Math.min(1, 1 - (enemies.length + waveQueue.length) / Math.max(1, waveTotal))); }
+function drawSunShadows() {
+  const bi = Math.max(0, biomeIdx), a = Math.PI * (0.16 + 0.68 * sunProg()); // sun swings from one side of the sky to the other
+  const low = 0.55 + 0.9 * Math.abs(Math.cos(a));                           // low sun = longer shadows
+  const dx = Math.cos(a) * low, dy = (0.38 + Math.sin(a) * 0.3) * low;
+  const z = baseScale() * (1 + zoomKick), x0 = cam.x - 160, x1 = cam.x + W / z + 160, y0 = cam.y - 160, y1 = cam.y + H / z + 260;
+  ctx.fillStyle = `rgba(${SUN_COL[bi]},${SUN_ALPHA[bi]})`; ctx.beginPath();
+  const poly = (x, y, w, h, tw) => { // tapered shadow of a vertical object: base width w, height h, tip half-width tw
+    const tx = x + dx * h, ty = y + dy * h;
+    ctx.moveTo(x - w, y); ctx.lineTo(x + w, y); ctx.lineTo(tx + tw, ty); ctx.lineTo(tx - tw, ty); ctx.closePath();
+  };
+  const blob = (x, y, rx, ry) => { ctx.moveTo(x + rx, y); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); };
+  const vis = (e) => e.x > x0 && e.x < x1 && e.y > y0 && e.y < y1;
+  for (const t of trees) {
+    if (!vis(t)) continue;
+    const sw = Math.sin(time * 1.4 + t.sway) * 3;
+    if (biome.tree === 'pine') { poly(t.x, t.y + 2, t.r * 0.9, 96, 3); }
+    else if (biome.tree === 'dead') { poly(t.x, t.y + 2, 5, 80, 2); poly(t.x, t.y + 2, 3, 56, 8); }
+    else { poly(t.x, t.y + 2, 6, 38, 5); blob(t.x + dx * 56 + sw, t.y + dy * 56, t.r * 1.05, t.r * 0.62); }
+  }
+  for (const p of props) if (vis(p)) poly(p.x, p.y + 2, 16, 34, 13);
+  const man = (e, sc) => { if (vis(e)) { poly(e.x, e.y + 2, 8 * sc, 40 * sc, 5 * sc); blob(e.x + dx * 46 * sc, e.y + dy * 46 * sc, 8 * sc, 5 * sc); } };
+  man(player, 1);
+  for (const c of companions) if (!c.down) man(c, 1);
+  for (const e of enemies) {
+    if (e.type === 'dragon') {
+      if (e.flying) { blob(e.x + dx * 80, e.y + 70 + dy * 60, 150, 44); poly(e.x + dx * 80, e.y + 70 + dy * 60, 40, 20, 90); }
+      else { poly(e.x, e.y + 4, 40, 96, 30); blob(e.x + dx * 96, e.y + dy * 96, 52, 24); }
+    } else man(e, e.type === 'brute' ? 1.22 : (e.type === 'bomber' ? 0.9 : 1));
+  }
+  if (village) {
+    for (const h of village.houses) if (vis(h) && !h.dead) { poly(h.x, h.y + 6, 36, 70, 36); }
+    for (const v of village.villagers) man(v, 0.9);
+  }
+  ctx.fill();
 }
 // ======================= TITLE SCREEN BACKDROP (procedural, parallax, animated) =======================
 const TB = { cv: null, c: null, w: 0, h: 0, dpr: 1, t: 0, mx: 0, my: 0, tmx: 0, tmy: 0, stars: [], emb: [], ready: false, flash: 0, nextFlash: 6, sprE: null, sprF: null, seeds: [] };

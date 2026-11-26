@@ -38,7 +38,7 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 - **Blessings and Evolutions:** level-up choices, plus special Evolutions when a build is complete.
 - **Cast** ability and the **Meteor Storm** ultimate.
 - **The Forge:** embers earned every run buy permanent upgrades (Vitality, Might, Fortune, Second Wind) and unlock weapons.
-- **Visual effects:** dynamic lighting, bloom, colour grading, weather (rain, storms, blizzards, ash), fog, fireflies, animated grass, a boss intro and a custom animated title screen.
+- **Visual effects:** a sun that arcs across each wave casting long shadows from everything (the dragon's shadow sweeps the ground when it flies), dynamic lighting, bloom, colour grading, weather (rain, storms, blizzards, ash), fog, fireflies, animated grass, a boss intro and a custom animated title screen.
 
 ## Saving progress
 

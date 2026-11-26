@@ -88,6 +88,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
+  drawSunShadows();
   // depth-sorted world
   const dr = [];
   for (const t of trees) dr.push({ y: t.y, f: () => drawTree(t) });

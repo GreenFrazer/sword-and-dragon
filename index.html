@@ -107,6 +107,41 @@
   .recruit-btn { font-family: var(--serif); border-radius: 3px; }
   .panel { background: linear-gradient(180deg, rgba(28,20,34,0.82), rgba(12,8,16,0.82)); border: 1px solid rgba(255,215,106,0.25); border-radius: 4px; font-family: var(--serif); }
 
+
+  /* ======================= MERCHANT (mobile-first) ======================= */
+  #merchant-modal { justify-content: flex-start; padding: 0; text-align: left; align-items: center; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+  #merchant-modal::before, #merchant-modal::after { display: none; }
+  #merchant-modal .mc-top { position: sticky; top: 0; z-index: 3; width: 100%; padding: max(12px, env(safe-area-inset-top)) 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; background: linear-gradient(180deg, #120c14 70%, rgba(18,12,20,0)); }
+  #merchant-modal h2 { font-size: clamp(18px, 5.4vw, 28px); margin: 0; text-align: center; }
+  .mc-gold { display: flex; align-items: center; gap: 7px; padding: 5px 16px 5px 10px; border: 1px solid #6b5a3a; border-radius: 999px; background: rgba(0,0,0,0.5); font-family: var(--serif); color: var(--gold); box-shadow: inset 0 0 12px rgba(255,150,40,0.15); }
+  .mc-gold svg { width: 20px; height: 20px; } .mc-gold b { font-size: 20px; } .mc-gold span { font-size: 11px; letter-spacing: 0.2em; color: #b8a77a; }
+  .mc-blurb { margin: 0 16px 4px; font-size: 13px; text-align: center; max-width: 520px; }
+  #shop-box { width: 100%; max-width: 560px; padding: 0 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .shop-sec { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 4px 0; padding-bottom: 5px; border-bottom: 1px solid rgba(255,215,106,0.22); color: var(--ember2); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; }
+  .shop-sec i { font-style: normal; font-size: 11px; color: #9a8d78; letter-spacing: 0.08em; }
+  .shop-item { border: 1px solid #5a4a3a; border-left: 3px solid var(--ember2); border-radius: 6px; background: linear-gradient(180deg, #2a2030, #16121c); overflow: hidden; transition: transform .12s, box-shadow .2s; }
+  .shop-item.bought { animation: bought .55s ease-out; }
+  @keyframes bought { 0% { box-shadow: 0 0 0 0 rgba(255,215,106,0.9); background: #4a3a1a; } 100% { box-shadow: 0 0 0 14px rgba(255,215,106,0); } }
+  .shop-item.off { border-left-color: #4a4350; }
+  .shop-buy { all: unset; box-sizing: border-box; width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; font-family: var(--serif); color: var(--bone); }
+  .shop-buy:active:not(:disabled) { background: rgba(255,200,90,0.14); }
+  .shop-buy:disabled { cursor: default; opacity: 0.5; }
+  .si-ico { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 26px; border-radius: 8px; background: rgba(0,0,0,0.38); border: 1px solid rgba(255,215,106,0.2); }
+  .si-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .si-txt b { font-size: 15px; color: var(--gold); letter-spacing: 0.03em; }
+  .si-txt em { font-style: normal; font-family: Georgia, serif; font-size: 12.5px; color: #d6cbb8; line-height: 1.3; }
+  .si-txt u { text-decoration: none; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8ce99a; }
+  .si-price { flex: none; min-width: 62px; display: flex; flex-direction: column; align-items: center; padding: 6px 8px; border-radius: 6px; font-weight: 800; font-size: 18px; color: #2a0c04; background: linear-gradient(180deg, #ffd76a, #ff9a3c 70%, #c2410c); line-height: 1.05; }
+  .si-price small { font-size: 9px; letter-spacing: 0.14em; opacity: 0.8; }
+  .si-price.poor { background: rgba(0,0,0,0.4); color: #c9b98f; border: 1px solid #4a3d3a; }
+  .si-price.no { background: rgba(0,0,0,0.4); color: #a99d88; border: 1px solid #4a3d3a; font-size: 11px; max-width: 84px; text-align: center; }
+  .si-price.no small { font-size: 10px; letter-spacing: 0.02em; opacity: 1; }
+  .shop-item .hire-seg { padding: 0 10px 9px; gap: 6px; }
+  .shop-item .hire-n { min-height: 34px; font-family: var(--serif); border-radius: 4px; }
+  .mc-foot { position: sticky; bottom: 0; z-index: 3; width: 100%; margin-top: auto; padding: 18px 16px max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: center; background: linear-gradient(0deg, #0a070d 65%, rgba(10,7,13,0)); }
+  #merchant-go { width: 100%; max-width: 420px; min-height: 52px; font-size: 14px; padding: 14px 16px; touch-action: manipulation; }
+  @media (max-width: 420px) { .si-ico { width: 38px; height: 38px; font-size: 22px; } .si-txt b { font-size: 14px; } .shop-buy { gap: 10px; padding: 9px 10px; } }
+
   /* ======================= TITLE SCREEN ======================= */
   #title-modal { padding: 0; overflow: hidden; background: #05060f; justify-content: stretch; align-items: stretch; text-align: left; backdrop-filter: none; }
   #title-modal::before, #title-modal::after { display: none; }
@@ -271,11 +306,13 @@
 </div>
 
 <div class="modal" id="merchant-modal">
-  <h2>TRAVELLING MERCHANT</h2>
-  <p>Spend your gold on short-lived help. Hired blades and brews last a few waves, then they're gone.</p>
-  <div class="shop-title"><span id="shop-gold">0</span> GOLD</div>
+  <div class="mc-top">
+    <h2>TRAVELLING MERCHANT</h2>
+    <div class="mc-gold"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5" fill="#ffd76a" stroke="#8a5a10" stroke-width="1.5"/><circle cx="10" cy="10" r="5" fill="none" stroke="#c9901a" stroke-width="1.2"/></svg><b id="shop-gold">0</b><span>GOLD</span></div>
+  </div>
+  <p class="mc-blurb">Hired blades and brews last a few waves, then they're gone.</p>
   <div id="shop-box"></div>
-  <button class="shop-btn" id="merchant-go" style="margin-top:22px;min-width:220px">⚔️ CONTINUE TO NEXT WAVE</button>
+  <div class="mc-foot"><button class="btn-restart" id="merchant-go">CONTINUE TO NEXT WAVE</button></div>
 </div>
 
 <div class="modal" id="gameover-modal">
@@ -1225,41 +1262,47 @@ function tickWaveTimers() {
   if (gone) { companions.forEach((c, i) => c.slot = i); rebuildParty(); }
   renderBuffHud();
 }
+var shopFlash = '';
 function renderShop() {
-  const box = $('shop-box'); $('shop-gold').textContent = gold; box.innerHTML = '';
+  const box = $('shop-box'), scrollY = $('merchant-modal').scrollTop; $('shop-gold').textContent = gold; box.innerHTML = '';
+  const hireItems = Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
+    return { key: 'h' + k, hire: k, icon: t.icon, name: h.name, desc: t.desc, tag: '', cost: hireCost(k), ok: () => companions.length < 3, no: 'Party full',
+      fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; });
   const sections = [
-    ['HIRE HELP · CHOOSE 1–' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
-      return { hire: k, label: `${t.icon} ${h.name}`, desc: `${t.desc} (${n} wave${n > 1 ? 's' : ''})`, cost: hireCost(k), ok: () => companions.length < 3,
-        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; })],
-    ['BREWS & CHARMS · 2 WAVES', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
-      return { label: `${b.icon} ${b.name}`, desc: b.desc + (hasBuff(k) ? ` (refresh: ${activeBuffs[k]}w left)` : ` (${b.waves} waves)`), cost: b.cost + wave * b.per, ok: () => true,
+    ['⚔️ Hire help', `Party ${companions.length}/3`, hireItems],
+    ['🧪 Brews & charms', '2 waves each', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
+      return { key: 'b' + k, icon: b.icon, name: b.name, desc: b.desc, tag: hasBuff(k) ? `Refresh · ${activeBuffs[k]}w left` : `${b.waves} waves`, cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
-    ['SUPPLIES', [
-      { label: '🧪 Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
-      { label: '🩹 Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
+    ['🩹 Supplies', 'Instant', [
+      { key: 's1', icon: '🧪', name: 'Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, no: 'Already healthy', fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
+      { key: 's2', icon: '🩹', name: 'Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), no: 'No one needs it', fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
     ]]
   ];
-  sections.forEach(([title, items]) => {
-    const h = document.createElement('div'); h.className = 'shop-sec'; h.textContent = title; box.appendChild(h);
-    const row = document.createElement('div'); row.className = 'shop-row'; box.appendChild(row);
+  sections.forEach(([title, note, items]) => {
+    const h = document.createElement('div'); h.className = 'shop-sec'; h.innerHTML = `<span>${title}</span><i>${note}</i>`; box.appendChild(h);
     items.forEach(it => {
-      const b = document.createElement('button'); b.className = 'shop-btn';
-      b.disabled = gold < it.cost || !it.ok();
-      b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
-      b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
-      if (!it.hire) { row.appendChild(b); return; }
-      const wrap = document.createElement('div'); wrap.className = 'shop-hire'; wrap.appendChild(b);
-      const seg = document.createElement('div'); seg.className = 'hire-seg';
-      for (let n = 1; n <= HIRE_WAVES; n++) {
-        const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
-        s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; renderShop(); };
-        seg.appendChild(s);
+      const poor = gold < it.cost, blocked = !it.ok(), off = poor || blocked;
+      const card = document.createElement('div'); card.className = 'shop-item' + (off ? ' off' : '') + (shopFlash === it.key ? ' bought' : '');
+      const b = document.createElement('button'); b.className = 'shop-buy'; b.disabled = off;
+      const why = blocked ? it.no : '';
+      b.innerHTML = `<span class="si-ico">${it.icon}</span><span class="si-txt"><b>${it.name}</b><em>${it.desc}</em>${it.tag ? `<u>${it.tag}</u>` : ''}</span><span class="si-price${blocked ? ' no' : poor ? ' poor' : ''}">${why ? `<small>${why}</small>` : `${it.cost}<small>${poor ? `short ${it.cost - gold}` : 'GOLD'}</small>`}</span>`;
+      b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); shopFlash = it.key; renderShop(); };
+      card.appendChild(b);
+      if (it.hire) {
+        const seg = document.createElement('div'); seg.className = 'hire-seg';
+        for (let n = 1; n <= HIRE_WAVES; n++) {
+          const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
+          s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; shopFlash = ''; renderShop(); };
+          seg.appendChild(s);
+        }
+        card.appendChild(seg);
       }
-      wrap.appendChild(seg); row.appendChild(wrap);
+      box.appendChild(card);
     });
   });
+  $('merchant-modal').scrollTop = scrollY;
 }
-function openMerchant() { renderShop(); $('merchant-modal').style.display = 'flex'; }
+function openMerchant() { shopFlash = ''; renderShop(); $('merchant-modal').scrollTop = 0; $('merchant-modal').style.display = 'flex'; }
 function closeMerchant() {
   if ($('merchant-modal').style.display === 'none') return;
   $('merchant-modal').style.display = 'none'; wave++; state = 'play'; startWave(wave); sfx('wave');

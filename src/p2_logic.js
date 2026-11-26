@@ -449,41 +449,47 @@ function tickWaveTimers() {
   if (gone) { companions.forEach((c, i) => c.slot = i); rebuildParty(); }
   renderBuffHud();
 }
+var shopFlash = '';
 function renderShop() {
-  const box = $('shop-box'); $('shop-gold').textContent = gold; box.innerHTML = '';
+  const box = $('shop-box'), scrollY = $('merchant-modal').scrollTop; $('shop-gold').textContent = gold; box.innerHTML = '';
+  const hireItems = Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
+    return { key: 'h' + k, hire: k, icon: t.icon, name: h.name, desc: t.desc, tag: '', cost: hireCost(k), ok: () => companions.length < 3, no: 'Party full',
+      fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; });
   const sections = [
-    ['HIRE HELP · CHOOSE 1–' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
-      return { hire: k, label: `${t.icon} ${h.name}`, desc: `${t.desc} (${n} wave${n > 1 ? 's' : ''})`, cost: hireCost(k), ok: () => companions.length < 3,
-        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; })],
-    ['BREWS & CHARMS · 2 WAVES', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
-      return { label: `${b.icon} ${b.name}`, desc: b.desc + (hasBuff(k) ? ` (refresh: ${activeBuffs[k]}w left)` : ` (${b.waves} waves)`), cost: b.cost + wave * b.per, ok: () => true,
+    ['⚔️ Hire help', `Party ${companions.length}/3`, hireItems],
+    ['🧪 Brews & charms', '2 waves each', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
+      return { key: 'b' + k, icon: b.icon, name: b.name, desc: b.desc, tag: hasBuff(k) ? `Refresh · ${activeBuffs[k]}w left` : `${b.waves} waves`, cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
-    ['SUPPLIES', [
-      { label: '🧪 Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
-      { label: '🩹 Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
+    ['🩹 Supplies', 'Instant', [
+      { key: 's1', icon: '🧪', name: 'Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, no: 'Already healthy', fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
+      { key: 's2', icon: '🩹', name: 'Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), no: 'No one needs it', fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
     ]]
   ];
-  sections.forEach(([title, items]) => {
-    const h = document.createElement('div'); h.className = 'shop-sec'; h.textContent = title; box.appendChild(h);
-    const row = document.createElement('div'); row.className = 'shop-row'; box.appendChild(row);
+  sections.forEach(([title, note, items]) => {
+    const h = document.createElement('div'); h.className = 'shop-sec'; h.innerHTML = `<span>${title}</span><i>${note}</i>`; box.appendChild(h);
     items.forEach(it => {
-      const b = document.createElement('button'); b.className = 'shop-btn';
-      b.disabled = gold < it.cost || !it.ok();
-      b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
-      b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
-      if (!it.hire) { row.appendChild(b); return; }
-      const wrap = document.createElement('div'); wrap.className = 'shop-hire'; wrap.appendChild(b);
-      const seg = document.createElement('div'); seg.className = 'hire-seg';
-      for (let n = 1; n <= HIRE_WAVES; n++) {
-        const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
-        s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; renderShop(); };
-        seg.appendChild(s);
+      const poor = gold < it.cost, blocked = !it.ok(), off = poor || blocked;
+      const card = document.createElement('div'); card.className = 'shop-item' + (off ? ' off' : '') + (shopFlash === it.key ? ' bought' : '');
+      const b = document.createElement('button'); b.className = 'shop-buy'; b.disabled = off;
+      const why = blocked ? it.no : '';
+      b.innerHTML = `<span class="si-ico">${it.icon}</span><span class="si-txt"><b>${it.name}</b><em>${it.desc}</em>${it.tag ? `<u>${it.tag}</u>` : ''}</span><span class="si-price${blocked ? ' no' : poor ? ' poor' : ''}">${why ? `<small>${why}</small>` : `${it.cost}<small>${poor ? `short ${it.cost - gold}` : 'GOLD'}</small>`}</span>`;
+      b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); shopFlash = it.key; renderShop(); };
+      card.appendChild(b);
+      if (it.hire) {
+        const seg = document.createElement('div'); seg.className = 'hire-seg';
+        for (let n = 1; n <= HIRE_WAVES; n++) {
+          const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
+          s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; shopFlash = ''; renderShop(); };
+          seg.appendChild(s);
+        }
+        card.appendChild(seg);
       }
-      wrap.appendChild(seg); row.appendChild(wrap);
+      box.appendChild(card);
     });
   });
+  $('merchant-modal').scrollTop = scrollY;
 }
-function openMerchant() { renderShop(); $('merchant-modal').style.display = 'flex'; }
+function openMerchant() { shopFlash = ''; renderShop(); $('merchant-modal').scrollTop = 0; $('merchant-modal').style.display = 'flex'; }
 function closeMerchant() {
   if ($('merchant-modal').style.display === 'none') return;
   $('merchant-modal').style.display = 'none'; wave++; state = 'play'; startWave(wave); sfx('wave');

@@ -49,6 +49,10 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 
 ## Saving progress
 
+**Your run (the Waystone):** every time you clear a wave, the whole run is inscribed at a waystone: wave, hero, blessings, evolutions, gear, companions, gold and buffs. The merchant screen shows it, with **Rest Here** (save and quit) and **Carry to Another Device** (a link that opens the run anywhere, handy for moving between Safari and the Home Screen app, which keep separate storage on iOS, or for viewers that block saving). Next time, the title screen offers **Continue · Wave N**. Pausing mid-wave offers **Save & Quit**, which resumes from the start of that wave. Falling in battle ends the saga.
+
+**Your legend:**
+
 Embers, Forge upgrades, unlocked weapons and best wave are stored in the browser's `localStorage`. Some viewers (for example document previewers on iOS) block or discard that storage. As a workaround:
 
 - The **game-over screen** shows a save code with a **Copy Save Code** button.
@@ -74,10 +78,12 @@ src/              Source parts, concatenated in order by build.sh
   p6_fx.js        Lighting, bloom, weather, fog, music
   p8a_titlebg.js  Animated title-screen backdrop
   p8b_menu.js     Title menu (Armoury, Forge, Chronicle)
+  p8c_saga.js     The Waystone: run saves, Continue, carry-a-run links
   p7_start.js     Game start-up
 build.sh          Assembles src/ into index.html
 tests/sim7.js     Headless simulation test (Node.js)
 tests/wood7.js    Headless timber scenario test (chop, haul, repair, regrow)
+tests/saga7.js    Headless run-save test (waystone, resume, carry link, death)
 tests/towns7.js   Headless two-town test (layout, raids, wave length)
 tests/mount7.js   Headless warhorse test (summon, gallop, charge, dazed)
 tests/rare7.js    Headless rare-hunt test (abilities, pools, rally, flee, hoard)
@@ -92,6 +98,7 @@ tests/quest7.js   Headless quest test (every bounty type, turn-in, courier, fail
 ./build.sh                        # rebuild index.html from src/
 node tests/sim7.js sword 30000    # headless run: weapon, frame count
 node tests/wood7.js sword         # timber scenario checks
+node tests/saga7.js sword         # run saves: waystone, resume, carry link
 ```
 
 The test drives the game loop with a stubbed canvas and DOM and walks through menu navigation, waves, loot, evolutions and game over. It prints `errors: 0` on success. Valid weapons are `sword`, `greatsword`, `daggers` and `spear`.

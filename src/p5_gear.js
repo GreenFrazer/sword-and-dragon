@@ -34,7 +34,8 @@ function claimDaily() {
 function runEmbers() {
   let e = Math.floor(wave * 8 + kills * 0.4 + bossKills * 40 + bloodMoons * 25 + rareKills * 30 + questsDone * 15);
   if (runOmen) e = Math.floor(e * runOmen.mul);
-  return { base: e, daily: claimDaily() };
+  const base = Math.max(0, e - runPaid); runPaid += base; // a resumed saga is never paid twice
+  return { base, daily: claimDaily() };
 }
 
 const FORGE = [

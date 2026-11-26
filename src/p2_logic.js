@@ -42,6 +42,7 @@ function resetGame() {
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
   projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; questsDone = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
+  runId = newRunId(); runPaid = 0;
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
   runOmen = meta.omenOn ? todaysOmen() : null;
@@ -427,7 +428,7 @@ function damagePlayer(amount, fromX, fromY) {
     addFloatText(player.x, player.y - 80, 'SECOND WIND!', '#69db7c', 24); flash('#69db7c', 0.5); addRing(player.x, player.y, 160, '#69db7c', 0.6, 8); return;
   }
   if (player.hp <= 0) {
-    player.hp = 0; state = 'gameover'; sfx('death');
+    player.hp = 0; state = 'gameover'; sfx('death'); sagaRunOver();
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; goSaveUI(); 
     const prevBest = bestWave;
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
@@ -440,7 +441,7 @@ function damagePlayer(amount, fromX, fromY) {
 function cashOutRun() {
   if (!player || state === 'gameover' || kills < 1) return;
   const re = runEmbers(), earned = re.base + re.daily;
-  meta.embers += earned; saveMeta();
+  meta.embers += earned; saveMeta(); sagaNotePaid();
   if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
 }
 function normalizeAngle(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
@@ -570,7 +571,7 @@ function renderShop() {
 function openMerchant() { shopFlash = ''; renderShop(); $('merchant-modal').scrollTop = 0; $('merchant-modal').style.display = 'flex'; }
 function closeMerchant() {
   if ($('merchant-modal').style.display === 'none') return;
-  $('merchant-modal').style.display = 'none'; wave++; state = 'play'; startWave(wave); sfx('wave');
+  $('merchant-modal').style.display = 'none'; wave++; state = 'play'; inscribeSaga(wave); startWave(wave); sfx('wave');
 }
 $('merchant-go').addEventListener('click', closeMerchant);
 function applyUpgrade(id) {

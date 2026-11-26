@@ -37,7 +37,7 @@ function renderMenu() {
   ml.innerHTML = MENU.map((m, i) => `<button class="tm-item${i === menuIdx ? ' sel' : ''}${i === 0 ? ' primary' : ''}" data-i="${i}"><span class="tm-cur"></span><span class="tm-lab">${m.label}</span><small>${m.sub}</small></button>`).join('');
   ml.querySelectorAll('.tm-item').forEach((b, i) => {
     b.onmouseenter = () => { if (menuIdx !== i && !beginning) { menuIdx = i; panelFocus = false; subIdx = 0; uiTone(520); renderMenu(); } };
-    b.onclick = () => { initAudio(); menuIdx = i; if (i === 0) beginRun(); else { panelFocus = true; subIdx = i === 1 ? Math.max(0, Object.keys(WEAPONS).indexOf(selectedWeapon)) : 0; uiTone(660); renderMenu(); const pn = $('menu-panel'); if (window.matchMedia && window.matchMedia('(max-width:960px)').matches && pn.scrollIntoView) pn.scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+    b.onclick = () => { initAudio(); menuIdx = i; if (MENU[i].id === 'play') beginRun(); else if (MENU[i].id === 'cont') continueSaga(); else { panelFocus = true; subIdx = i === 1 ? Math.max(0, Object.keys(WEAPONS).indexOf(selectedWeapon)) : 0; uiTone(660); renderMenu(); const pn = $('menu-panel'); if (window.matchMedia && window.matchMedia('(max-width:960px)').matches && pn.scrollIntoView) pn.scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
   });
   const id = MENU[menuIdx].id, p = $('menu-panel'), keys = Object.keys(WEAPONS);
   p.className = panelFocus ? 'focus' : '';
@@ -49,6 +49,8 @@ function renderMenu() {
       ${omenCard()}
       <div class="tm-pd" style="margin:14px 0 4px">Hero</div><div class="hire-seg" id="hero-seg"><button class="hire-n${meta.hero !== 'f' ? ' on' : ''}" data-h="m">♂ MALE</button><button class="hire-n${meta.hero === 'f' ? ' on' : ''}" data-h="f">♀ FEMALE</button></div>
       <div class="tm-pd" style="margin:16px 0 0">${TIPS[Math.floor(time * 0.1 + menuIdx) % TIPS.length].replace(/<\/?b>/g, '')}</div>`;
+  } else if (id === 'cont') {
+    h = sagaPanelHtml();
   } else if (id === 'armoury') {
     h = `<div class="tm-ph">THE ARMOURY</div><div class="tm-pd">Every blade fights differently. Unlock new steel with embers earned in battle.</div><div class="tm-weps">` + keys.map((k, i) => {
       const w = WEAPONS[k], un = !!meta.unlocked[k], eq = selectedWeapon === k;
@@ -63,8 +65,8 @@ function renderMenu() {
     const K = [['W A S D', 'Move'], ['SPACE', 'Dash'], ['E', 'Spin'], ['Q', 'Meteor Storm'], ['F', 'Cast (3 charges)'], ['P', 'Pause'], ['M', 'Mute'], ['G', 'Hero (title screen)']];
     h = `<div class="tm-ph">CHRONICLE</div><div class="tm-pd">Your sword strikes on its own &mdash; you decide where to stand.</div><div class="tm-keys-grid">` + K.map(k => `<div class="tm-k"><span class="tm-cap">${k[0]}</span>${k[1]}</div>`).join('') + `<div class="tm-k"><span class="tm-cap">DRAG</span>Touch move</div></div><ul class="tm-tips">` + TIPS.slice(0, 5).map(t => `<li>${t}</li>`).join('') + '</ul>' + featsHtml();
   }
-  if (id !== 'play') h += '<button class="tm-back show" id="tm-back">◀ BACK TO MENU</button>';
-  p.innerHTML = h;
+  if (id !== 'play' && id !== 'cont') h += '<button class="tm-back show" id="tm-back">◀ BACK TO MENU</button>';
+  p.innerHTML = h; if (id === 'cont') bindSagaPanel();
   const ta = $('tm-code');
   if (ta) { ta.addEventListener('keydown', e => e.stopPropagation()); ta.onclick = () => { try { ta.select(); } catch (e) {} };
     $('tm-load').onclick = () => { const ok = loadCode(ta.value); if (ok) renderMenu(); else $('tm-codemsg').textContent = 'That code is not valid.'; }; }
@@ -146,7 +148,7 @@ function menuKey(e) {
   if (c === 'KeyG') { setHero(meta.hero === 'f' ? 'm' : 'f'); return; }
   if (!panelFocus) {
     if (up) moveMenu(-1); else if (dn) moveMenu(1);
-    else if (ok || rt) { if (id === 'play') beginRun(); else if (id !== 'lore') { panelFocus = true; subIdx = id === 'armoury' ? Math.max(0, wk.indexOf(selectedWeapon)) : 0; uiTone(660); renderMenu(); } }
+    else if (ok || rt) { if (id === 'play') beginRun(); else if (id === 'cont') continueSaga(); else if (id !== 'lore') { panelFocus = true; subIdx = id === 'armoury' ? Math.max(0, wk.indexOf(selectedWeapon)) : 0; uiTone(660); renderMenu(); } }
     return;
   }
   if (c === 'Escape' || (lf && (id !== 'armoury' || subIdx % 2 === 0))) { panelFocus = false; uiTone(400); renderMenu(); return; }

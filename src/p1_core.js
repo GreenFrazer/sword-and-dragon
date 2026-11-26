@@ -493,7 +493,7 @@ $('go-copy').addEventListener('click', () => {
   try { if (document.execCommand('copy')) { ok = true; $('go-copy').textContent = 'COPIED!'; } } catch (e) {}
   if (!ok) $('go-copy').textContent = 'PRESS AND HOLD THE CODE TO COPY';
 });
-$('tm-go').addEventListener('click', () => { initAudio(); beginRun(); });
+$('tm-go').addEventListener('click', () => { initAudio(); if (readSaga()) continueSaga(); else beginRun(); }); // with a saga waiting, the big phone button continues it
 
 function getInput() {
   let ix = joy.dx, iy = joy.dy;

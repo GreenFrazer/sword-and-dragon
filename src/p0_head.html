@@ -160,6 +160,26 @@
   .si-price.no small { font-size: 10px; letter-spacing: 0.02em; opacity: 1; }
   .shop-item .hire-seg { padding: 0 10px 9px; gap: 6px; }
   .shop-item .hire-n { min-height: 34px; font-family: var(--serif); border-radius: 4px; }
+  /* the waystone (run saves) */
+  #waystone { width: 100%; max-width: 560px; padding: 4px 12px 0; }
+  .ws-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid rgba(127,224,255,0.35); border-radius: 8px; background: radial-gradient(120% 140% at 0% 50%, rgba(127,224,255,0.16), rgba(16,14,28,0.9) 60%); box-shadow: 0 0 22px rgba(127,224,255,0.12) inset; }
+  .ws-card.off { border-color: #4a4350; filter: grayscale(0.7); }
+  .ws-stone { flex: none; width: 40px; height: 54px; }
+  .ws-runes { animation: wsGlow 2.4s ease-in-out infinite; filter: drop-shadow(0 0 4px #7fe0ff); }
+  @keyframes wsGlow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+  .ws-t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ws-t b { font-family: var(--serif); font-size: 14px; letter-spacing: 0.16em; color: #bdf0ff; }
+  .ws-t span { font-family: Georgia, serif; font-size: 12.5px; color: #cfd8e3; line-height: 1.35; }
+  .ws-row { display: flex; gap: 8px; margin-top: 8px; }
+  .ws-b { all: unset; box-sizing: border-box; flex: 1 1 0; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px 10px; border: 1px solid rgba(127,224,255,0.45); border-radius: 6px; background: rgba(127,224,255,0.1); color: #bdf0ff; font-family: var(--serif); font-weight: 800; font-size: 11.5px; letter-spacing: 0.1em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .ws-b:active, .ws-b:hover { background: rgba(127,224,255,0.25); }
+  .ws-msg { min-height: 16px; margin-top: 4px; font-size: 11.5px; color: #8ce99a; text-align: center; }
+  .saga-hd { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; } .saga-hd .ws-stone { width: 46px; height: 62px; }
+  .saga-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .saga-row .ub { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,215,106,0.25); border-radius: 4px; font-size: 14px; } .saga-row .ub b { font-size: 11px; color: var(--gold); }
+  .saga-g { padding: 3px 9px; border: 1px solid var(--rc); border-left-width: 3px; border-radius: 4px; background: rgba(0,0,0,0.35); color: var(--rc); font-family: Georgia, serif; font-size: 12px; }
+  .tm-buy.saga-go { flex: 1 1 100%; font-size: 15px; padding: 12px 14px; background: linear-gradient(180deg, rgba(127,224,255,0.3), rgba(127,224,255,0.1)); border-color: #7fe0ff; color: #e6fbff; }
+  .saga-msg { font-size: 11px; color: #8ce99a; }
   .mc-foot { position: sticky; bottom: 0; z-index: 3; width: 100%; margin-top: auto; padding: 18px 16px max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: center; background: linear-gradient(0deg, #0a070d 65%, rgba(10,7,13,0)); }
   #merchant-go { width: 100%; max-width: 420px; min-height: 52px; font-size: 14px; padding: 14px 16px; touch-action: manipulation; }
   @media (max-width: 420px) { .si-ico { width: 38px; height: 38px; font-size: 22px; } .si-txt b { font-size: 14px; } .shop-buy { gap: 10px; padding: 9px 10px; } }
@@ -523,6 +543,7 @@
   </div>
   <p class="mc-blurb">Hired blades and brews last a few waves, then they're gone.</p>
   <div id="shop-box"></div>
+  <div id="waystone"></div>
   <div class="mc-foot"><button class="btn-restart" id="merchant-go">CONTINUE TO NEXT WAVE</button></div>
 </div>
 
@@ -549,7 +570,7 @@
 
 <div class="modal" id="pause-modal">
   <h2>PAUSED</h2>
-  <p>Tap Resume to continue</p>
+  <p id="pause-note">Tap Resume to continue</p>
   <button class="btn-restart" id="resume-btn">RESUME</button>
   <button class="btn-restart tm-menu-btn" id="quit-btn" style="background:linear-gradient(180deg,#8c93a6,#4a4f5e)">MAIN MENU</button>
 </div>

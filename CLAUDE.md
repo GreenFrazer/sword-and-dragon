@@ -14,7 +14,7 @@ Single-file, zero-dependency HTML5 canvas action RPG. Read `README.md` for featu
 
 `build.sh` concatenates the parts in this order into one `<script>`:
 
-`p0_head.html` (HTML + CSS + markup, ends with `<script>`) → `p1_core.js` → `p2_logic.js` → `p2b_village.js` → `p3_sim.js` → `p4_render.js` → `p5_gear.js` → `p5b_mount.js` → `p5c_rare.js` → `p5d_quest.js` → `p6_fx.js` → `p6b_ambience.js` → `p8a_titlebg.js` → `p8b_menu.js` → `p7_start.js` (last: starts the game).
+`p0_head.html` (HTML + CSS + markup, ends with `<script>`) → `p1_core.js` → `p2_logic.js` → `p2b_village.js` → `p3_sim.js` → `p4_render.js` → `p5_gear.js` → `p5b_mount.js` → `p5c_rare.js` → `p5d_quest.js` → `p6_fx.js` → `p6b_ambience.js` → `p8a_titlebg.js` → `p8b_menu.js` → `p8c_saga.js` → `p7_start.js` (last: starts the game).
 
 Consequences:
 - All parts share one global scope. A later `function` declaration overrides an earlier one (for example `showTitle` and `renderTitleMenu` in `p8b_menu.js` replace the ones in `p5_gear.js`).
@@ -34,6 +34,7 @@ Consequences:
 - **Warhorse:** `p5b_mount.js`. `stepMount()` runs before player movement; `player.mount` disables auto-attacks and chopping and scales speed via `mountSpeedMul()`. Contact at a gallop calls `cavalryCharge()`; `damagePlayer()` dismounts (`dismount('dazed')`) and spin dismounts too. Draw the player through `drawRider()`, which handles both mounted and on-foot. `steeds` are riderless horses running off.
 - **Rare Hunts:** `p5c_rare.js`. `queueRare(w)` (in `startWave`) may add a `'rare'` to the queue; `spawnEnemy` builds it with `makeRare()` (`e.rare`, `e.name`). AI is `updateRare()`: one `e.cast` at a time (`pools`/`slam`/`cleave`), rally at 50%, `rareFlee()` at 25% then `rareEscape()` at the edge. During the slam leap `e.flying` is true (untouchable). `rarePools` tick in `stepRare()`; `rareSlain()` is called from `killEnemy()`; `rareKills` feeds `runEmbers()`. The nameplate reuses `#boss-hud` with class `rare`.
 - **Quests:** `p5d_quest.js`. `spawnHerald(w)` runs at the end of `startWave` and picks from `QUESTS` (each has `ok()` for the wave and `need(w)`). `herald.st` goes `offer → active → done → thanks`; `stepQuest()` handles walk-up accept/turn-in. Progress comes from `questEvent(kind, arg)` hooks in `killEnemy`, `damagePlayer` (`'hurt'`), shield breaks, `fellTree`, `destroyProp`, `cavalryCharge`. `questWaveEnd()` (wave clear) pays a done quest or fails an active one. The `!`/`?` marker is drawn after lighting by `drawHeraldGlyph()`. Tracker is `#quest-hud`; `updateQuestHud()` shifts it below the boss/rare nameplate when they overlap and pushes `#party` down.
+- **Run saves (the Waystone):** `p8c_saga.js`. `inscribeSaga(w)` snapshots the run (hero primitives plus `upg`/`evo`, gear, companions, gold, buffs, omen) to `localStorage['swordDragonSaga']` when the merchant opens (as wave `w+1`) and again in `closeMerchant()`. `resumeSaga(s)` runs `resetGame()` then lays the saga over it and calls `startWave(s.w)`. Each run has a `runId`; death clears only this run's saga (`sagaRunOver()`), so a new run never wipes an older saga before its own first waystone. `runPaid` carries embers already paid (quitting cashes out) so `runEmbers()` never pays a resumed run twice. The title gains a `cont` menu entry via `syncSagaMenu()`; `#run=CODE` links (`sagaLink`/`importSagaFromHash`) carry a saga to another device. If you add run state that should survive a resume, add it to `sagaSnapshot()` and `resumeSaga()`.
 - **Menu:** title UI is `p8b_menu.js` (`renderMenu`, `menuKey`, `beginRun`); backdrop is `p8a_titlebg.js`. HTML ids used by code include `title-modal`, `menu-list`, `menu-panel`, `start-btn`, `forge-btn`, `go-code`; keep them if you edit markup.
 
 ## Testing
@@ -46,6 +47,7 @@ node tests/towns7.js sword          # two-town layout, raids and wave length (ab
 node tests/rare7.js sword           # rare hunt: abilities, pools, rally, flee, hoard (prints 'rare: all checks passed')
 node tests/quest7.js sword          # quests: every bounty, turn-in, courier, failure (prints 'quest: all checks passed')
 node tests/mount7.js sword          # warhorse: summon, gallop, charge, dazed (prints 'mount: all checks passed')
+node tests/saga7.js sword           # run saves: waystone, rest, resume, link to another device, death (prints 'saga: all checks passed')
 ```
 
 `tests/sim7.js` runs the built `index.html` headlessly in a Node `vm` with a stubbed canvas and DOM. It navigates the menu, plays through waves (loot, elites, evolutions, bosses) and forces game over. Success prints `errors: 0`. Runs are random, so run a couple of weapons after risky changes; a crash prints `ERR frame N` with a stack.

@@ -1,4 +1,5 @@
 // ======================= VISUAL FX: lighting, bloom, weather, fog, grass, ponds, intro, music =======================
+var slainT = 0, slainX = 0, slainY = 0, slainName = '';
 let weather = 'clear', wxDrops = [], fogBlobs = [], flies = [], introT = 0, nextBolt = 4, lightFlash = 0;
 let lightCv = null, lightCtx = null, bloomCv = null, bloomCtx = null, lightSpr = null, shX = 0, shY = 0;
 const NIGHT = [[8, 16, 44], [36, 14, 30], [12, 26, 72], [38, 6, 6]];
@@ -440,3 +441,58 @@ function scheduleStep(t, step, M, sd, lv, title) {
   } else if (!title && s % 4 === 2) hat(t, 0.01 * (1 - lv), B); // calm shaker
 }
 { const mb = $('music-btn'); if (mb && mb.classList && mb.classList.toggle) mb.classList.toggle('off', !musicOn); }
+
+
+// ---------- DRAGON SLAIN finale: letterbox, shock rings, colour burst, god-rays, gold dust ----------
+const SLAIN_LEN = 4.2;
+function startSlain(e) { slainT = SLAIN_LEN; slainX = e.x; slainY = e.y; slainName = e.skin.name; }
+function drawSlainWorld() { // expanding shock rings, drawn in world space
+  if (slainT <= 0) return;
+  const k = 1 - slainT / SLAIN_LEN;
+  for (let i = 0; i < 3; i++) {
+    const t = k * 1.6 - i * 0.18; if (t <= 0 || t >= 1) continue;
+    const r = 40 + t * 900;
+    ctx.globalAlpha = (1 - t) * 0.8; ctx.strokeStyle = i === 1 ? '#fff6d0' : '#ffc94d'; ctx.lineWidth = 16 * (1 - t) + 2;
+    ctx.beginPath(); ctx.ellipse(slainX, slainY, r, r * 0.62, 0, 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  if (k < 0.5) drawGlow(slainX, slainY - 30, 320 * (1 - k * 1.4), '#ffe9a0', 0.9 - k);
+}
+function drawSlain() { // screen space
+  if (slainT <= 0) return;
+  const el = SLAIN_LEN - slainT, k = el / SLAIN_LEN;
+  const fade = Math.min(1, slainT / 0.7), inn = Math.min(1, el / 0.35);
+  // desaturate the world for the first beat, then let the gold flood back
+  if (el < 1.1 && ctx.globalCompositeOperation !== undefined) {
+    ctx.globalCompositeOperation = 'saturation'; ctx.globalAlpha = Math.min(1, el / 0.1) * (1 - el / 1.1) * 0.9; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  // rotating god-rays behind the title
+  const cx = W / 2, cy = H * 0.4, R = Math.max(W, H);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(el * 0.25); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.7); g.addColorStop(0, 'rgba(255,214,120,0.38)'); g.addColorStop(1, 'rgba(255,214,120,0)');
+  ctx.fillStyle = g; ctx.globalAlpha = inn * fade;
+  for (let i = 0; i < 12; i++) { ctx.rotate(TAU / 12); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R * 0.7, -R * 0.045); ctx.lineTo(R * 0.7, R * 0.045); ctx.closePath(); ctx.fill(); }
+  ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  // gold dust rising
+  for (let i = 0; i < 46; i++) {
+    const sd = i * 12.9898, fx = (Math.sin(sd) * 43758.5453) % 1, sp = 40 + Math.abs((Math.sin(sd * 2.1) * 9301.7) % 1) * 90;
+    const x = Math.abs(fx) * W, y = H + 20 - ((el * sp + Math.abs(Math.sin(sd * 3.7)) * H) % (H + 40));
+    drawGlow(x + Math.sin(el * 2 + i) * 14, y, 5 + (i % 4) * 2, '#ffd86b', 0.8 * fade);
+  }
+  // letterbox
+  const bar = H * 0.11 * Math.min(1, el / 0.4, slainT / 0.5);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
+  // title: slams in, settles
+  const pop = el < 0.45 ? 1 + (1 - el / 0.45) * 1.2 : 1 + Math.sin(el * 3) * 0.012;
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(pop, pop); ctx.globalAlpha = Math.min(1, el / 0.2) * fade; ctx.textAlign = 'center';
+  const fs = Math.min(84, W / 7.5); ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`; ctx.lineJoin = 'round';
+  ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(40,10,0,0.9)'; ctx.strokeText('DRAGON SLAIN', 0, 0);
+  const tg = ctx.createLinearGradient(0, -fs * 0.8, 0, fs * 0.2); tg.addColorStop(0, '#fffbe0'); tg.addColorStop(0.5, '#ffd43b'); tg.addColorStop(1, '#d9730d');
+  ctx.shadowColor = '#ff9a1f'; ctx.shadowBlur = 30; ctx.fillStyle = tg; ctx.fillText('DRAGON SLAIN', 0, 0); ctx.shadowBlur = 0;
+  // glint sweeping across the letters
+  const sw = ((el - 0.5) / 1.1); if (sw > 0 && sw < 1) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.fillRect(-fs * 3.4 + sw * fs * 6.8, -fs * 0.8, fs * 0.22, fs); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; }
+  if (el > 0.6) { ctx.globalAlpha = Math.min(1, (el - 0.6) / 0.5) * fade; ctx.font = `700 ${Math.max(13, fs * 0.26)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ffe9b0'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
+  ctx.restore(); ctx.globalAlpha = 1;
+}

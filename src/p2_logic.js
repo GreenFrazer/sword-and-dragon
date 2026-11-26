@@ -37,7 +37,7 @@ function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
   wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
-  shake = hitStop = slowT = zoomKick = flashA = 0; clearTimer = null; ultReadyShown = false;
+  shake = hitStop = slowT = zoomKick = flashA = slainT = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
@@ -331,7 +331,7 @@ function killEnemy(e) {
   }
   if (e.type === 'dragon') {
     pickups.push({ x: e.x - 24, y: e.y, type: 'sword', bob: 0.5 });
-    slowT = 1.3; flash('#ffffff', 0.7); zoomKick = 0.1; sfx('death');
+    slowT = 1.3; startSlain(e); flash('#ffffff', 0.7); zoomKick = 0.1; sfx('death');
     for (let i = 0; i < 5; i++) { explosionFx(e.x + rand(-60, 60), e.y + rand(-40, 20), 120, e.skin.glow, true); }
     addFloatText(e.x, e.y - 90, 'DRAGON SLAIN!', '#ffd43b', 28);
     waveQueue.length = 0;

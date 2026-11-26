@@ -84,7 +84,7 @@ function render() {
   // dash afterimages
   for (const g of ghosts) {
     ctx.globalAlpha = Math.max(0, g.life / 0.26) * 0.4;
-    drawHumanoid({ ...player, x: g.x, y: g.y, facing: g.facing, walkPhase: g.walkPhase, hitFlash: 0, invuln: 0 }, true);
+    drawHumanoid({ ...player, ghost: true, x: g.x, y: g.y, facing: g.facing, walkPhase: g.walkPhase, hitFlash: 0, invuln: 0 }, true);
   }
   ctx.globalAlpha = 1;
 
@@ -343,16 +343,53 @@ function drawPickup(pk) {
 const TYPE_COL = { grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
 const EYE_COL = { grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
 
+// ---------- procedural character animation: bob, lean, squash & stretch, lunge, springs, footsteps ----------
+function charAnim(ent, isPlayer) {
+  let a = ent._an;
+  if (!a) a = ent._an = { px: ent.x, py: ent.y, t: time, sx: 0, sy: 0, sp: 0, st: 0, vf: ent.facing, sq: 0, sqv: 0, id: Math.random() * 6.28, hf: 0, atk: 0, dash: 0, step: 0 };
+  const dtr = time - a.t;
+  if (dtr > 0.0005 && hitStop <= 0) {
+    const dt = Math.min(dtr, 0.1); a.t = time;
+    let vx = (ent.x - a.px) / dt, vy = (ent.y - a.py) / dt;
+    if (Math.hypot(vx, vy) > 1400) { vx = vy = 0; }
+    a.px = ent.x; a.py = ent.y;
+    const k = 1 - Math.exp(-dt * 14); a.sx += (vx - a.sx) * k; a.sy += (vy - a.sy) * k;
+    const s0 = a.sp; a.sp = Math.hypot(a.sx, a.sy);
+    a.st += (Math.max(-0.16, Math.min(0.16, (a.sp - s0) / dt / 2200)) - a.st) * (1 - Math.exp(-dt * 18));
+    a.vf += normalizeAngle(ent.facing - a.vf) * (1 - Math.exp(-dt * 26));
+    // spring-driven squash impulses: hits, swings, dash start
+    const hf = ent.hitFlash > 0 ? 1 : 0; if (hf && !a.hf) a.sqv -= 3.2; a.hf = hf;
+    const at = isPlayer && player.atkTimer > 0 ? 1 : 0; if (at && !a.atk) a.sqv += 2.2; a.atk = at;
+    const ds = isPlayer && player.dashTime > 0 ? 1 : 0; if (ds && !a.dash) a.sqv += 4; a.dash = ds;
+    a.sqv += (-a.sq * 260 - a.sqv * 15) * dt; a.sq += a.sqv * dt;
+    // footstep dust when a foot plants
+    const ph = Math.sin(ent.walkPhase), sgn = ph > 0 ? 1 : -1;
+    if (sgn !== a.step) { a.step = sgn; if (a.sp > 90 && state === 'play' && particles.length < MAXP) particles.push({ x: ent.x + sgn * 6, y: ent.y + 3, vx: -a.sx * 0.05 + rand(-8, 8), vy: rand(-14, -4), life: 0.4, maxLife: 0.4, color: biome.path2, size: rand(2.5, 4.5), kind: 'smoke', g: 0 }); }
+  }
+  return a;
+}
 function drawHumanoid(ent, isPlayer) {
   const type = ent.type, scale = type === 'brute' ? 1.22 : (type === 'bomber' ? 0.9 : 1);
   ctx.save(); ctx.translate(ent.x, ent.y); ctx.scale(scale, scale);
   ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.ellipse(0, 4, 18, 10, 0, 0, TAU); ctx.fill();
+  const an = ent.ghost ? null : charAnim(ent, isPlayer);
+  if (an) { // body animation (shadow stays planted on the ground)
+    const nm = Math.min(1, an.sp / 240), ph = ent.walkPhase;
+    const bob = -Math.abs(Math.sin(ph)) * 3.4 * nm, breathe = 1 + 0.02 * Math.sin(time * 2.4 + an.id) * (1 - nm);
+    let lunge = 0, lean = Math.max(-1, Math.min(1, an.sx / 240)) * 0.15 + Math.max(-1, Math.min(1, an.sy / 240)) * 0.02;
+    if (isPlayer && player.atkTimer > 0) { const pr = 1 - player.atkTimer / player.atkDuration; lunge = Math.sin(Math.min(1, pr) * Math.PI) * 7; lean += Math.cos(ent.facing) * 0.12 * Math.sin(Math.min(1, pr) * Math.PI); }
+    else if (!isPlayer && ent.windup > 0) { const pr = 1 - ent.windup / 0.38; lunge = pr < 0.7 ? -pr * 5 : (pr - 0.7) / 0.3 * 12 - 3.5; lean += Math.cos(ent.facing) * (pr < 0.7 ? -0.1 : 0.16); }
+    if (isPlayer && player.dashTime > 0) lean = Math.max(-1, Math.min(1, an.sx / 500)) * 0.4;
+    const st = an.st + an.sq * 0.35, stride = 1 + 0.03 * Math.cos(ph * 2) * nm;
+    const sxs = (1 - st * 0.6) * (isPlayer && player.dashTime > 0 ? 1.12 : 1), sys = (1 + st) * breathe * stride * (isPlayer && player.dashTime > 0 ? 0.9 : 1);
+    ctx.save(); ctx.translate(Math.cos(ent.facing) * lunge, Math.sin(ent.facing) * lunge * 0.55 + bob); ctx.rotate(lean); ctx.scale(sxs, sys);
+  }
   if (ent.elite) drawEliteAura(ent);
   const flashing = ent.hitFlash > 0 || (type === 'bomber' && ent.fuse > 0 && Math.floor(time * 18) % 2 === 0);
   if ((isPlayer || ent.ally) && ent.invuln > 0 && Math.floor(ent.invuln * 20) % 2 === 0) ctx.globalAlpha *= 0.55;
   const stride = Math.sin(ent.walkPhase) * 8;
   const fem = isPlayer ? meta.hero === 'f' : ent.fem;
-  const aim = ent.facing, sideFlip = Math.cos(aim) >= 0 ? 1 : -1;
+  const aim = an ? an.vf : ent.facing, sideFlip = Math.cos(aim) >= 0 ? 1 : -1;
 
   // cape (player)
   if (isPlayer) {
@@ -462,6 +499,7 @@ function drawHumanoid(ent, isPlayer) {
   }
   ctx.globalAlpha = 1;
 
+  if (an) ctx.restore();
   if (ent.ally) {
     const bw = 42, pct = Math.max(0, ent.hp / ent.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(-bw / 2, -66, bw, 6);

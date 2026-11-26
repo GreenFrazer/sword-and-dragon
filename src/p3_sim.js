@@ -85,7 +85,8 @@ function stepSimulation(dt) {
     ghosts.push({ x: player.x, y: player.y, facing: player.facing, walkPhase: player.walkPhase, life: 0.26 });
   } else {
     const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0) + (frenzyT > 0 ? 0.18 : 0));
-    player.vx = player.vx * 0.8 + inp.ix * spdm * 0.2; player.vy = player.vy * 0.8 + inp.iy * spdm * 0.2;
+    const ak = 1 - Math.pow(0.8, dt * 60); // frame-rate independent acceleration
+    player.vx += (inp.ix * spdm - player.vx) * ak; player.vy += (inp.iy * spdm - player.vy) * ak;
     player.x += player.vx * dt; player.y += player.vy * dt;
   }
   player.x = Math.max(40, Math.min(WORLD_W - 40, player.x)); player.y = Math.max(50, Math.min(WORLD_H - 40, player.y));

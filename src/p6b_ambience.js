@@ -20,7 +20,7 @@ function ambInit() {
   };
   amb = {
     bus, lp,
-    wind: mkBed(brownBuf, 'bandpass', 420, 0.9, 0.11, 260),   // slow-swelling gusts
+    wind: mkBed(brownBuf, 'lowpass', 260, 0.3, 0.08, 70),      // soft, low gusts (no hiss)
     howl: mkBed(noiseBuf, 'bandpass', 900, 7, 0.07, 380),     // thin whistling wind
     rain: mkBed(noiseBuf, 'highpass', 3200, 0.4, 0, 0),
     patter: mkBed(noiseBuf, 'bandpass', 1500, 0.6, 0.3, 200),
@@ -89,11 +89,11 @@ function ambTick(dt) {
   const b = Math.max(0, biomeIdx), w = weather, bm = bloodMoon;
   const vol = live ? (1 - 0.45 * ambFight) * (1 - 0.6 * ambLowK) * (state === 'upgrade' ? 0.5 : 1) : 0;
   ambSet(amb.bus, 0.9 * vol);
-  ambSet(amb.wind, ([0.05, 0.08, 0.14, 0.1][b] + (w === 'storm' ? 0.12 : 0) + (w === 'blizzard' ? 0.3 : 0) + (bm ? 0.08 : 0)));
-  ambSet(amb.howl, (b === 2 ? 0.014 : 0) + (w === 'blizzard' ? 0.05 : 0) + (bm ? 0.012 : 0) + (b === 3 ? 0.008 : 0));
-  ambSet(amb.rain, w === 'storm' ? 0.07 : w === 'rain' ? 0.045 : 0);
-  ambSet(amb.patter, w === 'storm' ? 0.06 : w === 'rain' ? 0.04 : 0);
-  ambSet(amb.leaves, b <= 1 && w === 'clear' ? 0.022 : b <= 1 ? 0.012 : 0);
+  ambSet(amb.wind, ([0.02, 0.03, 0.05, 0.04][b] + (w === 'storm' ? 0.04 : 0) + (w === 'blizzard' ? 0.1 : 0) + (bm ? 0.03 : 0)));
+  ambSet(amb.howl, 0); // retired: whistling noise read as static
+  ambSet(amb.rain, w === 'storm' ? 0.04 : w === 'rain' ? 0.025 : 0);
+  ambSet(amb.patter, w === 'storm' ? 0.035 : w === 'rain' ? 0.022 : 0);
+  ambSet(amb.leaves, 0); // retired: white-noise rustle read as static
   ambSet(amb.rumble, (b === 3 ? 0.28 : 0.04) + (w === 'storm' ? 0.1 : 0) + (bm ? 0.1 : 0));
   // --- one-shots ---
   if (live && state !== 'title' && now >= ambNextOne) {

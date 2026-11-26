@@ -41,7 +41,7 @@ function resetGame() {
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   wood = 0; treesFelled = 0; camp = null; campStock = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
-  projectiles = []; meteors = []; rings = []; steeds = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
+  projectiles = []; meteors = []; rings = []; steeds = []; rarePools = []; rareKills = 0; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
   runOmen = meta.omenOn ? todaysOmen() : null;
@@ -147,6 +147,7 @@ function startWave(w) {
       }
     }
   }
+  queueRare(w); rarePools = [];
   bloodMoon = false;
   if (w >= 4 && w % 3 === 1 && Math.random() < 0.8) { // BLOOD MOON: a plain wave turns into a dark, crimson-lit swarm for double gold
     bloodMoon = true; bloodMoons++; bmT = 0;
@@ -186,6 +187,8 @@ function spawnEnemy(type) {
       flying: false, wingPhase: 0, enraged: false, volley: 0, skin: DRAGON_SKINS[biomeIdx], tail: [] };
     for (let i = 0; i < 8; i++) en.tail.push({ x: ex - i * 15, y: ey });
     sfx('roar'); shake = 12; flash('#ff7a2a', 0.25);
+  } else if (type === 'rare') {
+    en = makeRare(base, sc, ds);
   } else if (type === 'shield') {
     const hp = Math.round(135 * sc);
     en = { ...base, type, hp, maxHp: hp, speed: 112, r: 22, damage: Math.round(15 * ds), hasShield: true, shieldHits: 0, maxShieldHits: 3 };
@@ -203,7 +206,7 @@ function spawnEnemy(type) {
     en = { ...base, type: 'grunt', hp, maxHp: hp, speed: 138, r: 20, damage: Math.round(13 * ds) };
   }
   if (runOmen) { if (runOmen.spd) en.speed *= runOmen.spd; const hm = type === 'dragon' ? (runOmen.drg || 1) : (runOmen.hp || 1); if (hm !== 1) { en.hp = Math.round(en.hp * hm); en.maxHp = en.hp; } }
-  if (type !== 'dragon' && wave >= 3 && Math.random() < (bloodMoon ? 0.22 : Math.min(0.2, 0.04 + wave * 0.012))) makeElite(en);
+  if (type !== 'dragon' && type !== 'rare' && wave >= 3 && Math.random() < (bloodMoon ? 0.22 : Math.min(0.2, 0.04 + wave * 0.012))) makeElite(en);
   if (type === 'dragon') introT = 2.8;
   enemies.push(en);
   spawnBurst(ex, ey - 10, '#c9a227', 10, 'spark');
@@ -340,7 +343,7 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
   if (player.g && player.g.exec && e.hp < e.maxHp * 0.3) dmg = Math.round(dmg * 1.5);
   if (e.barrier > 0) { const ab = Math.min(e.barrier, dmg); e.barrier -= ab; dmg -= ab; e.hitFlash = 0.1; spawnBurst(e.x, e.y - 30, '#d0bfff', 6, 'spark'); if (e.barrier <= 0) addFloatText(e.x, e.y - 50, 'BARRIER DOWN', '#d0bfff', 14); if (dmg <= 0) return true; }
   e.hp -= dmg; e.hitFlash = 0.16;
-  const kb = e.type === 'dragon' ? 0.12 : (e.type === 'brute' ? 0.55 : 1);
+  const kb = e.type === 'dragon' ? 0.12 : (e.type === 'rare' ? 0.3 : (e.type === 'brute' ? 0.55 : 1));
   e.vx += Math.cos(angle) * knockback * kb; e.vy += Math.sin(angle) * knockback * kb;
   spawnBurst(e.x, e.y - 22, crit ? '#ffd43b' : '#ff4d4d', crit ? 14 : 8, 'spark');
   spawnBurst(e.x, e.y - 20, '#ff4d4d', 4, 'dot');
@@ -377,6 +380,7 @@ function killEnemy(e) {
     spawnLoot(e.x - 20, e.y + 8, 0.45); addFloatText(e.x, e.y - 70, e.eName + ' SLAIN', ELITE_AFFIX[e.eAff].col, 16);
     if (e.eAff === 'explosive' && !e.exploded) { e.exploded = true; explosionFx(e.x, e.y, 120, '#ff922b', false); if (Math.hypot(player.x - e.x, player.y - e.y) < 128) damagePlayer(e.damage, e.x, e.y); hurtAllies(e.x, e.y, 120, e.damage); }
   } else if (e.type !== 'dragon' && Math.random() < 0.035 * (1 + gM().luck)) spawnLoot(e.x - 16, e.y + 8, 0);
+  if (e.rare) rareSlain(e);
   if (player.evo && player.evo.aegis) { healPlayer(Math.round(player.maxHp * 0.06)); player.barrier = 1.5; }
   if (e.type === 'dragon') { bossKills++; spawnLoot(e.x - 40, e.y + 14, 1); spawnLoot(e.x + 40, e.y + 14, 0.8); }
   if (e.type === 'bomber' && !e.exploded) {

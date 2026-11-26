@@ -100,6 +100,7 @@ function lightingPass() {
   if (village) for (const h of village.houses) { if (h.dead) add(h.x, h.y - 14, 150 + 20 * Math.sin(time * 9 + h.x), 0.9); else { add(h.x - 22, h.y - 28, 100, 0.7); add(h.x + 22, h.y - 28, 100, 0.7); } }
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) add(e.x, e.y - 40, e.enraged ? 340 : 260, 0.95); }
+    else if (e.rare) add(e.x, e.y - 40 - (e.hop || 0), 200, 0.9);
     else if (e.elite) add(e.x, e.y - 24, 130, 0.8);
     else if (e.type === 'bomber' && e.fuse > 0) add(e.x, e.y - 24, 130, 1);
   }
@@ -111,6 +112,7 @@ function lightingPass() {
   if (biomeIdx === 3) for (const L of lavaLights) add(L.x, L.y, 95 + 12 * Math.sin(time * 3 + L.x), 0.55);
   for (const f of flies) add(f.x, f.y - 14, 60, 0.65);
   for (const n of novas) add(n.x, n.y, n.r + 40, 0.5);
+  for (const p of rarePools) if (p.warn <= 0) add(p.x, p.y, p.r * 1.8, Math.min(1, p.life) * 0.9);
   l.globalCompositeOperation = 'source-over'; l.globalAlpha = 1;
   ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.drawImage(lightCv, 0, 0, W, H); ctx.restore();
 }

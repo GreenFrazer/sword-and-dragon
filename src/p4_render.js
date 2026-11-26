@@ -73,6 +73,7 @@ function render() {
       ctx.beginPath(); ctx.ellipse(e.x, e.y, 110, 80, 0, 0, TAU); ctx.fill(); ctx.stroke();
     }
   }
+  drawRareGround();
   // meteor warning rings
   for (const m of meteors) {
     ctx.strokeStyle = `rgba(255,120,30,${0.45 + 0.3 * Math.sin(time * 22)})`; ctx.fillStyle = 'rgba(255,90,20,0.12)'; ctx.lineWidth = 3;
@@ -107,6 +108,7 @@ function render() {
   for (const s of steeds) dr.push({ y: s.y, f: () => drawSteed(s) });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
+    else if (e.rare) dr.push({ y: e.y, f: () => drawRare(e) });
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
   }
   for (const p of projectiles) dr.push({ y: p.y, f: () => drawProjectile(p) });
@@ -216,7 +218,7 @@ function render() {
     ctx.strokeText(bannerSub, W / 2, H * 0.3 + 30); ctx.fillText(bannerSub, W / 2, H * 0.3 + 30);
     ctx.globalAlpha = 1;
   }
-  drawVillageIndicator();
+  drawVillageIndicator(); drawRareIndicator();
   drawIntro();
   drawSlain(); drawImpactScreen();
   if (joy.active) {
@@ -236,6 +238,7 @@ function drawMinimap() {
   mctx.fillStyle = '#c86a2a'; for (const p of props) mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 3, 3);
   for (const e of enemies) {
     if (e.type === 'dragon') { mctx.fillStyle = '#ff2a2a'; mctx.beginPath(); mctx.arc(e.x * sx, e.y * sy, 5, 0, TAU); mctx.fill(); }
+    else if (e.rare) { mctx.fillStyle = '#f8f9fa'; mctx.strokeStyle = '#111'; mctx.lineWidth = 1; mctx.beginPath(); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU - Math.PI / 2, rr = i % 2 ? 2.6 : 6; mctx.lineTo(e.x * sx + Math.cos(a) * rr, e.y * sy + Math.sin(a) * rr); } mctx.closePath(); mctx.fill(); mctx.stroke(); }
     else { mctx.fillStyle = e.type === 'archer' ? '#69db7c' : (e.type === 'bomber' ? '#ff922b' : '#ff6b6b'); mctx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4); }
   }
   if (camp) { mctx.fillStyle = '#e8a65a'; mctx.fillRect(camp.x * sx - 3, camp.y * sy - 3, 6, 5); }
@@ -371,8 +374,8 @@ function drawPickup(pk) {
   }
 }
 
-const TYPE_COL = { grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
-const EYE_COL = { grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
+const TYPE_COL = { rare: '#3b3f4a', grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
+const EYE_COL = { rare: '#e7f5ff', grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
 
 // ---------- procedural character animation: bob, lean, squash & stretch, lunge, springs, footsteps ----------
 function charAnim(ent, isPlayer) {
@@ -400,7 +403,7 @@ function charAnim(ent, isPlayer) {
   return a;
 }
 function drawHumanoid(ent, isPlayer) {
-  const type = ent.type, scale = type === 'brute' ? 1.22 : (type === 'bomber' ? 0.9 : 1);
+  const type = ent.type, scale = type === 'rare' ? 1.7 : type === 'brute' ? 1.22 : (type === 'bomber' ? 0.9 : 1);
   const ride = isPlayer && ent.mount; // in the saddle: the horse casts the shadow and the legs hang still
   ctx.save(); ctx.translate(ent.x, ent.y); ctx.scale(scale, scale);
   if (!ride) { ctx.fillStyle = 'rgba(0,0,0,0.34)'; ctx.beginPath(); ctx.ellipse(0, 4, 18, 10, 0, 0, TAU); ctx.fill(); }
@@ -715,7 +718,10 @@ function updateHUD() {
   setStyle('foe-ring', 'strokeDashoffset', (169.6 * (hudFx.tot ? foes / hudFx.tot : 1)).toFixed(1));
   setClass('hud-foes', 'clear', foes === 0);
   const boss = enemies.find(e => e.type === 'dragon');
+  const rare = boss ? null : enemies.find(e => e.rare);
+  setClass('boss-hud', 'rare', !!rare);
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }
+  else if (rare) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', '★ ' + rare.name + (rare.fleeing ? ' — FLEEING' : (rare.cast ? ' — ' + RARE_ABIL[rare.cast.id] : ' · Rare'))); setStyle('boss-bar-fill', 'width', `${Math.max(0, rare.hp / rare.maxHp * 100)}%`); }
   else setStyle('boss-hud', 'display', 'none');
   if (player.dashCd > 0) { setStyle('cd-dash', 'display', 'flex'); setText('cd-dash', player.dashCd.toFixed(1)); } else setStyle('cd-dash', 'display', 'none');
   if (player.spinCd > 0) { setStyle('cd-spin', 'display', 'flex'); setText('cd-spin', player.spinCd.toFixed(1)); } else setStyle('cd-spin', 'display', 'none');

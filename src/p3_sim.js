@@ -192,9 +192,11 @@ function stepSimulation(dt) {
     if (e.type === 'dragon') updateDragon(e, edt);
     else if (e.type === 'archer') updateArcher(e, edt);
     else if (e.type === 'bomber') updateBomber(e, edt);
+    else if (e.type === 'rare') updateRare(e, edt);
     else updateMelee(e, edt);
   });
   separateEnemies();
+  stepRare(edt);
 
   // --- projectiles ---
   for (let i = projectiles.length - 1; i >= 0; i--) {

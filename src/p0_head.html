@@ -52,6 +52,10 @@
   .recruit-btn:hover { background: #2f5a2f; }
   .recruit-btn b { display: block; font-size: 14px; color: #b2f2bb; margin-bottom: 2px; }
   #boss-hud { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); width: min(460px, 70vw); display: none; flex-direction: column; align-items: center; background: rgba(30, 12, 12, 0.88); border: 2px solid #e03131; border-radius: 10px; padding: 6px 14px; pointer-events: none; z-index: 10; }
+  #boss-hud.rare { background: rgba(16, 18, 26, 0.9); border-color: #ced4da; box-shadow: 0 0 0 2px #495057, 0 0 18px rgba(222,226,230,0.35); }
+  #boss-hud.rare #boss-name { color: #f1f3f5; text-transform: none; }
+  #boss-hud.rare #boss-bar-wrap { border-color: #ced4da; background: #14161c; }
+  #boss-hud.rare #boss-bar-fill { background: linear-gradient(90deg, #868e96, #f8f9fa); }
   #boss-name { color: #ff8787; font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
   #boss-bar-wrap { width: 100%; height: 14px; background: #1f0a0a; border: 1px solid #fa5252; border-radius: 7px; overflow: hidden; margin-top: 4px; position: relative; }
   #boss-bar-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #d9480f, #ff922b); transition: width 0.1s; }

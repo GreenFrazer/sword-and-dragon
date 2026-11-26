@@ -61,7 +61,7 @@ function renderMenu() {
     }).join('') + `</div><div class="tm-pd" style="margin:14px 0 4px">${storageOK ? 'Progress saves in this browser.' : '⚠ This viewer blocks saving.'} Back up your progress with this code and paste it back later (or on another device):</div><textarea id="tm-code" rows="2" spellcheck="false">${metaCode()}</textarea><button class="tm-buy" id="tm-load" style="margin-top:6px">LOAD CODE</button><span id="tm-codemsg" style="margin-left:10px;font-size:11px;color:#ffb347"></span>`;
   } else {
     const K = [['W A S D', 'Move'], ['SPACE', 'Dash'], ['E', 'Spin'], ['Q', 'Meteor Storm'], ['F', 'Cast (3 charges)'], ['P', 'Pause'], ['M', 'Mute'], ['G', 'Hero (title screen)']];
-    h = `<div class="tm-ph">CHRONICLE</div><div class="tm-pd">Your sword strikes on its own &mdash; you decide where to stand.</div><div class="tm-keys-grid">` + K.map(k => `<div class="tm-k"><span class="tm-cap">${k[0]}</span>${k[1]}</div>`).join('') + `<div class="tm-k"><span class="tm-cap">DRAG</span>Touch move</div></div><ul class="tm-tips">` + TIPS.slice(0, 5).map(t => `<li>${t}</li>`).join('') + '</ul>';
+    h = `<div class="tm-ph">CHRONICLE</div><div class="tm-pd">Your sword strikes on its own &mdash; you decide where to stand.</div><div class="tm-keys-grid">` + K.map(k => `<div class="tm-k"><span class="tm-cap">${k[0]}</span>${k[1]}</div>`).join('') + `<div class="tm-k"><span class="tm-cap">DRAG</span>Touch move</div></div><ul class="tm-tips">` + TIPS.slice(0, 5).map(t => `<li>${t}</li>`).join('') + '</ul>' + featsHtml();
   }
   if (id !== 'play') h += '<button class="tm-back show" id="tm-back">◀ BACK TO MENU</button>';
   p.innerHTML = h;
@@ -84,6 +84,7 @@ function loadCode(str) {
     meta.embers = num(o.m.embers, 1e7);
     for (const f of FORGE) meta[f.id] = num(o.m[f.id], f.max);
     meta.hero = o.m.hero === 'f' ? 'f' : 'm';
+    meta.feats = {}; if (o.m.feats) for (const f of FEATS) if (o.m.feats[f.id] === true) meta.feats[f.id] = true;
     meta.unlocked = { sword: true };
     for (const k of Object.keys(WEAPONS)) if (o.m.unlocked && o.m.unlocked[k] === true) meta.unlocked[k] = true;
     if (Number.isFinite(o.b) && o.b > bestWave) { bestWave = Math.min(9999, Math.floor(o.b)); try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
@@ -174,3 +175,38 @@ function drawRunCard(earned) {
     try { await navigator.clipboard.writeText(text + ' ' + url); b.textContent = '✔ COPIED — PASTE IT TO A FRIEND'; } catch (e) { b.textContent = 'LONG-PRESS THE CARD TO SAVE IT'; }
   });
 })();
+
+// ======================= DEEDS (feats): persistent goals that pay embers =======================
+const FEATS = [
+  { id: 'w5', name: 'First Blood', desc: 'Reach wave 5', e: 20, t: () => wave >= 5 },
+  { id: 'w10', name: 'Hold the Line', desc: 'Reach wave 10', e: 50, t: () => wave >= 10 },
+  { id: 'w20', name: 'Unbroken', desc: 'Reach wave 20', e: 150, t: () => wave >= 20 },
+  { id: 'dr1', name: 'Wyrmslayer', desc: 'Slay a dragon', e: 40, t: () => bossKills >= 1 },
+  { id: 'dr3', name: 'Scourge of Wyrms', desc: 'Slay 3 dragons in one run', e: 120, t: () => bossKills >= 3 },
+  { id: 'k100', name: 'Reaper', desc: 'Slay 100 foes in one run', e: 40, t: () => kills >= 100 },
+  { id: 'k500', name: 'Harvest of Ash', desc: 'Slay 500 foes in one run', e: 160, t: () => kills >= 500 },
+  { id: 'c25', name: 'Unstoppable', desc: 'Reach a combo of 25', e: 40, t: () => bestCombo >= 25 },
+  { id: 'c60', name: 'Whirlwind', desc: 'Reach a combo of 60', e: 120, t: () => bestCombo >= 60 },
+  { id: 'fr', name: 'Wyrmfire Born', desc: 'Ignite Wyrmfire Frenzy', e: 30, t: () => frenzyCount >= 1 },
+  { id: 'bm', name: 'Under the Red Moon', desc: 'Survive a Blood Moon', e: 40, t: () => bloodMoons >= 1 && !bloodMoon },
+  { id: 'gd', name: 'Dragon\'s Hoard', desc: 'Hold 1000 gold', e: 50, t: () => gold >= 1000 }
+];
+var featT = 0, featQ = [], featShow = 0;
+function featsDone() { return FEATS.filter(f => meta.feats && meta.feats[f.id]).length; }
+function stepFeats(dt) {
+  if (state === 'play' && (featT -= dt) <= 0) {
+    featT = 0.5;
+    if (!meta.feats) meta.feats = {};
+    for (const f of FEATS) if (!meta.feats[f.id]) { let ok = false; try { ok = f.t(); } catch (e) {} if (ok) { meta.feats[f.id] = true; meta.embers += f.e; saveMeta(); featQ.push(f); } }
+  }
+  if (featShow > 0) { featShow -= dt; if (featShow <= 0) { const t = $('feat-toast'); if (t) t.style.top = '-120px'; } }
+  else if (featQ.length) {
+    const f = featQ.shift(), t = $('feat-toast'); featShow = 3.2;
+    if (t) { t.innerHTML = `<div style="font-size:10px;letter-spacing:.3em;color:#ffb347">DEED ACHIEVED · ${featsDone()}/${FEATS.length}</div><div style="font-size:18px;font-weight:700">${f.name}</div><div style="font-size:12px;color:#c9b79c">${f.desc} — <b style="color:#ffd76a">+${f.e} embers</b></div>`; t.style.top = '64px'; }
+    try { sfx('legend'); } catch (e) {}
+  }
+}
+function featsHtml() {
+  const d = featsDone();
+  return `<div class="tm-ph" style="margin-top:18px">DEEDS <span class="tm-bal" style="margin-left:auto;font-size:13px">${d} / ${FEATS.length}</span></div><div class="tm-keys-grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">` + FEATS.map(f => { const on = meta.feats && meta.feats[f.id]; return `<div class="tm-k" style="opacity:${on ? 1 : .55};border-left:3px solid ${on ? '#ffb347' : '#4a3d3a'}"><span style="margin-right:8px">${on ? '🏆' : '🔒'}</span><span><b>${f.name}</b><br><small>${f.desc} · +${f.e} embers</small></span></div>`; }).join('') + '</div>';
+}

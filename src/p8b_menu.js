@@ -168,7 +168,7 @@ function beginRun() {
 function renderTitleMenu() { renderMenu(); }
 function showTitle() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
-  state = 'title'; panelFocus = false; menuIdx = 0; subIdx = 0; beginning = false;
+  state = 'title'; panelFocus = false; menuIdx = 0; subIdx = 0; beginning = false; if (typeof coachHide === 'function') coachHide();
   $('title-modal').style.display = 'flex'; renderMenu();
 }
 
@@ -250,6 +250,7 @@ function featsHtml() {
 // ---------- game over: a reason to go again, and the Forge right where you fell ----------
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 function renderGameOver(earned, prevBest) {
+  coachHide();
   const rec = wave > prevBest && prevBest > 0, toBeat = prevBest + 1 - wave, nextDragon = Math.ceil(wave / 3) * 3;
   const t = $('go-title'); t.textContent = rec ? 'NEW RECORD · WAVE ' + wave : 'FALLEN ON WAVE ' + wave; setClassOn(t, 'rec', rec);
   let hook = prevBest === 0 ? 'Your first hunt is over. Every run earns embers; spend them and you will go further.'
@@ -274,3 +275,52 @@ function renderGoOffer(earned, bought) {
   box.innerHTML = h;
   box.querySelectorAll('.go-f').forEach(b => { b.onclick = () => { const f = FORGE[+b.dataset.f]; buyForge(+b.dataset.f); flash('#ffb347', 0.25); $('go-code').value = metaCode(); renderGoOffer(earned, f.name); }; });
 }
+
+// ======================= COACHED FIRST HUNT =======================
+// A short field guide on the very first run. Each step waits until the player has actually done it.
+var coach = null, coachDone = false;
+try { coachDone = localStorage.getItem('swordDragonCoach') === '1'; } catch (e) {}
+function coachTouch() { return typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false; }
+const COACH = [
+  { t: () => coachTouch() ? 'DRAG ANYWHERE TO MOVE<em>Your finger is the hero\'s compass.</em>' : 'MOVE WITH WASD OR THE ARROWS<em>Or click and drag on the field.</em>', hand: true, done: c => Math.hypot(player.x - c.x, player.y - c.y) > 150 },
+  { t: () => 'YOUR BLADE STRIKES ON ITS OWN<em>Walk into the goblins. Swings also bat arrows back.</em>', done: c => kills >= c.k + 2 },
+  { t: () => (coachTouch() ? 'TAP DASH' : 'PRESS SPACE TO DASH') + ' TO SLIP PAST DANGER<em>A burst of speed, and you can\'t be hit mid-dash.</em>', btn: 'btn-dash', done: () => player.dashCd > 0, wait: 660 },
+  { t: () => (coachTouch() ? 'TAP CAST' : 'PRESS F TO CAST') + ' FOR A PIERCING BOLT<em>Three charges that refill over time.</em>', btn: 'btn-cast', done: () => player.cast < 3, wait: 660 },
+  { t: () => 'CLEAR THE WAVE<em>Every third wave, a dragon comes. Good hunting.</em>', done: c => c.f > 240 }
+];
+function coachShow() {
+  const st = COACH[coach.step];
+  $('co-text').innerHTML = st.t();
+  $('co-step').textContent = 'FIELD GUIDE';
+  $('co-dots').innerHTML = COACH.map((_, i) => i <= coach.step ? '<b>◆</b>' : '◇').join('');
+  const pl = $('coach').querySelector('.co-plate'); if (pl && pl.style) { pl.style.animation = 'none'; void pl.offsetWidth; pl.style.animation = ''; }
+  setClassOn($('co-hand'), 'on', !!st.hand);
+  ['btn-dash', 'btn-cast'].forEach(id => setClassOn($(id), 'coach-hi', st.btn === id));
+  if (coach.step) sfx('block');
+}
+function coachHide() {
+  setClassOn($('coach'), 'on', false); setClassOn($('co-hand'), 'on', false);
+  ['btn-dash', 'btn-cast'].forEach(id => setClassOn($(id), 'coach-hi', false));
+}
+function coachFinish() {
+  coachDone = true; coach = null; coachHide();
+  try { localStorage.setItem('swordDragonCoach', '1'); } catch (e) {}
+}
+function coachTick() {
+  if (coachDone || state !== 'play') return;
+  if (!coach || coach.p !== player) {
+    if (wave !== 1 || bestWave > 1) { coachDone = true; return; } // returning players skip it
+    coach = { p: player, step: 0, f: 0, x: player.x, y: player.y, k: kills };
+    setClassOn($('coach'), 'on', true); coachShow(); return;
+  }
+  coach.f++;
+  const low = !!village || enemies.some(e => e.type === 'dragon'); // make room for the village / boss bar
+  if (coach.low !== low) { coach.low = low; setClassOn($('coach'), 'low', low); }
+  const st = COACH[coach.step];
+  if (st.done(coach) || (st.wait && coach.f > st.wait)) {
+    coach.step++; coach.f = 0; coach.k = kills;
+    if (coach.step >= COACH.length) { coachFinish(); return; }
+    coachShow();
+  }
+}
+(function () { const b = $('co-skip'); if (b && b.addEventListener) b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); coachFinish(); }); })();

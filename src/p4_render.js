@@ -682,6 +682,7 @@ function setStyle(id, prop, v) { const k = id + prop; if (hudCache[k] === v) ret
 function setClass(id, cls, on) { const k = id + '.' + cls; if (hudCache[k] === on) return; hudCache[k] = on; $(id).classList[on ? 'add' : 'remove'](cls); }
 
 function updateHUD() {
+  if (typeof coachTick === 'function') coachTick();
   setStyle('pausebtn', 'display', 'block');
   setText('hp-text', `${Math.ceil(player.hp)} / ${player.maxHp}`);
   const hpR = Math.max(0, Math.min(1, player.hp / player.maxHp));

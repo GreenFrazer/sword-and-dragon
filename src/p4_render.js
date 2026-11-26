@@ -175,7 +175,7 @@ function render() {
     ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
   }
   ctx.globalAlpha = 1;
-  drawSlainWorld();
+  drawSlainWorld(); drawImpactWorld();
   ctx.restore();
 
   // ---------- screen-space overlays ----------
@@ -210,7 +210,7 @@ function render() {
   }
   drawVillageIndicator();
   drawIntro();
-  drawSlain();
+  drawSlain(); drawImpactScreen();
   if (joy.active) {
     ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(joy.sx, joy.sy, 55, 0, TAU); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.arc(joy.sx + joy.dx * 55, joy.sy + joy.dy * 55, 22, 0, TAU); ctx.fill();

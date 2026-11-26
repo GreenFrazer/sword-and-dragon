@@ -37,7 +37,7 @@ function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
   wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
-  shake = hitStop = slowT = zoomKick = flashA = slainT = 0; clearTimer = null; ultReadyShown = false;
+  shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
   enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
@@ -288,7 +288,7 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
   e.vx += Math.cos(angle) * knockback * kb; e.vy += Math.sin(angle) * knockback * kb;
   spawnBurst(e.x, e.y - 22, crit ? '#ffd43b' : '#ff4d4d', crit ? 14 : 8, 'spark');
   spawnBurst(e.x, e.y - 20, '#ff4d4d', 4, 'dot');
-  if (crit) { addRing(e.x, e.y - 20, 40, '#ffd43b', 0.25, 4); sfx('crit'); } else sfx('hit');
+  if (crit) { addRing(e.x, e.y - 20, 40, '#ffd43b', 0.25, 4); sfx('crit'); critImpact(e.x, e.y); } else sfx('hit');
   addFloatText(e.x, e.y - 30, crit ? `-${dmg}!` : `-${dmg}`, crit ? '#ffd43b' : '#fff', crit ? 24 : 16);
   gainUlt(crit ? 4 : 2.2);
   if (e.hp <= 0) killEnemy(e);

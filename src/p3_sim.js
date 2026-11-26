@@ -376,7 +376,7 @@ function enrageDragon(d) {
 let lastTime = performance.now();
 function update(now) {
   const rdt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now;
-  time += rdt; if (introT > 0) introT -= rdt; if (slainT > 0) slainT -= rdt;
+  time += rdt; if (introT > 0) introT -= rdt; if (slainT > 0) slainT -= rdt; if (impactT > 0) impactT -= rdt; if (impactCd > 0) impactCd -= rdt;
   let dt = rdt;
   if (slowT > 0) { slowT -= rdt; dt = rdt * 0.3; }
   if (introT > 0 && state === 'play') dt = Math.min(dt, rdt * 0.35);

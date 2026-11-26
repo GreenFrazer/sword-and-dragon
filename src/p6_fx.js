@@ -1,5 +1,5 @@
 // ======================= VISUAL FX: lighting, bloom, weather, fog, grass, ponds, intro, music =======================
-var slainT = 0, slainX = 0, slainY = 0, slainName = '';
+var impactT = 0, impactX = 0, impactY = 0, impactCd = 0, slainT = 0, slainX = 0, slainY = 0, slainName = '';
 let weather = 'clear', wxDrops = [], fogBlobs = [], flies = [], introT = 0, nextBolt = 4, lightFlash = 0;
 let lightCv = null, lightCtx = null, bloomCv = null, bloomCtx = null, lightSpr = null, shX = 0, shY = 0;
 const NIGHT = [[8, 16, 44], [36, 14, 30], [12, 26, 72], [38, 6, 6]];
@@ -494,5 +494,38 @@ function drawSlain() { // screen space
   const sw = ((el - 0.5) / 1.1); if (sw > 0 && sw < 1) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.fillRect(-fs * 3.4 + sw * fs * 6.8, -fs * 0.8, fs * 0.22, fs); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; }
   if (el > 0.6) { ctx.globalAlpha = Math.min(1, (el - 0.6) / 0.5) * fade; ctx.font = `700 ${Math.max(13, fs * 0.26)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ffe9b0'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
     const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.92 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+
+
+// ---------- CRIT IMPACT FRAME: freeze, starburst, speed lines, desaturating punch ----------
+const IMPACT_LEN = 0.22;
+function critImpact(x, y) {
+  if (impactCd > 0 || state !== 'play') return;
+  impactCd = 0.35; impactT = IMPACT_LEN; impactX = x; impactY = y;
+  hitStop = Math.max(hitStop, 0.07); zoomKick = Math.max(zoomKick, 0.025); shake = Math.max(shake, 7);
+}
+function drawImpactWorld() {
+  if (impactT <= 0) return;
+  const k = 1 - impactT / IMPACT_LEN, a = 1 - k, y = impactY - 22;
+  ctx.save(); ctx.translate(impactX, y); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff6c8';
+  const n = 10, rot = impactX * 0.01;
+  for (let i = 0; i < n; i++) {
+    const ang = rot + i * TAU / n, L = (i % 2 ? 46 : 84) * (0.4 + k * 0.9), w = 5 * a;
+    ctx.save(); ctx.rotate(ang); ctx.globalAlpha = a; ctx.beginPath(); ctx.moveTo(8, -w); ctx.lineTo(8 + L, 0); ctx.lineTo(8, w); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+  drawGlow(impactX, y, 60 * (1 - k * 0.5), '#ffffff', a);
+}
+function drawImpactScreen() {
+  if (impactT <= 0) return;
+  const el = IMPACT_LEN - impactT, k = el / IMPACT_LEN, a = 1 - k, p = worldToScreen(impactX, impactY - 22);
+  if (el < 0.09) { ctx.globalCompositeOperation = 'saturation'; ctx.globalAlpha = 0.75 * (1 - el / 0.09); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  const R = Math.hypot(W, H), r0 = R * (0.12 + k * 0.1);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.strokeStyle = '#fff'; ctx.lineCap = 'round'; ctx.globalAlpha = a * 0.55;
+  for (let i = 0; i < 26; i++) {
+    const h = Math.sin(i * 91.7) * 43758.5, ang = (h - Math.floor(h)) * TAU, len = R * (0.18 + ((i * 37) % 10) / 40);
+    ctx.lineWidth = 1 + (i % 3); ctx.beginPath(); ctx.moveTo(Math.cos(ang) * r0, Math.sin(ang) * r0); ctx.lineTo(Math.cos(ang) * (r0 + len), Math.sin(ang) * (r0 + len)); ctx.stroke();
+  }
   ctx.restore(); ctx.globalAlpha = 1;
 }

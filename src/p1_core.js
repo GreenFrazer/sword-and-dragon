@@ -421,6 +421,7 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (state === 'title') { menuKey(e); return; }
   if (e.code === 'Enter' && state === 'gameover') { restartGame(); return; }
+  if (state === 'upgrade' && /^(Digit|Numpad)[1-3]$/.test(e.code)) { const c = $('card-container').children[+e.code.slice(-1) - 1]; if (c && c.onclick) c.onclick(); return; }
   if (e.code === 'Space') triggerDash();
   if (e.code === 'KeyE') triggerSpin();
   if (e.code === 'KeyQ') triggerUlt();

@@ -175,23 +175,38 @@ function triggerCast() {
 }
 
 // ---------- level-up cards (blessings + evolutions) ----------
+const BLESS_CAT = { dmg: { n: 'OFFENCE', c: '#ff7a3c' }, cleave: { n: 'OFFENCE', c: '#ff7a3c' }, crit: { n: 'OFFENCE', c: '#ff7a3c' }, lightning: { n: 'OFFENCE', c: '#ff7a3c' },
+  vamp: { n: 'DEFENCE', c: '#ff5d73' }, armor: { n: 'DEFENCE', c: '#ff5d73' },
+  swift: { n: 'UTILITY', c: '#5fb8ff' }, squad: { n: 'UTILITY', c: '#5fb8ff' }, arcane: { n: 'ARCANE', c: '#b197fc' }, evo: { n: 'EVOLUTION', c: '#ffd43b' } };
 function openUpgradeModal() {
   state = 'upgrade'; sfx('upgrade'); tickWaveTimers();
   const box = $('card-container'); box.innerHTML = '';
   const evo = availableEvos()[0];
   const pool = UPGRADES.filter(u => (player.upg[u.id] || 0) < u.max && (u.id !== 'squad' || companions.length > 0)).sort(() => Math.random() - 0.5).slice(0, evo ? 2 : 3);
   const cards = []; if (evo) cards.push(Object.assign({ evo: true }, evo)); pool.forEach(u => cards.push(u));
-  cards.forEach(u => {
-    const taken = player.upg[u.id] || 0;
+  let picked = false;
+  cards.forEach((u, ci) => {
+    const taken = player.upg[u.id] || 0, cat = u.evo ? BLESS_CAT.evo : (BLESS_CAT[u.id] || BLESS_CAT.swift);
     const card = document.createElement('div'); card.className = u.evo ? 'card evo' : 'card';
-    const lvl = u.evo ? '★ EVOLUTION ★' : (u.max < 99 ? `Level ${taken} → ${taken + 1} / ${u.max}` : `Taken ×${taken}`);
-    card.innerHTML = `<div class="card-icon">${u.icon}</div><div class="card-title">${u.title}</div><div class="card-desc">${u.desc}</div><div class="card-lvl">${lvl}</div>`;
+    if (card.style.setProperty) card.style.setProperty('--cc', cat.c);
+    card.style.animationDelay = (ci * 0.12) + 's';
+    let lvl;
+    if (u.evo) lvl = '<div class="bc-rank">★ EVOLUTION ★</div>';
+    else if (u.max < 99) { lvl = '<div class="bc-pips">'; for (let i = 0; i < u.max; i++) lvl += `<i class="${i < taken ? 'on' : i === taken ? 'next' : ''}"></i>`; lvl += '</div>'; }
+    else lvl = `<div class="bc-rank">RANK ${taken + 1}</div>`;
+    card.innerHTML = `<span class="bc-key">${ci + 1}</span><span class="bc-cat">${cat.n}</span><div class="bc-sig">${u.icon}</div><div class="card-title">${u.title}</div><div class="card-desc">${u.desc}</div>${lvl}`;
     card.onclick = () => {
-      if (u.evo) { player.evo[u.id] = true; sfx('legend'); flash('#ffd43b', 0.4); } else applyUpgrade(u.id);
-      $('upgrade-modal').style.display = 'none'; openMerchant();
+      if (picked) return; picked = true;
+      if (u.evo) { player.evo[u.id] = true; sfx('legend'); flash('#ffd43b', 0.4); } else { applyUpgrade(u.id); sfx('block'); }
+      // the chosen card flares, the others fall away, then on to the merchant
+      [...box.children].forEach(c => c.classList.add(c === card ? 'chosen' : 'spurned'));
+      setTimeout(() => { $('upgrade-modal').style.display = 'none'; openMerchant(); }, 420);
     };
     box.appendChild(card);
   });
+  const bl = Object.keys(player.upg).filter(k => player.upg[k] > 0).map(k => { const u = UPGRADES.find(x => x.id === k); return u ? `<span class="ub" title="${u.title}">${u.icon}<b>${player.upg[k]}</b></span>` : ''; }).join('')
+    + Object.keys(player.evo).filter(k => player.evo[k]).map(k => { const e = EVOS.find(x => x.id === k); return e ? `<span class="ub" title="${e.title}">${e.icon}<b>★</b></span>` : ''; }).join('');
+  $('up-build').innerHTML = bl ? '<span>YOUR BUILD</span>' + bl : '';
   const title = villageResult === 'saved' ? 'VILLAGE SAVED!' : (villageResult === 'lost' ? 'THE VILLAGE BURNED' : 'WAVE CLEARED!');
   $('up-title').textContent = title;
   $('up-sub').textContent = villageResult === 'saved' ? `Grateful villagers reward you with ${village.bonus} gold.${pendingRecruit ? ' One of them offers to fight at your side!' : ''} Then choose a blessing, then visit the merchant.`

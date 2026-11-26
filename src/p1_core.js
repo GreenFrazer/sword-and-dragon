@@ -9,6 +9,7 @@ const TAU = Math.PI * 2;
 
 var storageOK = (function () { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })();
 var bloodMoon = false, bloodMoons = 0, bmT = 0;
+var wood = 0, treesFelled = 0, WOOD_MAX = 12, treeFx = 0;
 var fxDirty = true, ponds = [], grassBlades = [], lavaLights = [];
 let W = 0, H = 0, DPR = 1, vig = null;
 function resizeCanvas() {
@@ -187,6 +188,13 @@ function sfx(name, wx, wy) {
       nz({ dur: 0.16, vol: v(0.2), atk: 0.04, fl: [500, 3800, 1.6, 'bandpass'], pan, rev: 0.1 });
       nz({ dur: 0.12, vol: v(0.07), atk: 0.01, fl: [6000, 2500, 0.8, 'highpass'], pan });
       voice({ f: 200, slide: 90, dur: 0.12, type: 'sawtooth', vol: v(0.035), fl: [1500, 300, 1], ...P }); break;
+    case 'chop':
+      voice({ f: 150, slide: 70, dur: 0.1, type: 'triangle', vol: v(0.3), ...P });
+      nz({ dur: 0.05, vol: v(0.22), fl: [2400, 500, 1.2], pan, rev: 0.05 });
+      voice({ f: 520, slide: 240, dur: 0.04, type: 'square', vol: v(0.04), ...P }); break;
+    case 'timber':
+      voice({ f: 90, slide: 38, dur: 0.38, type: 'sawtooth', vol: v(0.2), fl: [900, 120, 1], ...P });
+      nz({ dur: 0.3, vol: v(0.2), fl: [1800, 200, 0.8], brown: true, pan, rev: 0.2 }); break;
     case 'hit':
       voice({ f: 190, slide: 52, dur: 0.14, type: 'sine', vol: v(0.3), ...P });
       nz({ dur: 0.07, vol: v(0.28), fl: [3800, 700, 0.8], pan, rev: 0.12 });

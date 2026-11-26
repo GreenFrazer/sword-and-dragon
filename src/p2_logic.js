@@ -40,7 +40,7 @@ function resetGame() {
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
-  enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
+  wood = 0; treesFelled = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
@@ -60,8 +60,40 @@ function generateEnvironment() {
   for (let i = 0; i < 28; i++) {
     const tx = rand(80, WORLD_W - 80), ty = rand(90, WORLD_H - 80);
     if (Math.hypot(tx - WORLD_W / 2, ty - WORLD_H / 2) < 230) continue;
-    trees.push({ x: tx, y: ty, r: rand(26, 36), sway: rand(0, 6) });
+    trees.push({ x: tx, y: ty, r: rand(26, 36), sway: rand(0, 6), hp: TREE_HP, fell: 0, regrow: 0, grow: 1, shake: 0, dir: 1 });
   }
+}
+var TREE_HP = 84;
+// ---------- timber: chop trees into wood piles ----------
+function treeAlive(t) { return t.fell <= 0 && t.regrow <= 0; }
+function chopTree(t, dmg, fromX) {
+  if (!treeAlive(t)) return;
+  t.hp -= dmg; t.shake = 0.28; t.dir = (fromX != null && fromX > t.x) ? -1 : 1;
+  const lc = Math.random() < 0.5 ? biome.leaf1 : biome.leaf2;
+  spawnBurst(t.x + rand(-10, 10), t.y - 40, lc, 4, 'dot'); spawnBurst(t.x, t.y - 14, '#d9b27c', 3, 'spark');
+  sfx('chop', t.x, t.y);
+  if (t.hp <= 0) fellTree(t);
+}
+function fellTree(t) {
+  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++;
+  sfx('timber', t.x, t.y); shake = Math.max(shake, 5);
+  spawnBurst(t.x, t.y - 44, biome.leaf1, 14, 'dot'); spawnBurst(t.x, t.y - 44, biome.leaf2, 8, 'dot'); spawnSmoke(t.x, t.y, 2);
+  const logs = 3 + (Math.random() < 0.5 ? 1 : 0);
+  if (pickups.filter(p => p.type === 'wood').length < 24)
+    pickups.push({ x: t.x + t.dir * -26, y: t.y + 12, type: 'wood', bob: rand(0, 6), n: logs });
+}
+function chopTreesInRadius(cx, cy, rad, dmg) {
+  for (const t of trees) if (treeAlive(t) && Math.hypot(t.x - cx, t.y - cy) <= rad + t.r * 0.5) chopTree(t, dmg, cx);
+}
+function tickTrees(dt) {
+  for (const t of trees) {
+    if (t.shake > 0) t.shake = Math.max(0, t.shake - dt);
+    if (t.fell > 0) t.fell = Math.max(0, t.fell - dt);
+    else if (t.regrow <= 0 && t.grow < 1) t.grow = Math.min(1, t.grow + dt / 40);
+  }
+}
+function regrowTrees() { // called once per wave
+  for (const t of trees) if (t.regrow > 0 && --t.regrow <= 0) { t.regrow = 0; t.hp = TREE_HP; t.grow = 0.45; }
 }
 function populateArenaProps() {
   props = []; hazards = [];
@@ -83,6 +115,7 @@ function startWave(w) {
     biomeIdx = bi; biome = BIOMES[bi]; generateEnvironment(); buildGround(); initAmbient();
   }
   bannerSub = biome.name;
+  regrowTrees();
   populateArenaProps();
   pickWeather();
   if (player.g && player.g.phoenix) player.phoenixUsed = false;
@@ -232,7 +265,8 @@ function gainUlt(n) {
 function healPlayer(n) { if (n > 0) player.hp = Math.min(player.maxHp, player.hp + n); }
 
 // ======================= PROPS / EXPLOSIONS =======================
-function checkPropsInRadius(cx, cy, rad) {
+function checkPropsInRadius(cx, cy, rad, noTrees) {
+  if (!noTrees) chopTreesInRadius(cx, cy, rad * 0.8, 36);
   for (let i = props.length - 1; i >= 0; i--) {
     const p = props[i];
     if (p.fuse === undefined && Math.hypot(p.x - cx, p.y - cy) <= rad + p.r) destroyProp(i);
@@ -477,6 +511,9 @@ function renderShop() {
     ['🧪 Brews & charms', '2 waves each', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
       return { key: 'b' + k, icon: b.icon, name: b.name, desc: b.desc, tag: hasBuff(k) ? `Refresh · ${activeBuffs[k]}w left` : `${b.waves} waves`, cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
+    ['🪵 Timber', `${wood} logs carried`, [
+      { key: 'w1', icon: '🪵', name: 'Sell timber', desc: `${wood} logs → ${wood * 4}G (keep some for village repairs!)`, tag: '', cost: 0, ok: () => wood > 0, no: 'No logs', fn: () => { gold += wood * 4; wood = 0; } }
+    ]],
     ['🩹 Supplies', 'Instant', [
       { key: 's1', icon: '🧪', name: 'Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, no: 'Already healthy', fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
       { key: 's2', icon: '🩹', name: 'Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), no: 'No one needs it', fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }

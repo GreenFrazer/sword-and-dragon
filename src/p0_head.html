@@ -20,7 +20,7 @@
   .panel { background: rgba(18, 22, 16, 0.80); border: 2px solid #8a7346; border-radius: 10px; padding: 8px 14px; color: #f5eedc; box-shadow: 0 4px 12px rgba(0,0,0,0.45); backdrop-filter: blur(2px); }
   .bar-wrap { width: 190px; height: 16px; background: #2b1818; border: 1px solid #6b4e31; border-radius: 8px; overflow: hidden; margin-top: 4px; }
   .bar-fill { height: 100%; background: linear-gradient(90deg, #c92a2a, #ff6b6b); transition: width 0.12s; }
-  .stats-row { display: flex; gap: 14px; font-size: 14px; font-weight: bold; margin-top: 6px; color: #ffd43b; }
+  .stats-row { display: flex; flex-wrap: nowrap; white-space: nowrap; gap: 14px; font-size: 14px; font-weight: bold; margin-top: 6px; color: #ffd43b; }
   #biome-text { font-size: 11px; color: #9ec5a0; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
   #combo { position: absolute; top: 134px; right: 14px; text-align: right; color: #ffd43b; font-weight: 900; font-size: 22px; text-shadow: 0 2px 6px #000; pointer-events: none; z-index: 10; display: none; }
   #combo.frenzy { color: #ff9f1c; font-size: 20px; text-shadow: 0 0 14px #ff6a00, 0 2px 6px #000; animation: fz .5s infinite alternate; transform-origin: right center; }
@@ -235,7 +235,7 @@
   .tm-back { display: none; margin-top: 14px; width: 100%; font-family: var(--serif); letter-spacing: 0.2em; padding: 11px; background: rgba(255,120,30,0.15); color: var(--gold); border: 1px solid var(--ember2); cursor: pointer; font-size: 12px; font-weight: 800; }
   .tm-menu-btn { margin-top: 10px; }
   @media (max-width: 960px), (pointer: coarse) { #tm-go { display: block; } .tm-back.show { display: block; } .tm-foot .tm-keys-hint { display: none; } .tm-item { min-height: 48px; } .tm-wrap { padding-bottom: 12px; } }
-  @media (max-width: 600px) { #hint { display: none; } #controls { right: 8px; bottom: 12px; gap: 8px; } .skill-btn { width: 62px; height: 62px; font-size: 11px; } .skill-btn.ult { width: 70px; height: 70px; } }
+  @media (max-width: 600px) { .stats-row { gap: 8px; font-size: 12px; } #hint { display: none; } #controls { right: 8px; bottom: 12px; gap: 8px; } .skill-btn { width: 62px; height: 62px; font-size: 11px; } .skill-btn.ult { width: 70px; height: 70px; } }
 
   .tm-xfer { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; } .tm-xfer .tm-buy { flex: 1 1 110px; }
   #tm-code { width: 100%; background: rgba(0,0,0,0.4); color: #cbbfae; border: 1px solid #4a3d3a; font-family: monospace; font-size: 10px; padding: 6px; resize: none; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
@@ -254,6 +254,7 @@
     <div class="stats-row">
       <span>WAVE <span id="wave-text">1</span></span>
       <span>GOLD <span id="gold-text">0</span></span>
+      <span>WOOD <span id="wood-text">0</span></span>
       <span>SWORD LV.<span id="sword-text">1</span></span>
     </div>
     <div id="biome-text">Emerald Meadow</div>

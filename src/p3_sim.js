@@ -131,18 +131,41 @@ function stepSimulation(dt) {
         }
       }
     });
-    checkPropsInRadius(player.x, player.y, player.range + 10);
+    checkPropsInRadius(player.x, player.y, player.range + 10, true);
     deflectProjectiles(player.x, player.y, player.range + 18);
+  }
+
+  // --- timber: chop a nearby tree when idle and nothing else is in reach ---
+  tickTrees(dt);
+  if (!(nearest && nd <= player.range) && inp.mag < 0.15 && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0 && !enemies.some(e => !e.flying && Math.hypot(e.x - player.x, e.y - player.y) - e.r < player.range + 50)) {
+    let tt = null, td = Infinity;
+    for (const t of trees) { if (!treeAlive(t)) continue; const d = Math.hypot(t.x - player.x, t.y - player.y) - 14; if (d < td) { td = d; tt = t; } }
+    if (tt && td <= player.range * 0.9) {
+      player.facing = Math.atan2(tt.y - player.y, tt.x - player.x);
+      player.atkCooldown = player.atkRate / (1 + gM().atkspd); player.atkTimer = player.atkDuration; player.atkDir *= -1;
+      slashes.push({ x: player.x, y: player.y - 20, ang: player.facing, dir: player.atkDir, life: 0.2, maxLife: 0.2, R: player.range * 0.95, color: '#d9b27c', thrust: player.cone > 0 });
+      chopTree(tt, atkDmg(), player.x);
+    }
+  }
+  // --- player tends the village with carried timber ---
+  if (village && wood > 0) {
+    player.repairT = (player.repairT || 0) - dt;
+    if (player.repairT <= 0) {
+      const h = village.houses.find(h => Math.hypot(h.x - player.x, h.y - player.y) < 80 && (h.dead ? wood >= REBUILD_COST : h.hp < h.maxHp));
+      if (h) { player.repairT = 0.6; if (h.dead) { wood -= REBUILD_COST; rebuildHouse(h); } else { wood--; repairHouse(h, 0.12); } }
+    }
   }
 
   // --- pickups (magnetised when close or after a clear) ---
   for (let i = pickups.length - 1; i >= 0; i--) {
     const pk = pickups[i]; pk.bob += dt * 4;
     const dist = Math.hypot(pk.x - player.x, pk.y - player.y);
+    if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim)) continue;
     const mag = clearTimer !== null ? 560 : (dist < 95 ? 320 : 0);
     if (mag > 0 && dist > 1) { pk.x += (player.x - pk.x) / dist * mag * dt; pk.y += (player.y - pk.y) / dist * mag * dt; }
     if (dist < 42) {
-      if (pk.type === 'loot') offerItem(pk.item);
+      if (pk.type === 'wood') { const n = Math.min(pk.n, WOOD_MAX - wood); wood += n; pk.n -= n; addFloatText(player.x, player.y - 40, `+${n} 🪵`, '#d9b27c'); sfx('coin'); if (pk.n > 0) continue; }
+      else if (pk.type === 'loot') offerItem(pk.item);
       else if (pk.type === 'gold') { gold += pk.val; addFloatText(player.x, player.y - 40, `+${pk.val}G`, '#ffd43b'); sfx('coin'); }
       else if (pk.type === 'potion') { player.hp = Math.min(player.maxHp, player.hp + 45); addFloatText(player.x, player.y - 40, '+45 HP', '#69db7c'); sfx('potion'); spawnBurst(player.x, player.y - 20, '#69db7c', 10, 'ember'); }
       else if (pk.type === 'shield') { player.shieldT = SHIELD_TIME; renderBuffHud(); addFloatText(player.x, player.y - 40, `SHIELD ${SHIELD_TIME}s!`, '#ffe066'); sfx('block'); sfx('potion'); addRing(player.x, player.y - 24, 70, '#ffe066', 0.4, 5); }
@@ -157,7 +180,7 @@ function stepSimulation(dt) {
     if (h.timer > 2.0) forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - h.x, e.y - h.y) < h.r + e.r * 0.5 && e.hitFlash <= 0) damageEnemy(e, 22, 0, 40, true); });
   }
 
-  updateCompanions(dt); updateVillage(dt);
+  updateCompanions(dt); updateVillage(dt); updateVillagers(dt);
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;
@@ -255,6 +278,7 @@ function separateEnemies() {
 }
 function pushOutOfTrees(ent, radius) {
   for (const t of trees) {
+    if (!treeAlive(t)) continue;
     const dx = ent.x - t.x, dy = ent.y - t.y, d = Math.hypot(dx, dy), min = 12 + radius;
     if (d < min) { if (d < 0.001) { ent.x += min; continue; } ent.x = t.x + dx / d * min; ent.y = t.y + dy / d * min; }
   }

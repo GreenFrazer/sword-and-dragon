@@ -570,7 +570,7 @@ function drawSunShadows() {
   const blob = (x, y, rx, ry) => { ctx.moveTo(x + rx, y); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); };
   const vis = (e) => e.x > x0 && e.x < x1 && e.y > y0 && e.y < y1;
   for (const t of trees) {
-    if (!vis(t)) continue;
+    if (!vis(t) || !treeAlive(t)) continue;
     const sw = Math.sin(time * 1.4 + t.sway) * 3;
     if (biome.tree === 'pine') { poly(t.x, t.y + 2, t.r * 0.9, 96, 3); }
     else if (biome.tree === 'dead') { poly(t.x, t.y + 2, 5, 80, 2); poly(t.x, t.y + 2, 3, 56, 8); }

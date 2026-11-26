@@ -225,8 +225,9 @@ function drawMinimap() {
   const sx = 150 / WORLD_W, sy = 117 / WORLD_H;
   mctx.clearRect(0, 0, 150, 117);
   mctx.fillStyle = biome.mini; mctx.fillRect(0, 0, 150, 117);
-  mctx.fillStyle = 'rgba(0,0,0,0.25)'; for (const t of trees) mctx.fillRect(t.x * sx - 1, t.y * sy - 1, 3, 3);
-  mctx.fillStyle = '#ffd43b'; for (const p of pickups) mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2);
+  mctx.fillStyle = 'rgba(0,0,0,0.25)'; for (const t of trees) if (treeAlive(t)) mctx.fillRect(t.x * sx - 1, t.y * sy - 1, 3, 3);
+  mctx.fillStyle = '#ffd43b'; for (const p of pickups) { if (p.type === 'wood') continue; mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2); }
+  mctx.fillStyle = '#c4894a'; for (const p of pickups) if (p.type === 'wood') mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 3, 2);
   mctx.fillStyle = '#c86a2a'; for (const p of props) mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 3, 3);
   for (const e of enemies) {
     if (e.type === 'dragon') { mctx.fillStyle = '#ff2a2a'; mctx.beginPath(); mctx.arc(e.x * sx, e.y * sy, 5, 0, TAU); mctx.fill(); }
@@ -257,8 +258,26 @@ function drawProjectile(p) {
   }
 }
 
+function drawStump(t) {
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 6, t.r * 0.5, t.r * 0.28, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = biome.trunk; ctx.fillRect(t.x - 8, t.y - 6, 16, 12);
+  ctx.fillStyle = '#d9b27c'; ctx.beginPath(); ctx.ellipse(t.x, t.y - 6, 8, 3.5, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,80,40,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(t.x, t.y - 6, 4.5, 2, 0, 0, TAU); ctx.stroke();
+}
 function drawTree(t) {
-  const sw = Math.sin(time * 1.4 + t.sway) * 2.6;
+  if (t.fell <= 0 && t.regrow > 0) { drawStump(t); return; }
+  let sw = Math.sin(time * 1.4 + t.sway) * 2.6;
+  const falling = t.fell > 0, k = falling ? 1 - t.fell / 0.55 : 0;
+  ctx.save();
+  if (falling) { drawStump(t); ctx.translate(t.x, t.y - 4); ctx.rotate(t.dir * k * k * 1.45); ctx.globalAlpha = 1 - k * k * 0.5; ctx.translate(-t.x, -t.y + 4); }
+  else {
+    if (t.grow < 1) { ctx.translate(t.x, t.y); ctx.scale(t.grow, t.grow); ctx.translate(-t.x, -t.y); }
+    if (t.shake > 0) sw += Math.sin(t.shake * 70) * t.shake * 18;
+  }
+  drawTreeBody(t, sw);
+  ctx.restore();
+}
+function drawTreeBody(t, sw) {
   ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 6, t.r * 1.1, t.r * 0.6, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = biome.trunk; ctx.fillRect(t.x - 7, t.y - 34, 14, 38);
   if (biome.tree === 'pine') {
@@ -334,6 +353,11 @@ function drawPickup(pk) {
     ctx.fillStyle = '#ffd43b'; ctx.fillRect(-1.5, -8, 3, 17); ctx.fillRect(-7, -3, 14, 3);
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-8, -9, 6, 3);
     ctx.restore();
+  } else if (pk.type === 'wood') {
+    drawGlow(pk.x, pk.y - 6, 26, '#ffd8a0', 0.28 + 0.1 * Math.sin(time * 4 + pk.bob));
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(pk.x, pk.y + 5, 24, 8, 0, 0, TAU); ctx.fill();
+    const lg = (x, y, a) => { ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-15, -4, 30, 8); ctx.fillStyle = '#d9b27c'; ctx.beginPath(); ctx.ellipse(15, 0, 3, 4, 0, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(-15, -4, 30, 2); ctx.restore(); };
+    lg(pk.x - 4, pk.y, -0.08); lg(pk.x + 3, pk.y - 7, 0.1); if (pk.n > 2) lg(pk.x - 1, pk.y - 13, -0.04); if (pk.n > 3) lg(pk.x + 6, pk.y - 5, 0.3);
   } else {
     drawGlow(pk.x, pk.y - 12 + yo, 24, '#74c0fc', 0.5);
     ctx.save(); ctx.translate(pk.x, pk.y - 12 + yo); ctx.rotate(-0.6);
@@ -582,10 +606,11 @@ function drawHouse(h) {
 }
 function drawVillager(v) {
   const scared = village.scared;
-  const bob = Math.sin(time * (scared ? 14 : 2.5) + v.ph) * (scared ? 3 : 1.2), sx = Math.sin(time * 1.3 + v.ph) * (scared ? 2 : 6);
+  const run = scared || v.moving, bob = Math.sin(time * (scared ? 14 : v.moving ? 10 : 2.5) + v.ph) * (scared ? 3 : v.moving ? 2 : 1.2), sx = v.moving || scared ? 0 : Math.sin(time * 1.3 + v.ph) * 2;
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = v.col; ctx.fillRect(-4, -14 + bob * 0.2, 8, 13); ctx.fillStyle = '#ffdbac'; ctx.beginPath(); ctx.arc(0, -18 + bob * 0.2, 4.5, 0, TAU); ctx.fill();
+  if (v.carry > 0 && !scared) { ctx.save(); ctx.translate(0, -13 + bob * 0.2); ctx.rotate(0.3); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-9, -3, 18, 5); ctx.fillStyle = '#d9b27c'; ctx.fillRect(7, -3, 2, 5); ctx.restore(); }
   ctx.strokeStyle = '#ffdbac'; ctx.lineWidth = 2;
   if (scared) { ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-8, -22 + bob); ctx.moveTo(4, -12); ctx.lineTo(8, -22 - bob); ctx.stroke(); ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -28); }
   ctx.restore();
@@ -627,7 +652,7 @@ function updateHUD() {
   setStyle('pausebtn', 'display', 'block');
   setText('hp-text', `${Math.ceil(player.hp)} / ${player.maxHp}`);
   setStyle('hp-bar', 'width', `${(player.hp / player.maxHp) * 100}%`);
-  setText('wave-text', wave); setText('gold-text', gold); setText('sword-text', player.swordTier);
+  setText('wave-text', wave); setText('gold-text', gold); setText('wood-text', wood); setText('sword-text', player.swordTier);
   setText('enemies-text', enemies.length + waveQueue.length); setText('biome-text', biome.name);
   const boss = enemies.find(e => e.type === 'dragon');
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }

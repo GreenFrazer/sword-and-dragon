@@ -213,6 +213,7 @@ function drawRunCard(earned) {
 
 // ======================= DEEDS (feats): persistent goals that pay embers =======================
 const FEATS = [
+  { id: 'wc', name: 'Woodcutter', desc: 'Fell 25 trees in one run', e: 30, t: () => treesFelled >= 25 },
   { id: 'w5', name: 'First Blood', desc: 'Reach wave 5', e: 20, t: () => wave >= 5 },
   { id: 'w10', name: 'Hold the Line', desc: 'Reach wave 10', e: 50, t: () => wave >= 10 },
   { id: 'w20', name: 'Unbroken', desc: 'Reach wave 20', e: 150, t: () => wave >= 20 },

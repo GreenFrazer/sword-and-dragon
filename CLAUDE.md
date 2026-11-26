@@ -28,6 +28,7 @@ Consequences:
 - **Damage:** `damageEnemy()`, `killEnemy()`, `damagePlayer()` in `p2_logic.js`. Iterate enemies with `forEachEnemy()` (it snapshots the list); killing a dragon clears `projectiles` and kills the rest, so loops must tolerate arrays changing under them.
 - **Player stats:** base values live on `player`; gear bonuses come from `player.g` via helpers (`atkDmg()`, `critCh()`, `vampAmt()`, `cdrMul()`, `goldMul()`) in `p5_gear.js`. Use these instead of reading `player.damage` directly.
 - **Persistence:** `meta` (embers, Forge levels, unlocked weapons) and `bestWave` use `localStorage` inside `try/catch`. Some viewers block it, so there is a copy/paste save code (`metaCode()` / `loadCode()` in `p8b_menu.js`, also shown on the game-over screen).
+- **Timber:** trees carry `hp/fell/regrow/grow/shake`; always test `treeAlive(t)` before using a tree (collision, shadows, minimap). Wood piles are `pickups` of type `'wood'` (`n` logs, `claim` set when a villager targets one). `wood` is a run stock (cap `WOOD_MAX`), reset in `resetGame()`. Villager hauling is `updateVillagers()` in `p2b_village.js`. Normal swings call `checkPropsInRadius(..., true)` so they don't chop trees by accident.
 - **Menu:** title UI is `p8b_menu.js` (`renderMenu`, `menuKey`, `beginRun`); backdrop is `p8a_titlebg.js`. HTML ids used by code include `title-modal`, `menu-list`, `menu-panel`, `start-btn`, `forge-btn`, `go-code`; keep them if you edit markup.
 
 ## Testing
@@ -35,6 +36,7 @@ Consequences:
 ```sh
 ./build.sh
 node tests/sim7.js sword 30000      # also: greatsword, daggers, spear
+node tests/wood7.js sword           # timber scenario (prints 'wood: all checks passed')
 ```
 
 `tests/sim7.js` runs the built `index.html` headlessly in a Node `vm` with a stubbed canvas and DOM. It navigates the menu, plays through waves (loot, elites, evolutions, bosses) and forces game over. Success prints `errors: 0`. Runs are random, so run a couple of weapons after risky changes; a crash prints `ERR frame N` with a stack.

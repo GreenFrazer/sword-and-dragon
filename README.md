@@ -34,6 +34,7 @@ Your weapon attacks automatically. Swings deflect arrows and fireballs back at e
 - **Village defence:** raiders attack houses and villagers; save them for gold and a chance to recruit a companion (squire, ranger or cleric). Fallen companions leave a grave you can revive them at.
 - **Weapons:** Longsword, Greatsword, Twin Daggers and Spear, each with different speed, reach and crit.
 - **Loot:** gear in weapon, armour and trinket slots with Common to Legendary rarity, random bonuses and legendary effects.
+- **Timber:** stand still near a tree and the hero fells it (enemies always come first). Logs are carried (up to 12) and mend or rebuild village houses when you walk up to them; villagers fetch loose piles and haul them to the houses too. Surplus sells at the merchant. Stumps regrow after two waves.
 - **Blood Moons:** from wave 4, some plain waves turn crimson and dark, with a bigger swarm, red-eyed foes, more elites and double gold (plus bonus embers).
 - **Elite enemies** (Swift, Vampiric, Volatile, Guarded) that always drop loot.
 - **Blessings and Evolutions:** level-up choices, plus special Evolutions when a build is complete.
@@ -68,6 +69,7 @@ src/              Source parts, concatenated in order by build.sh
   p7_start.js     Game start-up
 build.sh          Assembles src/ into index.html
 tests/sim7.js     Headless simulation test (Node.js)
+tests/wood7.js    Headless timber scenario test (chop, haul, repair, regrow)
 ```
 
 `theme.css` is kept as a separate reference; the build uses the copy already inlined in `p0_head.html`, so edit both if you change styles.
@@ -77,6 +79,7 @@ tests/sim7.js     Headless simulation test (Node.js)
 ```sh
 ./build.sh                        # rebuild index.html from src/
 node tests/sim7.js sword 30000    # headless run: weapon, frame count
+node tests/wood7.js sword         # timber scenario checks
 ```
 
 The test drives the game loop with a stubbed canvas and DOM and walks through menu navigation, waves, loot, evolutions and game over. It prints `errors: 0` on success. Valid weapons are `sword`, `greatsword`, `daggers` and `spear`.

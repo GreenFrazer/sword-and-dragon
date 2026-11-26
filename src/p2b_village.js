@@ -54,7 +54,7 @@ function makeVillage() {
   const offs = [[-88, -34], [88, -34], [0, 72]];
   village = { x: vx, y: vy, lost: false, houses: offs.map((o, i) => ({ x: vx + o[0], y: vy + o[1], hp, maxHp: hp, r: 38, dead: false, hitFlash: 0, fireT: 0, v: i })), villagers: [] };
   const cols = ['#f06595', '#ffa94d', '#74c0fc', '#b197fc', '#69db7c'];
-  for (let i = 0; i < 5; i++) village.villagers.push({ x: vx + rand(-80, 80), y: vy + rand(-4, 56), ph: rand(0, 6), col: cols[i] });
+  for (let i = 0; i < 5; i++) village.villagers.push((() => { const x = vx + rand(-80, 80), y = vy + rand(-4, 56); return { x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[i], carry: 0, tgt: null, moving: false }; })());
   trees = trees.filter(t => Math.hypot(t.x - vx, t.y - vy) > 200);
   props = props.filter(p => Math.hypot(p.x - vx, p.y - vy) > 210);
   hazards = hazards.filter(h => Math.hypot(h.x - vx, h.y - vy) > 210);
@@ -84,6 +84,52 @@ function settleVillage() {
     addFloatText(village.x, village.y - 110, `VILLAGE SAVED! +${bonus}G`, '#69db7c', 26); flash('#b2f2bb', 0.2); sfx('upgrade');
     for (const v of village.villagers) spawnBurst(v.x, v.y - 20, v.col, 6, 'ember');
   } else villageResult = 'lost';
+}
+var REBUILD_COST = 6;
+function repairHouse(h, pct) {
+  if (h.dead) return;
+  h.hp = Math.min(h.maxHp, h.hp + h.maxHp * pct); h.hitFlash = 0;
+  spawnBurst(h.x + rand(-20, 20), h.y - 36, '#d9b27c', 6, 'spark'); sfx('chop', h.x, h.y);
+  addFloatText(h.x, h.y - 70, `+${Math.round(pct * 100)}%`, '#8ce99a', 16);
+}
+function rebuildHouse(h) {
+  h.dead = false; h.hp = Math.round(h.maxHp * 0.4); h.fireT = 0; village.lost = false;
+  explosionFxLite(h.x, h.y);
+  addFloatText(h.x, h.y - 80, 'HOUSE REBUILT!', '#8ce99a', 20); sfx('upgrade');
+}
+function explosionFxLite(x, y) { addRing(x, y, 70, '#d9b27c', 0.4, 6); spawnBurst(x, y - 20, '#d9b27c', 16, 'spark'); spawnBurst(x, y - 20, '#f1d9a8', 8, 'ember'); }
+// villagers fetch logs, haul them to a house and mend it; they flee to the houses when enemies close in
+function updateVillagers(dt) {
+  if (!village) return;
+  const alive = village.houses.filter(h => !h.dead);
+  for (const v of village.villagers) {
+    let tx = null, ty = null, sp = 70; v.moving = false;
+    if (village.scared) { // run for the nearest house
+      const h = alive.length ? alive.reduce((a, b) => Math.hypot(a.x - v.x, a.y - v.y) < Math.hypot(b.x - v.x, b.y - v.y) ? a : b) : null;
+      if (h) { tx = h.x; ty = h.y + 30; sp = 110; }
+    } else if (v.carry > 0) {
+      const h = alive.filter(h => h.hp < h.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || alive[0];
+      if (h) {
+        tx = h.x; ty = h.y + 34;
+        if (Math.hypot(h.x - v.x, h.y + 34 - v.y) < 14) { if (h.hp < h.maxHp) repairHouse(h, 0.12 * v.carry); v.carry = 0; v.tgt = null; }
+      } else v.carry = 0;
+    } else {
+      if (v.tgt && !pickups.includes(v.tgt)) v.tgt = null;
+      if (!v.tgt) {
+        let bd = 620;
+        for (const pk of pickups) if (pk.type === 'wood' && !pk.claim) { const d = Math.hypot(pk.x - village.x, pk.y - village.y); if (d < bd) { bd = d; v.tgt = pk; } }
+        if (v.tgt) v.tgt.claim = v;
+      }
+      if (v.tgt) {
+        tx = v.tgt.x; ty = v.tgt.y;
+        if (Math.hypot(tx - v.x, ty - v.y) < 16) { v.carry = Math.min(v.tgt.n, 2); v.tgt.n -= v.carry; if (v.tgt.n <= 0) pickups.splice(pickups.indexOf(v.tgt), 1); else v.tgt.claim = null; v.tgt = null; }
+      } else { tx = v.hx; ty = v.hy; sp = 40; }
+    }
+    if (tx != null) {
+      const d = Math.hypot(tx - v.x, ty - v.y);
+      if (d > 5) { v.x += (tx - v.x) / d * sp * dt; v.y += (ty - v.y) / d * sp * dt; v.moving = true; v.face = tx < v.x ? -1 : 1; }
+    }
+  }
 }
 function updateVillage(dt) {
   if (!village) return;

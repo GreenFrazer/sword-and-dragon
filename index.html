@@ -20,7 +20,7 @@
   .panel { background: rgba(18, 22, 16, 0.80); border: 2px solid #8a7346; border-radius: 10px; padding: 8px 14px; color: #f5eedc; box-shadow: 0 4px 12px rgba(0,0,0,0.45); backdrop-filter: blur(2px); }
   .bar-wrap { width: 190px; height: 16px; background: #2b1818; border: 1px solid #6b4e31; border-radius: 8px; overflow: hidden; margin-top: 4px; }
   .bar-fill { height: 100%; background: linear-gradient(90deg, #c92a2a, #ff6b6b); transition: width 0.12s; }
-  .stats-row { display: flex; gap: 14px; font-size: 14px; font-weight: bold; margin-top: 6px; color: #ffd43b; }
+  .stats-row { display: flex; flex-wrap: nowrap; white-space: nowrap; gap: 14px; font-size: 14px; font-weight: bold; margin-top: 6px; color: #ffd43b; }
   #biome-text { font-size: 11px; color: #9ec5a0; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
   #combo { position: absolute; top: 134px; right: 14px; text-align: right; color: #ffd43b; font-weight: 900; font-size: 22px; text-shadow: 0 2px 6px #000; pointer-events: none; z-index: 10; display: none; }
   #combo.frenzy { color: #ff9f1c; font-size: 20px; text-shadow: 0 0 14px #ff6a00, 0 2px 6px #000; animation: fz .5s infinite alternate; transform-origin: right center; }
@@ -235,7 +235,7 @@
   .tm-back { display: none; margin-top: 14px; width: 100%; font-family: var(--serif); letter-spacing: 0.2em; padding: 11px; background: rgba(255,120,30,0.15); color: var(--gold); border: 1px solid var(--ember2); cursor: pointer; font-size: 12px; font-weight: 800; }
   .tm-menu-btn { margin-top: 10px; }
   @media (max-width: 960px), (pointer: coarse) { #tm-go { display: block; } .tm-back.show { display: block; } .tm-foot .tm-keys-hint { display: none; } .tm-item { min-height: 48px; } .tm-wrap { padding-bottom: 12px; } }
-  @media (max-width: 600px) { #hint { display: none; } #controls { right: 8px; bottom: 12px; gap: 8px; } .skill-btn { width: 62px; height: 62px; font-size: 11px; } .skill-btn.ult { width: 70px; height: 70px; } }
+  @media (max-width: 600px) { .stats-row { gap: 8px; font-size: 12px; } #hint { display: none; } #controls { right: 8px; bottom: 12px; gap: 8px; } .skill-btn { width: 62px; height: 62px; font-size: 11px; } .skill-btn.ult { width: 70px; height: 70px; } }
 
   .tm-xfer { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; } .tm-xfer .tm-buy { flex: 1 1 110px; }
   #tm-code { width: 100%; background: rgba(0,0,0,0.4); color: #cbbfae; border: 1px solid #4a3d3a; font-family: monospace; font-size: 10px; padding: 6px; resize: none; user-select: text; -webkit-user-select: text; touch-action: manipulation; }
@@ -254,6 +254,7 @@
     <div class="stats-row">
       <span>WAVE <span id="wave-text">1</span></span>
       <span>GOLD <span id="gold-text">0</span></span>
+      <span>WOOD <span id="wood-text">0</span></span>
       <span>SWORD LV.<span id="sword-text">1</span></span>
     </div>
     <div id="biome-text">Emerald Meadow</div>
@@ -354,6 +355,7 @@ const TAU = Math.PI * 2;
 
 var storageOK = (function () { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })();
 var bloodMoon = false, bloodMoons = 0, bmT = 0;
+var wood = 0, treesFelled = 0, WOOD_MAX = 12, treeFx = 0;
 var fxDirty = true, ponds = [], grassBlades = [], lavaLights = [];
 let W = 0, H = 0, DPR = 1, vig = null;
 function resizeCanvas() {
@@ -532,6 +534,13 @@ function sfx(name, wx, wy) {
       nz({ dur: 0.16, vol: v(0.2), atk: 0.04, fl: [500, 3800, 1.6, 'bandpass'], pan, rev: 0.1 });
       nz({ dur: 0.12, vol: v(0.07), atk: 0.01, fl: [6000, 2500, 0.8, 'highpass'], pan });
       voice({ f: 200, slide: 90, dur: 0.12, type: 'sawtooth', vol: v(0.035), fl: [1500, 300, 1], ...P }); break;
+    case 'chop':
+      voice({ f: 150, slide: 70, dur: 0.1, type: 'triangle', vol: v(0.3), ...P });
+      nz({ dur: 0.05, vol: v(0.22), fl: [2400, 500, 1.2], pan, rev: 0.05 });
+      voice({ f: 520, slide: 240, dur: 0.04, type: 'square', vol: v(0.04), ...P }); break;
+    case 'timber':
+      voice({ f: 90, slide: 38, dur: 0.38, type: 'sawtooth', vol: v(0.2), fl: [900, 120, 1], ...P });
+      nz({ dur: 0.3, vol: v(0.2), fl: [1800, 200, 0.8], brown: true, pan, rev: 0.2 }); break;
     case 'hit':
       voice({ f: 190, slide: 52, dur: 0.14, type: 'sine', vol: v(0.3), ...P });
       nz({ dur: 0.07, vol: v(0.28), fl: [3800, 700, 0.8], pan, rev: 0.12 });
@@ -863,7 +872,7 @@ function resetGame() {
   shake = hitStop = slowT = zoomKick = flashA = slainT = impactT = impactCd = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
-  enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
+  wood = 0; treesFelled = 0; enemies = []; props = []; pickups = []; particles = []; floatTexts = []; hazards = [];
   projectiles = []; meteors = []; rings = []; novas = []; glows = []; slashes = []; bolts = []; ghosts = []; scorches = [];
   biomeIdx = -1; companions = []; village = null; pendingRecruit = false; villageResult = null;
   rebuildParty();
@@ -883,8 +892,40 @@ function generateEnvironment() {
   for (let i = 0; i < 28; i++) {
     const tx = rand(80, WORLD_W - 80), ty = rand(90, WORLD_H - 80);
     if (Math.hypot(tx - WORLD_W / 2, ty - WORLD_H / 2) < 230) continue;
-    trees.push({ x: tx, y: ty, r: rand(26, 36), sway: rand(0, 6) });
+    trees.push({ x: tx, y: ty, r: rand(26, 36), sway: rand(0, 6), hp: TREE_HP, fell: 0, regrow: 0, grow: 1, shake: 0, dir: 1 });
   }
+}
+var TREE_HP = 84;
+// ---------- timber: chop trees into wood piles ----------
+function treeAlive(t) { return t.fell <= 0 && t.regrow <= 0; }
+function chopTree(t, dmg, fromX) {
+  if (!treeAlive(t)) return;
+  t.hp -= dmg; t.shake = 0.28; t.dir = (fromX != null && fromX > t.x) ? -1 : 1;
+  const lc = Math.random() < 0.5 ? biome.leaf1 : biome.leaf2;
+  spawnBurst(t.x + rand(-10, 10), t.y - 40, lc, 4, 'dot'); spawnBurst(t.x, t.y - 14, '#d9b27c', 3, 'spark');
+  sfx('chop', t.x, t.y);
+  if (t.hp <= 0) fellTree(t);
+}
+function fellTree(t) {
+  t.hp = 0; t.fell = 0.55; t.regrow = 2; t.grow = 0.45; treesFelled++;
+  sfx('timber', t.x, t.y); shake = Math.max(shake, 5);
+  spawnBurst(t.x, t.y - 44, biome.leaf1, 14, 'dot'); spawnBurst(t.x, t.y - 44, biome.leaf2, 8, 'dot'); spawnSmoke(t.x, t.y, 2);
+  const logs = 3 + (Math.random() < 0.5 ? 1 : 0);
+  if (pickups.filter(p => p.type === 'wood').length < 24)
+    pickups.push({ x: t.x + t.dir * -26, y: t.y + 12, type: 'wood', bob: rand(0, 6), n: logs });
+}
+function chopTreesInRadius(cx, cy, rad, dmg) {
+  for (const t of trees) if (treeAlive(t) && Math.hypot(t.x - cx, t.y - cy) <= rad + t.r * 0.5) chopTree(t, dmg, cx);
+}
+function tickTrees(dt) {
+  for (const t of trees) {
+    if (t.shake > 0) t.shake = Math.max(0, t.shake - dt);
+    if (t.fell > 0) t.fell = Math.max(0, t.fell - dt);
+    else if (t.regrow <= 0 && t.grow < 1) t.grow = Math.min(1, t.grow + dt / 40);
+  }
+}
+function regrowTrees() { // called once per wave
+  for (const t of trees) if (t.regrow > 0 && --t.regrow <= 0) { t.regrow = 0; t.hp = TREE_HP; t.grow = 0.45; }
 }
 function populateArenaProps() {
   props = []; hazards = [];
@@ -906,6 +947,7 @@ function startWave(w) {
     biomeIdx = bi; biome = BIOMES[bi]; generateEnvironment(); buildGround(); initAmbient();
   }
   bannerSub = biome.name;
+  regrowTrees();
   populateArenaProps();
   pickWeather();
   if (player.g && player.g.phoenix) player.phoenixUsed = false;
@@ -1055,7 +1097,8 @@ function gainUlt(n) {
 function healPlayer(n) { if (n > 0) player.hp = Math.min(player.maxHp, player.hp + n); }
 
 // ======================= PROPS / EXPLOSIONS =======================
-function checkPropsInRadius(cx, cy, rad) {
+function checkPropsInRadius(cx, cy, rad, noTrees) {
+  if (!noTrees) chopTreesInRadius(cx, cy, rad * 0.8, 36);
   for (let i = props.length - 1; i >= 0; i--) {
     const p = props[i];
     if (p.fuse === undefined && Math.hypot(p.x - cx, p.y - cy) <= rad + p.r) destroyProp(i);
@@ -1300,6 +1343,9 @@ function renderShop() {
     ['🧪 Brews & charms', '2 waves each', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
       return { key: 'b' + k, icon: b.icon, name: b.name, desc: b.desc, tag: hasBuff(k) ? `Refresh · ${activeBuffs[k]}w left` : `${b.waves} waves`, cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
+    ['🪵 Timber', `${wood} logs carried`, [
+      { key: 'w1', icon: '🪵', name: 'Sell timber', desc: `${wood} logs → ${wood * 4}G (keep some for village repairs!)`, tag: '', cost: 0, ok: () => wood > 0, no: 'No logs', fn: () => { gold += wood * 4; wood = 0; } }
+    ]],
     ['🩹 Supplies', 'Instant', [
       { key: 's1', icon: '🧪', name: 'Healing Draught', desc: 'Heal 50% HP', cost: 30 + wave * 5, ok: () => player.hp < player.maxHp, no: 'Already healthy', fn: () => healPlayer(Math.round(player.maxHp * 0.5)) },
       { key: 's2', icon: '🩹', name: 'Field Medic', desc: 'Heal & revive all companions', cost: 35 + wave * 4, ok: () => companions.some(c => c.down || c.hp < c.maxHp), no: 'No one needs it', fn: () => { for (const c of companions) { c.down = false; c.hp = c.maxHp; c.invuln = 1; } } }
@@ -1407,7 +1453,7 @@ function makeVillage() {
   const offs = [[-88, -34], [88, -34], [0, 72]];
   village = { x: vx, y: vy, lost: false, houses: offs.map((o, i) => ({ x: vx + o[0], y: vy + o[1], hp, maxHp: hp, r: 38, dead: false, hitFlash: 0, fireT: 0, v: i })), villagers: [] };
   const cols = ['#f06595', '#ffa94d', '#74c0fc', '#b197fc', '#69db7c'];
-  for (let i = 0; i < 5; i++) village.villagers.push({ x: vx + rand(-80, 80), y: vy + rand(-4, 56), ph: rand(0, 6), col: cols[i] });
+  for (let i = 0; i < 5; i++) village.villagers.push((() => { const x = vx + rand(-80, 80), y = vy + rand(-4, 56); return { x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[i], carry: 0, tgt: null, moving: false }; })());
   trees = trees.filter(t => Math.hypot(t.x - vx, t.y - vy) > 200);
   props = props.filter(p => Math.hypot(p.x - vx, p.y - vy) > 210);
   hazards = hazards.filter(h => Math.hypot(h.x - vx, h.y - vy) > 210);
@@ -1437,6 +1483,52 @@ function settleVillage() {
     addFloatText(village.x, village.y - 110, `VILLAGE SAVED! +${bonus}G`, '#69db7c', 26); flash('#b2f2bb', 0.2); sfx('upgrade');
     for (const v of village.villagers) spawnBurst(v.x, v.y - 20, v.col, 6, 'ember');
   } else villageResult = 'lost';
+}
+var REBUILD_COST = 6;
+function repairHouse(h, pct) {
+  if (h.dead) return;
+  h.hp = Math.min(h.maxHp, h.hp + h.maxHp * pct); h.hitFlash = 0;
+  spawnBurst(h.x + rand(-20, 20), h.y - 36, '#d9b27c', 6, 'spark'); sfx('chop', h.x, h.y);
+  addFloatText(h.x, h.y - 70, `+${Math.round(pct * 100)}%`, '#8ce99a', 16);
+}
+function rebuildHouse(h) {
+  h.dead = false; h.hp = Math.round(h.maxHp * 0.4); h.fireT = 0; village.lost = false;
+  explosionFxLite(h.x, h.y);
+  addFloatText(h.x, h.y - 80, 'HOUSE REBUILT!', '#8ce99a', 20); sfx('upgrade');
+}
+function explosionFxLite(x, y) { addRing(x, y, 70, '#d9b27c', 0.4, 6); spawnBurst(x, y - 20, '#d9b27c', 16, 'spark'); spawnBurst(x, y - 20, '#f1d9a8', 8, 'ember'); }
+// villagers fetch logs, haul them to a house and mend it; they flee to the houses when enemies close in
+function updateVillagers(dt) {
+  if (!village) return;
+  const alive = village.houses.filter(h => !h.dead);
+  for (const v of village.villagers) {
+    let tx = null, ty = null, sp = 70; v.moving = false;
+    if (village.scared) { // run for the nearest house
+      const h = alive.length ? alive.reduce((a, b) => Math.hypot(a.x - v.x, a.y - v.y) < Math.hypot(b.x - v.x, b.y - v.y) ? a : b) : null;
+      if (h) { tx = h.x; ty = h.y + 30; sp = 110; }
+    } else if (v.carry > 0) {
+      const h = alive.filter(h => h.hp < h.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || alive[0];
+      if (h) {
+        tx = h.x; ty = h.y + 34;
+        if (Math.hypot(h.x - v.x, h.y + 34 - v.y) < 14) { if (h.hp < h.maxHp) repairHouse(h, 0.12 * v.carry); v.carry = 0; v.tgt = null; }
+      } else v.carry = 0;
+    } else {
+      if (v.tgt && !pickups.includes(v.tgt)) v.tgt = null;
+      if (!v.tgt) {
+        let bd = 620;
+        for (const pk of pickups) if (pk.type === 'wood' && !pk.claim) { const d = Math.hypot(pk.x - village.x, pk.y - village.y); if (d < bd) { bd = d; v.tgt = pk; } }
+        if (v.tgt) v.tgt.claim = v;
+      }
+      if (v.tgt) {
+        tx = v.tgt.x; ty = v.tgt.y;
+        if (Math.hypot(tx - v.x, ty - v.y) < 16) { v.carry = Math.min(v.tgt.n, 2); v.tgt.n -= v.carry; if (v.tgt.n <= 0) pickups.splice(pickups.indexOf(v.tgt), 1); else v.tgt.claim = null; v.tgt = null; }
+      } else { tx = v.hx; ty = v.hy; sp = 40; }
+    }
+    if (tx != null) {
+      const d = Math.hypot(tx - v.x, ty - v.y);
+      if (d > 5) { v.x += (tx - v.x) / d * sp * dt; v.y += (ty - v.y) / d * sp * dt; v.moving = true; v.face = tx < v.x ? -1 : 1; }
+    }
+  }
 }
 function updateVillage(dt) {
   if (!village) return;
@@ -1722,18 +1814,41 @@ function stepSimulation(dt) {
         }
       }
     });
-    checkPropsInRadius(player.x, player.y, player.range + 10);
+    checkPropsInRadius(player.x, player.y, player.range + 10, true);
     deflectProjectiles(player.x, player.y, player.range + 18);
+  }
+
+  // --- timber: chop a nearby tree when idle and nothing else is in reach ---
+  tickTrees(dt);
+  if (!(nearest && nd <= player.range) && inp.mag < 0.15 && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0 && !enemies.some(e => !e.flying && Math.hypot(e.x - player.x, e.y - player.y) - e.r < player.range + 50)) {
+    let tt = null, td = Infinity;
+    for (const t of trees) { if (!treeAlive(t)) continue; const d = Math.hypot(t.x - player.x, t.y - player.y) - 14; if (d < td) { td = d; tt = t; } }
+    if (tt && td <= player.range * 0.9) {
+      player.facing = Math.atan2(tt.y - player.y, tt.x - player.x);
+      player.atkCooldown = player.atkRate / (1 + gM().atkspd); player.atkTimer = player.atkDuration; player.atkDir *= -1;
+      slashes.push({ x: player.x, y: player.y - 20, ang: player.facing, dir: player.atkDir, life: 0.2, maxLife: 0.2, R: player.range * 0.95, color: '#d9b27c', thrust: player.cone > 0 });
+      chopTree(tt, atkDmg(), player.x);
+    }
+  }
+  // --- player tends the village with carried timber ---
+  if (village && wood > 0) {
+    player.repairT = (player.repairT || 0) - dt;
+    if (player.repairT <= 0) {
+      const h = village.houses.find(h => Math.hypot(h.x - player.x, h.y - player.y) < 80 && (h.dead ? wood >= REBUILD_COST : h.hp < h.maxHp));
+      if (h) { player.repairT = 0.6; if (h.dead) { wood -= REBUILD_COST; rebuildHouse(h); } else { wood--; repairHouse(h, 0.12); } }
+    }
   }
 
   // --- pickups (magnetised when close or after a clear) ---
   for (let i = pickups.length - 1; i >= 0; i--) {
     const pk = pickups[i]; pk.bob += dt * 4;
     const dist = Math.hypot(pk.x - player.x, pk.y - player.y);
+    if (pk.type === 'wood' && (wood >= WOOD_MAX || pk.claim)) continue;
     const mag = clearTimer !== null ? 560 : (dist < 95 ? 320 : 0);
     if (mag > 0 && dist > 1) { pk.x += (player.x - pk.x) / dist * mag * dt; pk.y += (player.y - pk.y) / dist * mag * dt; }
     if (dist < 42) {
-      if (pk.type === 'loot') offerItem(pk.item);
+      if (pk.type === 'wood') { const n = Math.min(pk.n, WOOD_MAX - wood); wood += n; pk.n -= n; addFloatText(player.x, player.y - 40, `+${n} 🪵`, '#d9b27c'); sfx('coin'); if (pk.n > 0) continue; }
+      else if (pk.type === 'loot') offerItem(pk.item);
       else if (pk.type === 'gold') { gold += pk.val; addFloatText(player.x, player.y - 40, `+${pk.val}G`, '#ffd43b'); sfx('coin'); }
       else if (pk.type === 'potion') { player.hp = Math.min(player.maxHp, player.hp + 45); addFloatText(player.x, player.y - 40, '+45 HP', '#69db7c'); sfx('potion'); spawnBurst(player.x, player.y - 20, '#69db7c', 10, 'ember'); }
       else if (pk.type === 'shield') { player.shieldT = SHIELD_TIME; renderBuffHud(); addFloatText(player.x, player.y - 40, `SHIELD ${SHIELD_TIME}s!`, '#ffe066'); sfx('block'); sfx('potion'); addRing(player.x, player.y - 24, 70, '#ffe066', 0.4, 5); }
@@ -1748,7 +1863,7 @@ function stepSimulation(dt) {
     if (h.timer > 2.0) forEachEnemy(e => { if (!e.flying && Math.hypot(e.x - h.x, e.y - h.y) < h.r + e.r * 0.5 && e.hitFlash <= 0) damageEnemy(e, 22, 0, 40, true); });
   }
 
-  updateCompanions(dt); updateVillage(dt);
+  updateCompanions(dt); updateVillage(dt); updateVillagers(dt);
   // --- enemy AI ---
   forEachEnemy(e => {
     e.hitFlash = Math.max(0, e.hitFlash - dt); e.vx *= 0.82; e.vy *= 0.82;
@@ -1846,6 +1961,7 @@ function separateEnemies() {
 }
 function pushOutOfTrees(ent, radius) {
   for (const t of trees) {
+    if (!treeAlive(t)) continue;
     const dx = ent.x - t.x, dy = ent.y - t.y, d = Math.hypot(dx, dy), min = 12 + radius;
     if (d < min) { if (d < 0.001) { ent.x += min; continue; } ent.x = t.x + dx / d * min; ent.y = t.y + dy / d * min; }
   }
@@ -2212,8 +2328,9 @@ function drawMinimap() {
   const sx = 150 / WORLD_W, sy = 117 / WORLD_H;
   mctx.clearRect(0, 0, 150, 117);
   mctx.fillStyle = biome.mini; mctx.fillRect(0, 0, 150, 117);
-  mctx.fillStyle = 'rgba(0,0,0,0.25)'; for (const t of trees) mctx.fillRect(t.x * sx - 1, t.y * sy - 1, 3, 3);
-  mctx.fillStyle = '#ffd43b'; for (const p of pickups) mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2);
+  mctx.fillStyle = 'rgba(0,0,0,0.25)'; for (const t of trees) if (treeAlive(t)) mctx.fillRect(t.x * sx - 1, t.y * sy - 1, 3, 3);
+  mctx.fillStyle = '#ffd43b'; for (const p of pickups) { if (p.type === 'wood') continue; mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2); }
+  mctx.fillStyle = '#c4894a'; for (const p of pickups) if (p.type === 'wood') mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 3, 2);
   mctx.fillStyle = '#c86a2a'; for (const p of props) mctx.fillRect(p.x * sx - 1, p.y * sy - 1, 3, 3);
   for (const e of enemies) {
     if (e.type === 'dragon') { mctx.fillStyle = '#ff2a2a'; mctx.beginPath(); mctx.arc(e.x * sx, e.y * sy, 5, 0, TAU); mctx.fill(); }
@@ -2244,8 +2361,26 @@ function drawProjectile(p) {
   }
 }
 
+function drawStump(t) {
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 6, t.r * 0.5, t.r * 0.28, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = biome.trunk; ctx.fillRect(t.x - 8, t.y - 6, 16, 12);
+  ctx.fillStyle = '#d9b27c'; ctx.beginPath(); ctx.ellipse(t.x, t.y - 6, 8, 3.5, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,80,40,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(t.x, t.y - 6, 4.5, 2, 0, 0, TAU); ctx.stroke();
+}
 function drawTree(t) {
-  const sw = Math.sin(time * 1.4 + t.sway) * 2.6;
+  if (t.fell <= 0 && t.regrow > 0) { drawStump(t); return; }
+  let sw = Math.sin(time * 1.4 + t.sway) * 2.6;
+  const falling = t.fell > 0, k = falling ? 1 - t.fell / 0.55 : 0;
+  ctx.save();
+  if (falling) { drawStump(t); ctx.translate(t.x, t.y - 4); ctx.rotate(t.dir * k * k * 1.45); ctx.globalAlpha = 1 - k * k * 0.5; ctx.translate(-t.x, -t.y + 4); }
+  else {
+    if (t.grow < 1) { ctx.translate(t.x, t.y); ctx.scale(t.grow, t.grow); ctx.translate(-t.x, -t.y); }
+    if (t.shake > 0) sw += Math.sin(t.shake * 70) * t.shake * 18;
+  }
+  drawTreeBody(t, sw);
+  ctx.restore();
+}
+function drawTreeBody(t, sw) {
   ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 6, t.r * 1.1, t.r * 0.6, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = biome.trunk; ctx.fillRect(t.x - 7, t.y - 34, 14, 38);
   if (biome.tree === 'pine') {
@@ -2321,6 +2456,11 @@ function drawPickup(pk) {
     ctx.fillStyle = '#ffd43b'; ctx.fillRect(-1.5, -8, 3, 17); ctx.fillRect(-7, -3, 14, 3);
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-8, -9, 6, 3);
     ctx.restore();
+  } else if (pk.type === 'wood') {
+    drawGlow(pk.x, pk.y - 6, 26, '#ffd8a0', 0.28 + 0.1 * Math.sin(time * 4 + pk.bob));
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(pk.x, pk.y + 5, 24, 8, 0, 0, TAU); ctx.fill();
+    const lg = (x, y, a) => { ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-15, -4, 30, 8); ctx.fillStyle = '#d9b27c'; ctx.beginPath(); ctx.ellipse(15, 0, 3, 4, 0, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(-15, -4, 30, 2); ctx.restore(); };
+    lg(pk.x - 4, pk.y, -0.08); lg(pk.x + 3, pk.y - 7, 0.1); if (pk.n > 2) lg(pk.x - 1, pk.y - 13, -0.04); if (pk.n > 3) lg(pk.x + 6, pk.y - 5, 0.3);
   } else {
     drawGlow(pk.x, pk.y - 12 + yo, 24, '#74c0fc', 0.5);
     ctx.save(); ctx.translate(pk.x, pk.y - 12 + yo); ctx.rotate(-0.6);
@@ -2569,10 +2709,11 @@ function drawHouse(h) {
 }
 function drawVillager(v) {
   const scared = village.scared;
-  const bob = Math.sin(time * (scared ? 14 : 2.5) + v.ph) * (scared ? 3 : 1.2), sx = Math.sin(time * 1.3 + v.ph) * (scared ? 2 : 6);
+  const run = scared || v.moving, bob = Math.sin(time * (scared ? 14 : v.moving ? 10 : 2.5) + v.ph) * (scared ? 3 : v.moving ? 2 : 1.2), sx = v.moving || scared ? 0 : Math.sin(time * 1.3 + v.ph) * 2;
   ctx.save(); ctx.translate(v.x + sx, v.y + bob * 0.3);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 3, 7, 3, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = v.col; ctx.fillRect(-4, -14 + bob * 0.2, 8, 13); ctx.fillStyle = '#ffdbac'; ctx.beginPath(); ctx.arc(0, -18 + bob * 0.2, 4.5, 0, TAU); ctx.fill();
+  if (v.carry > 0 && !scared) { ctx.save(); ctx.translate(0, -13 + bob * 0.2); ctx.rotate(0.3); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-9, -3, 18, 5); ctx.fillStyle = '#d9b27c'; ctx.fillRect(7, -3, 2, 5); ctx.restore(); }
   ctx.strokeStyle = '#ffdbac'; ctx.lineWidth = 2;
   if (scared) { ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-8, -22 + bob); ctx.moveTo(4, -12); ctx.lineTo(8, -22 - bob); ctx.stroke(); ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -28); }
   ctx.restore();
@@ -2614,7 +2755,7 @@ function updateHUD() {
   setStyle('pausebtn', 'display', 'block');
   setText('hp-text', `${Math.ceil(player.hp)} / ${player.maxHp}`);
   setStyle('hp-bar', 'width', `${(player.hp / player.maxHp) * 100}%`);
-  setText('wave-text', wave); setText('gold-text', gold); setText('sword-text', player.swordTier);
+  setText('wave-text', wave); setText('gold-text', gold); setText('wood-text', wood); setText('sword-text', player.swordTier);
   setText('enemies-text', enemies.length + waveQueue.length); setText('biome-text', biome.name);
   const boss = enemies.find(e => e.type === 'dragon');
   if (boss) { setStyle('boss-hud', 'display', 'flex'); setText('boss-name', boss.skin.name + (boss.enraged ? ' — ENRAGED' : '')); setStyle('boss-bar-fill', 'width', `${Math.max(0, boss.hp / boss.maxHp * 100)}%`); }
@@ -3428,7 +3569,7 @@ function drawSunShadows() {
   const blob = (x, y, rx, ry) => { ctx.moveTo(x + rx, y); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); };
   const vis = (e) => e.x > x0 && e.x < x1 && e.y > y0 && e.y < y1;
   for (const t of trees) {
-    if (!vis(t)) continue;
+    if (!vis(t) || !treeAlive(t)) continue;
     const sw = Math.sin(time * 1.4 + t.sway) * 3;
     if (biome.tree === 'pine') { poly(t.x, t.y + 2, t.r * 0.9, 96, 3); }
     else if (biome.tree === 'dead') { poly(t.x, t.y + 2, 5, 80, 2); poly(t.x, t.y + 2, 3, 56, 8); }
@@ -3807,6 +3948,7 @@ function drawRunCard(earned) {
 
 // ======================= DEEDS (feats): persistent goals that pay embers =======================
 const FEATS = [
+  { id: 'wc', name: 'Woodcutter', desc: 'Fell 25 trees in one run', e: 30, t: () => treesFelled >= 25 },
   { id: 'w5', name: 'First Blood', desc: 'Reach wave 5', e: 20, t: () => wave >= 5 },
   { id: 'w10', name: 'Hold the Line', desc: 'Reach wave 10', e: 50, t: () => wave >= 10 },
   { id: 'w20', name: 'Unbroken', desc: 'Reach wave 20', e: 150, t: () => wave >= 20 },

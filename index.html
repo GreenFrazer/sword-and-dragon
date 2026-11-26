@@ -973,6 +973,11 @@ function startWave(w) {
     if (w % 3 === 2) {
       makeVillage(); bannerText = 'DEFEND THE VILLAGE!';
       for (let i = 0; i < 2; i++) waveQueue.push(i ? 'brute' : 'grunt');
+      if (village.towns.length > 1) { // two towns to defend: a much bigger force so the wave can't end after one raid is beaten
+        const extra = Math.ceil(waveQueue.length * 0.7);
+        for (let i = 0; i < extra; i++) waveQueue.push(w >= 5 && i % 6 === 5 ? 'bomber' : (i % 3 === 2 ? 'shield' : (i % 4 === 3 ? 'brute' : 'grunt')));
+        bannerText = 'DEFEND BOTH TOWNS!';
+      }
     }
   }
   bloodMoon = false;
@@ -986,12 +991,17 @@ function startWave(w) {
   if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
-function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }
+function maxAlive() { const two = village && village.towns.length > 1; return Math.min(two ? 15 : 12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (two ? 3 : 0) + (bloodMoon ? 2 : 0)); }
 
 function spawnEnemy(type) {
-  let ex = 100, ey = 90;
+  let ex = 100, ey = 90, raid = null, tw = null;
+  if (village && village.towns.length > 1 && type !== 'dragon') { raid = raidN++ % village.towns.length; tw = village.towns[raid]; }
   for (let t = 0; t < 15; t++) {
-    const edge = Math.floor(Math.random() * 4);
+    let edge = Math.floor(Math.random() * 4);
+    if (tw && t < 10) { // each raid comes in from the edge nearest its own town
+      const d = [tw.y, WORLD_H - tw.y, tw.x, WORLD_W - tw.x], m = Math.min(...d), c = d.map((v, i) => v < m + 220 ? i : -1).filter(i => i >= 0);
+      edge = c[Math.floor(Math.random() * c.length)];
+    }
     if (edge === 0) { ex = rand(100, WORLD_W - 100); ey = 90; }
     else if (edge === 1) { ex = rand(100, WORLD_W - 100); ey = WORLD_H - 90; }
     else if (edge === 2) { ex = 90; ey = rand(100, WORLD_H - 100); }
@@ -999,7 +1009,7 @@ function spawnEnemy(type) {
     if (Math.hypot(ex - player.x, ey - player.y) > 340) break;
   }
   const sc = 1 + (wave - 1) * 0.14, ds = 1 + (wave - 1) * 0.05;
-  const base = { x: ex, y: ey, vx: 0, vy: 0, facing: 0, walkPhase: 0, hasShield: false, windup: 0, atkCd: 0, hitFlash: 0, stun: 0 };
+  const base = { raid, x: ex, y: ey, vx: 0, vy: 0, facing: 0, walkPhase: 0, hasShield: false, windup: 0, atkCd: 0, hitFlash: 0, stun: 0 };
   let en;
   if (type === 'dragon') {
     const hp = Math.round(1300 * (1 + (wave / 3 - 1) * 0.7) * dragonPowerMul());
@@ -1445,21 +1455,43 @@ function onNewWaveCompanions() {
 }
 
 // ---------- village ----------
-function makeVillage() {
-  let vx = WORLD_W * 0.3, vy = WORLD_H * 0.3;
-  for (let i = 0; i < 40; i++) {
-    vx = rand(520, WORLD_W - 520); vy = rand(460, WORLD_H - 460);
-    if (Math.hypot(vx - player.x, vy - player.y) > 430) break;
+var raidN = 0;
+function townSites(n) {
+  const far = (x, y) => Math.hypot(x - player.x, y - player.y) > 430;
+  const rnd = () => ({ x: rand(520, WORLD_W - 520), y: rand(460, WORLD_H - 460) });
+  if (n < 2) { let a = rnd(); for (let i = 0; i < 40 && !far(a.x, a.y); i++) a = rnd(); return [a]; }
+  // two towns on opposite sides of the map, retried until they are clearly apart and neither is on top of the player
+  const flip = Math.random() < 0.5;
+  let best = null, bs = -1;
+  for (let i = 0; i < 300; i++) {
+    let a = { x: rand(520, 780), y: rand(460, WORLD_H - 460) }, b = { x: rand(WORLD_W - 780, WORLD_W - 520), y: rand(460, WORLD_H - 460) };
+    if (flip) { const t = a; a = b; b = t; }
+    const d = Math.hypot(a.x - b.x, a.y - b.y), sc = d + (far(a.x, a.y) ? 1000 : 0) + (far(b.x, b.y) ? 1000 : 0);
+    if (sc > bs) { bs = sc; best = [a, b]; }
+    if (d > 650 && far(a.x, a.y) && far(b.x, b.y)) return [a, b];
   }
-  const hp = Math.round(170 + wave * 16);
-  const offs = [[-88, -34], [88, -34], [0, 72]];
-  village = { x: vx, y: vy, lost: false, houses: offs.map((o, i) => ({ x: vx + o[0], y: vy + o[1], hp, maxHp: hp, r: 38, dead: false, hitFlash: 0, fireT: 0, v: i })), villagers: [] };
-  const cols = ['#f06595', '#ffa94d', '#74c0fc', '#b197fc', '#69db7c'];
-  for (let i = 0; i < 5; i++) village.villagers.push((() => { const x = vx + rand(-80, 80), y = vy + rand(-4, 56); return { x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[i], carry: 0, tgt: null, moving: false }; })());
-  trees = trees.filter(t => Math.hypot(t.x - vx, t.y - vy) > 200);
-  props = props.filter(p => Math.hypot(p.x - vx, p.y - vy) > 210);
-  hazards = hazards.filter(h => Math.hypot(h.x - vx, h.y - vy) > 210);
+  return best;
 }
+function makeVillage() {
+  const two = wave >= 5; // wave 2 stays a single, gentler village
+  const sites = townSites(two ? 2 : 1);
+  const hp = Math.round(170 + wave * 16);
+  const layouts = [[[-88, -34], [88, -34], [0, 72]], [[-62, -10], [62, -10]]];
+  village = { x: sites[0].x, y: sites[0].y, lost: false, towns: [], houses: [], villagers: [] };
+  const cols = ['#f06595', '#ffa94d', '#74c0fc', '#b197fc', '#69db7c'];
+  sites.forEach((s, ti) => {
+    const town = { x: s.x, y: s.y, idx: ti, lost: false, houses: [], villagers: [] };
+    layouts[ti].forEach((o, i) => town.houses.push({ x: s.x + o[0], y: s.y + o[1], hp, maxHp: hp, r: 38, dead: false, hitFlash: 0, fireT: 0, v: ti ? i + 1 : i, town: ti }));
+    const nv = ti ? 3 : 5;
+    for (let i = 0; i < nv; i++) { const x = s.x + rand(-80, 80), y = s.y + rand(-4, 56); town.villagers.push({ x, y, hx: x, hy: y, ph: rand(0, 6), col: cols[(i + ti * 2) % 5], carry: 0, tgt: null, moving: false, t: town }); }
+    village.towns.push(town); village.houses.push(...town.houses); village.villagers.push(...town.villagers);
+    trees = trees.filter(t => Math.hypot(t.x - s.x, t.y - s.y) > 200);
+    props = props.filter(p => Math.hypot(p.x - s.x, p.y - s.y) > 210);
+    hazards = hazards.filter(h => Math.hypot(h.x - s.x, h.y - s.y) > 210);
+  });
+  raidN = 0;
+}
+function townName(t) { return village && village.towns.length > 1 ? 'TOWN ' + 'AB'[t.idx] : 'THE VILLAGE'; }
 function housesAlive() { return village ? village.houses.filter(h => !h.dead).length : 0; }
 function damageHouse(h, dmg) {
   if (h.dead) return;
@@ -1469,6 +1501,8 @@ function damageHouse(h, dmg) {
     h.dead = true; h.hp = 0;
     explosionFx(h.x, h.y, 80, '#ff922b', false);
     addFloatText(h.x, h.y - 70, 'HOUSE DESTROYED!', '#ff6b6b', 20);
+    const tw = village.towns[h.town];
+    if (tw && !tw.lost && tw.houses.every(x => x.dead)) { tw.lost = true; if (village.towns.length > 1 && housesAlive() > 0) { addFloatText(tw.x, tw.y - 110, `${townName(tw)} HAS FALLEN!`, '#ff6b6b', 24); flash('#ff2a2a', 0.25); sfx('death'); } }
     if (housesAlive() === 0 && !village.lost) {
       village.lost = true; flash('#ff2a2a', 0.4); sfx('death');
       addFloatText(player.x, player.y - 90, 'THE VILLAGE HAS FALLEN!', '#ff6b6b', 26);
@@ -1482,7 +1516,7 @@ function settleVillage() {
   if (alive > 0) {
     const bonus = alive * (35 + wave * 8); gold += bonus; villageResult = 'saved'; village.bonus = bonus;
     pendingRecruit = companions.length < 3;
-    addFloatText(village.x, village.y - 110, `VILLAGE SAVED! +${bonus}G`, '#69db7c', 26); flash('#b2f2bb', 0.2); sfx('upgrade');
+    addFloatText(village.x, village.y - 110, village.towns.length > 1 ? `VILLAGES SAVED! +${bonus}G` : `VILLAGE SAVED! +${bonus}G`, '#69db7c', 26); flash('#b2f2bb', 0.2); sfx('upgrade');
     for (const v of village.villagers) spawnBurst(v.x, v.y - 20, v.col, 6, 'ember');
   } else villageResult = 'lost';
 }
@@ -1494,7 +1528,7 @@ function repairHouse(h, pct) {
   addFloatText(h.x, h.y - 70, `+${Math.round(pct * 100)}%`, '#8ce99a', 16);
 }
 function rebuildHouse(h) {
-  h.dead = false; h.hp = Math.round(h.maxHp * 0.4); h.fireT = 0; village.lost = false;
+  h.dead = false; h.hp = Math.round(h.maxHp * 0.4); h.fireT = 0; village.lost = false; if (village.towns[h.town]) village.towns[h.town].lost = false;
   explosionFxLite(h.x, h.y);
   addFloatText(h.x, h.y - 80, 'HOUSE REBUILT!', '#8ce99a', 20); sfx('upgrade');
 }
@@ -1567,8 +1601,8 @@ function updateCamp(dt) {
 // villagers fetch logs, haul them to a house and mend it; they flee to the houses when enemies close in
 function updateVillagers(dt) {
   if (!village) return;
-  const alive = village.houses.filter(h => !h.dead);
   for (const v of village.villagers) {
+    let alive = v.t.houses.filter(h => !h.dead); if (!alive.length) alive = village.houses.filter(h => !h.dead);
     let tx = null, ty = null, sp = 70; v.moving = false;
     v.scared = enemyNear(v.x, v.y, 230);
     if (v.scared) { // run for the nearest house
@@ -1584,7 +1618,7 @@ function updateVillagers(dt) {
       if (v.tgt && !pickups.includes(v.tgt)) v.tgt = null;
       if (!v.tgt) {
         let bd = 620;
-        for (const pk of pickups) if (pk.type === 'wood' && !pk.claim) { const d = Math.hypot(pk.x - village.x, pk.y - village.y); if (d < bd) { bd = d; v.tgt = pk; } }
+        for (const pk of pickups) if (pk.type === 'wood' && !pk.claim) { const d = Math.hypot(pk.x - v.t.x, pk.y - v.t.y); if (d < bd) { bd = d; v.tgt = pk; } }
         if (v.tgt) v.tgt.claim = v;
       }
       if (v.tgt) {
@@ -1600,7 +1634,7 @@ function updateVillagers(dt) {
 }
 function updateVillage(dt) {
   if (!village) return;
-  village.scared = enemies.some(e => Math.hypot(e.x - village.x, e.y - village.y) < 330);
+  village.scared = village.towns.some(t => enemies.some(e => Math.hypot(e.x - t.x, e.y - t.y) < 330));
   for (const h of village.houses) {
     h.hitFlash = Math.max(0, h.hitFlash - dt);
     if (h.dead) { h.fireT -= dt; if (h.fireT <= 0) { h.fireT = 0.25; spawnSmoke(h.x + rand(-20, 20), h.y - 20, 1); if (Math.random() < 0.5 && particles.length < MAXP) particles.push({ x: h.x + rand(-24, 24), y: h.y - 14, vx: rand(-10, 10), vy: rand(-60, -30), life: 0.5, maxLife: 0.5, color: '#ff922b', size: rand(5, 9), kind: 'ember', g: 0 }); } }
@@ -1635,7 +1669,7 @@ function pickTarget(e, noHouse) {
   const consider = (kind, obj, bias) => { const d = Math.hypot(obj.x - e.x, obj.y - e.y) * bias; if (d < bd) { bd = d; best = { kind, obj }; } };
   consider('player', player, 1);
   for (const c of companions) if (!c.down) consider('comp', c, c.type === 'squire' ? 0.8 : 1);
-  if (village && !noHouse) for (const h of village.houses) if (!h.dead) consider('house', h, e.type === 'bomber' ? 0.7 : 1.12);
+  if (village && !noHouse) for (const h of village.houses) if (!h.dead) consider('house', h, (e.type === 'bomber' ? 0.7 : 1.12) * (e.raid != null && h.town === e.raid ? 0.8 : 1));
   return best;
 }
 function getTarget(e, dt, noHouse) {
@@ -2201,9 +2235,9 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
-  if (village) {
-    ctx.fillStyle = 'rgba(120,90,50,0.35)'; ctx.beginPath(); ctx.ellipse(village.x, village.y + 22, 170, 100, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(150,115,70,0.4)'; ctx.beginPath(); ctx.ellipse(village.x, village.y + 22, 120, 66, 0, 0, TAU); ctx.fill();
+  if (village) for (const tw of village.towns) {
+    ctx.fillStyle = 'rgba(120,90,50,0.35)'; ctx.beginPath(); ctx.ellipse(tw.x, tw.y + 22, 170, 100, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(150,115,70,0.4)'; ctx.beginPath(); ctx.ellipse(tw.x, tw.y + 22, 120, 66, 0, 0, TAU); ctx.fill();
   }
   // spike traps with warning flicker
   for (const h of hazards) {
@@ -2827,18 +2861,22 @@ function drawGrave(c) {
 function worldToScreen(wx, wy) { const z = baseScale() * (1 + zoomKick); return { x: ((wx - cam.x) - W / 2) * z + W / 2, y: ((wy - cam.y) - H / 2) * z + H / 2 }; }
 function drawVillageIndicator() {
   if (!village || housesAlive() === 0 || state === 'title') return;
-  const p = worldToScreen(village.x, village.y), m = 44;
-  if (p.x > m && p.x < W - m && p.y > m + 70 && p.y < H - m) return;
-  const dx = p.x - W / 2, dy = p.y - H / 2;
-  const sc = Math.min((W / 2 - m) / Math.abs(dx || 1), (H / 2 - m - 40) / Math.abs(dy || 1));
-  const ix = W / 2 + dx * sc, iy = H / 2 + dy * sc + 10, ang = Math.atan2(dy, dx);
-  const hurt = village.houses.some(h => h.hitFlash > 0), pulse = 0.75 + 0.25 * Math.sin(time * (hurt ? 16 : 5));
-  ctx.save(); ctx.translate(ix, iy); ctx.globalAlpha = pulse;
-  ctx.fillStyle = hurt ? 'rgba(180,30,30,0.9)' : 'rgba(40,26,12,0.88)'; ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('🏠', 0, 7);
-  ctx.rotate(ang); ctx.fillStyle = '#f59f00'; ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(22, -8); ctx.lineTo(22, 8); ctx.closePath(); ctx.fill();
-  ctx.restore();
+  for (const tw of village.towns) {
+    if (tw.houses.every(h => h.dead)) continue;
+    const p = worldToScreen(tw.x, tw.y), m = 44;
+    if (p.x > m && p.x < W - m && p.y > m + 70 && p.y < H - m) continue;
+    const dx = p.x - W / 2, dy = p.y - H / 2;
+    const sc = Math.min((W / 2 - m) / Math.abs(dx || 1), (H / 2 - m - 40) / Math.abs(dy || 1));
+    const ix = W / 2 + dx * sc, iy = H / 2 + dy * sc + 10, ang = Math.atan2(dy, dx);
+    const hurt = tw.houses.some(h => h.hitFlash > 0), pulse = 0.75 + 0.25 * Math.sin(time * (hurt ? 16 : 5));
+    ctx.save(); ctx.translate(ix, iy); ctx.globalAlpha = pulse;
+    ctx.fillStyle = hurt ? 'rgba(180,30,30,0.9)' : 'rgba(40,26,12,0.88)'; ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('🏠', 0, 7);
+    if (village.towns.length > 1) { ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#ffd43b'; ctx.fillText('AB'[tw.idx], 0, -24); }
+    ctx.rotate(ang); ctx.fillStyle = '#f59f00'; ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(22, -8); ctx.lineTo(22, 8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // ======================= HUD =======================
@@ -2869,7 +2907,8 @@ function updateHUD() {
   if (village) {
     const alive = housesAlive(), tot = village.houses.reduce((a, h) => a + h.hp, 0), mx = village.houses.reduce((a, h) => a + h.maxHp, 0);
     setStyle('village-hud', 'display', 'block');
-    setText('village-text', village.lost ? '🔥 THE VILLAGE HAS FALLEN' : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`);
+    const multi = village.towns.length > 1;
+    setText('village-text', village.lost ? (multi ? '🔥 BOTH TOWNS HAVE FALLEN' : '🔥 THE VILLAGE HAS FALLEN') : (multi ? `🏠 DEFEND BOTH TOWNS  ` + village.towns.map(t => 'AB'[t.idx] + ' ' + t.houses.filter(h => !h.dead).length + '/' + t.houses.length).join(' · ') : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`));
     setStyle('village-bar', 'width', `${tot / mx * 100}%`);
   } else setStyle('village-hud', 'display', 'none');
   setClass('combo', 'frenzy', frenzyT > 0);

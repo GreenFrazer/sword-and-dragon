@@ -30,9 +30,9 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
-  if (village) {
-    ctx.fillStyle = 'rgba(120,90,50,0.35)'; ctx.beginPath(); ctx.ellipse(village.x, village.y + 22, 170, 100, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(150,115,70,0.4)'; ctx.beginPath(); ctx.ellipse(village.x, village.y + 22, 120, 66, 0, 0, TAU); ctx.fill();
+  if (village) for (const tw of village.towns) {
+    ctx.fillStyle = 'rgba(120,90,50,0.35)'; ctx.beginPath(); ctx.ellipse(tw.x, tw.y + 22, 170, 100, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(150,115,70,0.4)'; ctx.beginPath(); ctx.ellipse(tw.x, tw.y + 22, 120, 66, 0, 0, TAU); ctx.fill();
   }
   // spike traps with warning flicker
   for (const h of hazards) {
@@ -656,18 +656,22 @@ function drawGrave(c) {
 function worldToScreen(wx, wy) { const z = baseScale() * (1 + zoomKick); return { x: ((wx - cam.x) - W / 2) * z + W / 2, y: ((wy - cam.y) - H / 2) * z + H / 2 }; }
 function drawVillageIndicator() {
   if (!village || housesAlive() === 0 || state === 'title') return;
-  const p = worldToScreen(village.x, village.y), m = 44;
-  if (p.x > m && p.x < W - m && p.y > m + 70 && p.y < H - m) return;
-  const dx = p.x - W / 2, dy = p.y - H / 2;
-  const sc = Math.min((W / 2 - m) / Math.abs(dx || 1), (H / 2 - m - 40) / Math.abs(dy || 1));
-  const ix = W / 2 + dx * sc, iy = H / 2 + dy * sc + 10, ang = Math.atan2(dy, dx);
-  const hurt = village.houses.some(h => h.hitFlash > 0), pulse = 0.75 + 0.25 * Math.sin(time * (hurt ? 16 : 5));
-  ctx.save(); ctx.translate(ix, iy); ctx.globalAlpha = pulse;
-  ctx.fillStyle = hurt ? 'rgba(180,30,30,0.9)' : 'rgba(40,26,12,0.88)'; ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('🏠', 0, 7);
-  ctx.rotate(ang); ctx.fillStyle = '#f59f00'; ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(22, -8); ctx.lineTo(22, 8); ctx.closePath(); ctx.fill();
-  ctx.restore();
+  for (const tw of village.towns) {
+    if (tw.houses.every(h => h.dead)) continue;
+    const p = worldToScreen(tw.x, tw.y), m = 44;
+    if (p.x > m && p.x < W - m && p.y > m + 70 && p.y < H - m) continue;
+    const dx = p.x - W / 2, dy = p.y - H / 2;
+    const sc = Math.min((W / 2 - m) / Math.abs(dx || 1), (H / 2 - m - 40) / Math.abs(dy || 1));
+    const ix = W / 2 + dx * sc, iy = H / 2 + dy * sc + 10, ang = Math.atan2(dy, dx);
+    const hurt = tw.houses.some(h => h.hitFlash > 0), pulse = 0.75 + 0.25 * Math.sin(time * (hurt ? 16 : 5));
+    ctx.save(); ctx.translate(ix, iy); ctx.globalAlpha = pulse;
+    ctx.fillStyle = hurt ? 'rgba(180,30,30,0.9)' : 'rgba(40,26,12,0.88)'; ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('🏠', 0, 7);
+    if (village.towns.length > 1) { ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#ffd43b'; ctx.fillText('AB'[tw.idx], 0, -24); }
+    ctx.rotate(ang); ctx.fillStyle = '#f59f00'; ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(22, -8); ctx.lineTo(22, 8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // ======================= HUD =======================
@@ -698,7 +702,8 @@ function updateHUD() {
   if (village) {
     const alive = housesAlive(), tot = village.houses.reduce((a, h) => a + h.hp, 0), mx = village.houses.reduce((a, h) => a + h.maxHp, 0);
     setStyle('village-hud', 'display', 'block');
-    setText('village-text', village.lost ? '🔥 THE VILLAGE HAS FALLEN' : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`);
+    const multi = village.towns.length > 1;
+    setText('village-text', village.lost ? (multi ? '🔥 BOTH TOWNS HAVE FALLEN' : '🔥 THE VILLAGE HAS FALLEN') : (multi ? `🏠 DEFEND BOTH TOWNS  ` + village.towns.map(t => 'AB'[t.idx] + ' ' + t.houses.filter(h => !h.dead).length + '/' + t.houses.length).join(' · ') : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`));
     setStyle('village-bar', 'width', `${tot / mx * 100}%`);
   } else setStyle('village-hud', 'display', 'none');
   setClass('combo', 'frenzy', frenzyT > 0);

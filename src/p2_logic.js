@@ -140,6 +140,11 @@ function startWave(w) {
     if (w % 3 === 2) {
       makeVillage(); bannerText = 'DEFEND THE VILLAGE!';
       for (let i = 0; i < 2; i++) waveQueue.push(i ? 'brute' : 'grunt');
+      if (village.towns.length > 1) { // two towns to defend: a much bigger force so the wave can't end after one raid is beaten
+        const extra = Math.ceil(waveQueue.length * 0.7);
+        for (let i = 0; i < extra; i++) waveQueue.push(w >= 5 && i % 6 === 5 ? 'bomber' : (i % 3 === 2 ? 'shield' : (i % 4 === 3 ? 'brute' : 'grunt')));
+        bannerText = 'DEFEND BOTH TOWNS!';
+      }
     }
   }
   bloodMoon = false;
@@ -153,12 +158,17 @@ function startWave(w) {
   if (village) { camp = null; deliverCampStock(true); } else makeCamp();
   spawnTimer = 0.4; bannerT = 3; waveTotal = waveQueue.length;
 }
-function maxAlive() { return Math.min(12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (bloodMoon ? 2 : 0)); }
+function maxAlive() { const two = village && village.towns.length > 1; return Math.min(two ? 15 : 12, 4 + Math.floor(wave / 2) + (village ? 1 : 0) + (two ? 3 : 0) + (bloodMoon ? 2 : 0)); }
 
 function spawnEnemy(type) {
-  let ex = 100, ey = 90;
+  let ex = 100, ey = 90, raid = null, tw = null;
+  if (village && village.towns.length > 1 && type !== 'dragon') { raid = raidN++ % village.towns.length; tw = village.towns[raid]; }
   for (let t = 0; t < 15; t++) {
-    const edge = Math.floor(Math.random() * 4);
+    let edge = Math.floor(Math.random() * 4);
+    if (tw && t < 10) { // each raid comes in from the edge nearest its own town
+      const d = [tw.y, WORLD_H - tw.y, tw.x, WORLD_W - tw.x], m = Math.min(...d), c = d.map((v, i) => v < m + 220 ? i : -1).filter(i => i >= 0);
+      edge = c[Math.floor(Math.random() * c.length)];
+    }
     if (edge === 0) { ex = rand(100, WORLD_W - 100); ey = 90; }
     else if (edge === 1) { ex = rand(100, WORLD_W - 100); ey = WORLD_H - 90; }
     else if (edge === 2) { ex = 90; ey = rand(100, WORLD_H - 100); }
@@ -166,7 +176,7 @@ function spawnEnemy(type) {
     if (Math.hypot(ex - player.x, ey - player.y) > 340) break;
   }
   const sc = 1 + (wave - 1) * 0.14, ds = 1 + (wave - 1) * 0.05;
-  const base = { x: ex, y: ey, vx: 0, vy: 0, facing: 0, walkPhase: 0, hasShield: false, windup: 0, atkCd: 0, hitFlash: 0, stun: 0 };
+  const base = { raid, x: ex, y: ey, vx: 0, vy: 0, facing: 0, walkPhase: 0, hasShield: false, windup: 0, atkCd: 0, hitFlash: 0, stun: 0 };
   let en;
   if (type === 'dragon') {
     const hp = Math.round(1300 * (1 + (wave / 3 - 1) * 0.7) * dragonPowerMul());

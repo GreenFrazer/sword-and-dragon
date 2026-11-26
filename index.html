@@ -1581,7 +1581,9 @@ function updateCamera(dt, snap) {
   let tx = player.x + player.vx * 0.25 - vw / 2, ty = player.y + player.vy * 0.25 - vh / 2 - 20;
   if (introT > 0) { const bo = enemies.find(e => e.type === 'dragon'); if (bo) { tx = bo.x - vw / 2; ty = bo.y - vh / 2 - 40; } }
   tx = vw >= WORLD_W ? (WORLD_W - vw) / 2 : Math.max(0, Math.min(WORLD_W - vw, tx));
-  ty = vh >= WORLD_H ? (WORLD_H - vh) / 2 : Math.max(0, Math.min(WORLD_H - vh, ty));
+  // on phones let the camera scroll past the world edge so action near it clears the HUD (top) and controls (bottom)
+  const padT = W < 900 ? 130 / z : 0, padB = W < 900 ? 250 / z : 0, lo = -padT, hi = WORLD_H - vh + padB;
+  ty = hi < lo ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, ty));
   const k = snap ? 1 : 1 - Math.pow(0.0004, dt);
   cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
 }
@@ -1986,6 +1988,7 @@ function render() {
   const z = baseScale() * (1 + zoomKick);
   ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
   ctx.translate(-(cam.x + (Math.random() - 0.5) * shake), -(cam.y + (Math.random() - 0.5) * shake));
+  ctx.fillStyle = '#0b0a10'; ctx.fillRect(-1500, -1500, WORLD_W + 3000, WORLD_H + 3000);
   if (ground) ctx.drawImage(ground, 0, 0);
   drawPonds(); drawGrass();
 
@@ -3291,7 +3294,7 @@ function drawSlain() { // screen space
   // glint sweeping across the letters
   const sw = ((el - 0.5) / 1.1); if (sw > 0 && sw < 1) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.fillRect(-fs * 3.4 + sw * fs * 6.8, -fs * 0.8, fs * 0.22, fs); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; }
   if (el > 0.6) { ctx.globalAlpha = Math.min(1, (el - 0.6) / 0.5) * fade; ctx.font = `700 ${Math.max(13, fs * 0.26)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ffe9b0'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.92 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
+    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.88 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
   ctx.restore(); ctx.globalAlpha = 1;
 }
 

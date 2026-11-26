@@ -493,7 +493,7 @@ function drawSlain() { // screen space
   // glint sweeping across the letters
   const sw = ((el - 0.5) / 1.1); if (sw > 0 && sw < 1) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); ctx.transform(1, 0, -0.35, 1, 0, 0); ctx.fillRect(-fs * 3.4 + sw * fs * 6.8, -fs * 0.8, fs * 0.22, fs); ctx.restore(); ctx.globalCompositeOperation = 'source-over'; }
   if (el > 0.6) { ctx.globalAlpha = Math.min(1, (el - 0.6) / 0.5) * fade; ctx.font = `700 ${Math.max(13, fs * 0.26)}px 'Segoe UI', sans-serif`; ctx.fillStyle = '#ffe9b0'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.92 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
+    const sub = slainName + ' falls  \u2014  +100 gold & legendary loot'; const sw2 = ctx.measureText(sub).width, mx = W * 0.88 / pop; if (sw2 > mx) ctx.font = `700 ${Math.max(10, fs * 0.26 * mx / sw2)}px 'Segoe UI', sans-serif`; ctx.strokeText(sub, 0, fs * 0.55); ctx.fillText(sub, 0, fs * 0.55); }
   ctx.restore(); ctx.globalAlpha = 1;
 }
 

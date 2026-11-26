@@ -18,6 +18,7 @@ function render() {
   const z = baseScale() * (1 + zoomKick);
   ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
   ctx.translate(-(cam.x + (Math.random() - 0.5) * shake), -(cam.y + (Math.random() - 0.5) * shake));
+  ctx.fillStyle = '#0b0a10'; ctx.fillRect(-1500, -1500, WORLD_W + 3000, WORLD_H + 3000);
   if (ground) ctx.drawImage(ground, 0, 0);
   drawPonds(); drawGrass();
 

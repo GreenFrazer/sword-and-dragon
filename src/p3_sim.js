@@ -5,7 +5,9 @@ function updateCamera(dt, snap) {
   let tx = player.x + player.vx * 0.25 - vw / 2, ty = player.y + player.vy * 0.25 - vh / 2 - 20;
   if (introT > 0) { const bo = enemies.find(e => e.type === 'dragon'); if (bo) { tx = bo.x - vw / 2; ty = bo.y - vh / 2 - 40; } }
   tx = vw >= WORLD_W ? (WORLD_W - vw) / 2 : Math.max(0, Math.min(WORLD_W - vw, tx));
-  ty = vh >= WORLD_H ? (WORLD_H - vh) / 2 : Math.max(0, Math.min(WORLD_H - vh, ty));
+  // on phones let the camera scroll past the world edge so action near it clears the HUD (top) and controls (bottom)
+  const padT = W < 900 ? 130 / z : 0, padB = W < 900 ? 250 / z : 0, lo = -padT, hi = WORLD_H - vh + padB;
+  ty = hi < lo ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, ty));
   const k = snap ? 1 : 1 - Math.pow(0.0004, dt);
   cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
 }

@@ -1,6 +1,7 @@
 // ======================= GAME STATE =======================
 let state = 'title'; // title | play | upgrade | gameover | paused
 let wave = 1, gold = 0, kills = 0, combo = 0, comboT = 0, bestCombo = 0;
+let frenzyT = 0, frenzyCd = 0, frenzyTick = 0, frenzyCount = 0; const FRENZY_AT = 12;
 let shake = 0, hitStop = 0, slowT = 0, zoomKick = 0, flashA = 0, flashC = '#fff';
 let time = 0, bannerT = 0, bannerText = '', bannerSub = '', ultReadyShown = false, suppressUlt = false;
 let waveQueue = [], spawnTimer = 0, clearTimer = null, bestWave = 1;
@@ -35,7 +36,7 @@ function newPlayer() {
 function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
-  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0;
+  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
   shake = hitStop = slowT = zoomKick = flashA = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
@@ -294,10 +295,18 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
   return true;
 }
 
+function igniteFrenzy() {
+  frenzyT = 9; frenzyCount++; flash('#ff7a1a', 0.55); zoomKick = Math.max(zoomKick, 0.06); shake = Math.max(shake, 12);
+  sfx('roar'); explosionFx(player.x, player.y, 150, '#ff7a1a', false);
+  addFloatText(player.x, player.y - 100, 'WYRMFIRE FRENZY!', '#ff9f1c', 30);
+  forEachEnemy(o => { if (!o.flying && o.type !== 'dragon' && Math.hypot(o.x - player.x, o.y - player.y) < 150 + o.r) damageEnemy(o, Math.round(atkDmg() * 1.5), Math.atan2(o.y - player.y, o.x - player.x), 320, true); });
+}
 function killEnemy(e) {
   const idx = enemies.indexOf(e); if (idx === -1) return;
   enemies.splice(idx, 1);
   kills++; combo++; comboT = 3.2; bestCombo = Math.max(bestCombo, combo);
+  if (frenzyT > 0) frenzyT = Math.min(14, frenzyT + 0.6);
+  else if (combo >= FRENZY_AT && frenzyCd <= 0) igniteFrenzy();
   if (combo % 5 === 0) { addFloatText(player.x, player.y - 80, `${combo} COMBO!`, '#ffa94d', 22); gainUlt(5); }
   spawnBurst(e.x, e.y - 18, '#ff8787', 18, 'spark'); spawnBurst(e.x, e.y - 14, '#ff8787', 6, 'dot');
   scorches.push({ x: e.x, y: e.y, r: 14, life: 8, blood: true }); if (scorches.length > 30) scorches.shift();
@@ -358,7 +367,7 @@ function damagePlayer(amount, fromX, fromY) {
     player.hp = 0; state = 'gameover'; sfx('death');
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }

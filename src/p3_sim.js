@@ -52,6 +52,14 @@ function stepSimulation(dt) {
 
   player.atkCooldown = Math.max(0, player.atkCooldown - dt); player.atkTimer = Math.max(0, player.atkTimer - dt);
   player.spinTime = Math.max(0, player.spinTime - dt);
+  if (frenzyCd > 0) frenzyCd -= dt;
+  if (frenzyT > 0) {
+    frenzyT -= dt; comboT = Math.max(comboT, 1.5); // the fire keeps the combo alive
+    if (particles.length < MAXP) particles.push({ x: player.x + rand(-14, 14), y: player.y - rand(0, 40), vx: rand(-20, 20), vy: rand(-90, -40), life: 0.6, maxLife: 0.6, color: Math.random() < 0.5 ? '#ff7a1a' : '#ffd43b', size: rand(3, 6), kind: 'ember', g: -30 });
+    frenzyTick -= dt;
+    if (frenzyTick <= 0) { frenzyTick = 0.3; forEachEnemy(o => { if (!o.flying && o.type !== 'dragon' && Math.hypot(o.x - player.x, o.y - player.y) < 88 + o.r) damageEnemy(o, Math.max(4, Math.round(atkDmg() * 0.3)), Math.atan2(o.y - player.y, o.x - player.x), 60, true); }); }
+    if (frenzyT <= 0) { frenzyT = 0; frenzyCd = 5; combo = Math.floor(combo / 2); addFloatText(player.x, player.y - 70, 'Frenzy fades', '#ffa94d', 16); }
+  }
   if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
 
   // spawning / wave clear
@@ -74,7 +82,7 @@ function stepSimulation(dt) {
     player.dashTime -= dt; player.x += player.dashVx * dt; player.y += player.dashVy * dt;
     ghosts.push({ x: player.x, y: player.y, facing: player.facing, walkPhase: player.walkPhase, life: 0.26 });
   } else {
-    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0));
+    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0) + (frenzyT > 0 ? 0.18 : 0));
     player.vx = player.vx * 0.8 + inp.ix * spdm * 0.2; player.vy = player.vy * 0.8 + inp.iy * spdm * 0.2;
     player.x += player.vx * dt; player.y += player.vy * dt;
   }
@@ -93,7 +101,7 @@ function stepSimulation(dt) {
   for (const p of props) { const d = Math.hypot(p.x - player.x, p.y - player.y) - p.r; if (d < nd) { nd = d; nearest = p; } }
   if (nearest && nd <= player.range && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0) {
     player.facing = Math.atan2(nearest.y - player.y, nearest.x - player.x);
-    player.atkCooldown = player.atkRate / (1 + gM().atkspd); player.atkTimer = player.atkDuration; player.atkDir *= -1;
+    player.atkCooldown = player.atkRate / (1 + gM().atkspd + (frenzyT > 0 ? 0.35 : 0)); player.atkTimer = player.atkDuration; player.atkDir *= -1;
     hitStop = 0.025; shake = Math.max(shake, 3.5); sfx('swing');
     player.swings = (player.swings || 0) + 1;
     slashes.push({ x: player.x, y: player.y - 20, ang: player.facing, dir: player.atkDir, life: 0.2, maxLife: 0.2, R: player.range * 0.95, color: bladeStyle().glow || '#ffffff', thrust: player.cone > 0 });

@@ -97,7 +97,7 @@ function render() {
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
-  dr.push({ y: player.y, f: () => { drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
+  dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
@@ -192,6 +192,10 @@ function render() {
   if (state !== 'title' && player.hp < player.maxHp * 0.3) {
     ctx.fillStyle = `rgba(200,0,0,${0.1 + 0.08 * Math.sin(time * 6)})`; ctx.fillRect(0, 0, W, H);
   }
+  if (frenzyT > 0) { // fiery vignette
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75), a = Math.min(1, frenzyT / 1.5) * (0.4 + 0.08 * Math.sin(time * 9));
+    g.addColorStop(0, 'rgba(255,90,10,0)'); g.addColorStop(1, `rgba(255,70,0,${a})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
   if (flashA > 0) { ctx.globalAlpha = Math.min(0.8, flashA); ctx.fillStyle = flashC; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   if (bannerT > 0 && state !== 'title') {
     const a = Math.min(1, bannerT / 0.6, (3 - bannerT) / 0.4);
@@ -283,6 +287,12 @@ function drawProp(p) {
   }
 }
 const SHIELD_TIME = 8;
+function drawFrenzyAura() {
+  const x = player.x, y = player.y - 24, p = 0.75 + 0.25 * Math.sin(time * 14), fade = Math.min(1, frenzyT / 1.5);
+  drawGlow(x, y, 90 * p, '#ff7a1a', 0.5 * fade); drawGlow(x, y, 44, '#ffd43b', 0.35 * fade);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 * fade; ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(x, player.y + 4, 88 * (0.9 + 0.1 * p), 88 * 0.55 * (0.9 + 0.1 * p), 0, 0, TAU); ctx.stroke(); ctx.restore();
+}
 function drawPlayerShield() {
   const t = player.shieldT, blink = t < 2 && Math.floor(t * 8) % 2 === 0;
   if (blink) return;
@@ -595,9 +605,11 @@ function updateHUD() {
     setText('village-text', village.lost ? '🔥 THE VILLAGE HAS FALLEN' : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`);
     setStyle('village-bar', 'width', `${tot / mx * 100}%`);
   } else setStyle('village-hud', 'display', 'none');
-  if (combo >= 2) {
-    setStyle('combo', 'display', 'block'); setText('combo-text', `x${combo} COMBO`);
-    setText('combo-sub', `+${Math.round(Math.min(combo, 20) * 5)}% gold`);
+  setClass('combo', 'frenzy', frenzyT > 0);
+  if (combo >= 2 || frenzyT > 0) {
+    setStyle('combo', 'display', 'block');
+    if (frenzyT > 0) { setText('combo-text', `🔥 FRENZY x${combo}`); setText('combo-sub', `${frenzyT.toFixed(1)}s · +40% dmg · +35% speed`); }
+    else { setText('combo-text', `x${combo} COMBO`); setText('combo-sub', frenzyCd > 0 ? `+${Math.round(Math.min(combo, 20) * 5)}% gold` : (combo >= FRENZY_AT - 4 ? `FRENZY IN ${FRENZY_AT - combo}!` : `+${Math.round(Math.min(combo, 20) * 5)}% gold · frenzy at ${FRENZY_AT}`)); }
   } else setStyle('combo', 'display', 'none');
 }
 

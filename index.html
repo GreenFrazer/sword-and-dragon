@@ -23,6 +23,9 @@
   .stats-row { display: flex; gap: 14px; font-size: 14px; font-weight: bold; margin-top: 6px; color: #ffd43b; }
   #biome-text { font-size: 11px; color: #9ec5a0; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
   #combo { position: absolute; top: 134px; right: 14px; text-align: right; color: #ffd43b; font-weight: 900; font-size: 22px; text-shadow: 0 2px 6px #000; pointer-events: none; z-index: 10; display: none; }
+  #combo.frenzy { color: #ff9f1c; font-size: 20px; text-shadow: 0 0 14px #ff6a00, 0 2px 6px #000; animation: fz .5s infinite alternate; transform-origin: right center; }
+  #combo.frenzy small { font-size: 10px; }
+  @keyframes fz { to { transform: scale(1.05); } }
   #combo small { display: block; font-size: 11px; color: #ffa94d; letter-spacing: 1px; }
   #music-btn { position: absolute; top: 86px; right: 60px; z-index: 12; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #8a7346; background: rgba(18,22,16,0.8); color: #fff; font-size: 19px; cursor: pointer; }
   #music-btn.off { color: #777; text-decoration: line-through; opacity: 0.7; }
@@ -814,6 +817,7 @@ function toggleMute() {
 // ======================= GAME STATE =======================
 let state = 'title'; // title | play | upgrade | gameover | paused
 let wave = 1, gold = 0, kills = 0, combo = 0, comboT = 0, bestCombo = 0;
+let frenzyT = 0, frenzyCd = 0, frenzyTick = 0, frenzyCount = 0; const FRENZY_AT = 12;
 let shake = 0, hitStop = 0, slowT = 0, zoomKick = 0, flashA = 0, flashC = '#fff';
 let time = 0, bannerT = 0, bannerText = '', bannerSub = '', ultReadyShown = false, suppressUlt = false;
 let waveQueue = [], spawnTimer = 0, clearTimer = null, bestWave = 1;
@@ -848,7 +852,7 @@ function newPlayer() {
 function resetGame() {
   ['gameover-modal', 'upgrade-modal', 'merchant-modal', 'pause-modal'].forEach(id => $(id).style.display = 'none');
   activeBuffs = {}; renderBuffHud();
-  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0;
+  wave = 1; gold = 0; kills = 0; combo = 0; comboT = 0; bestCombo = 0; frenzyT = frenzyCd = frenzyTick = frenzyCount = 0;
   shake = hitStop = slowT = zoomKick = flashA = 0; clearTimer = null; ultReadyShown = false;
   player = initPlayerExtras(newPlayer());
   gear = { weapon: null, armor: null, trinket: null }; bossKills = 0; introT = 0; lightFlash = 0; rebuildGear();
@@ -1107,10 +1111,18 @@ function damageEnemy(e, amount, angle, knockback, bypassShield, crit, src) {
   return true;
 }
 
+function igniteFrenzy() {
+  frenzyT = 9; frenzyCount++; flash('#ff7a1a', 0.55); zoomKick = Math.max(zoomKick, 0.06); shake = Math.max(shake, 12);
+  sfx('roar'); explosionFx(player.x, player.y, 150, '#ff7a1a', false);
+  addFloatText(player.x, player.y - 100, 'WYRMFIRE FRENZY!', '#ff9f1c', 30);
+  forEachEnemy(o => { if (!o.flying && o.type !== 'dragon' && Math.hypot(o.x - player.x, o.y - player.y) < 150 + o.r) damageEnemy(o, Math.round(atkDmg() * 1.5), Math.atan2(o.y - player.y, o.x - player.x), 320, true); });
+}
 function killEnemy(e) {
   const idx = enemies.indexOf(e); if (idx === -1) return;
   enemies.splice(idx, 1);
   kills++; combo++; comboT = 3.2; bestCombo = Math.max(bestCombo, combo);
+  if (frenzyT > 0) frenzyT = Math.min(14, frenzyT + 0.6);
+  else if (combo >= FRENZY_AT && frenzyCd <= 0) igniteFrenzy();
   if (combo % 5 === 0) { addFloatText(player.x, player.y - 80, `${combo} COMBO!`, '#ffa94d', 22); gainUlt(5); }
   spawnBurst(e.x, e.y - 18, '#ff8787', 18, 'spark'); spawnBurst(e.x, e.y - 14, '#ff8787', 6, 'dot');
   scorches.push({ x: e.x, y: e.y, r: 14, life: 8, blood: true }); if (scorches.length > 30) scorches.shift();
@@ -1171,7 +1183,7 @@ function damagePlayer(amount, fromX, fromY) {
     player.hp = 0; state = 'gameover'; sfx('death');
     const re = runEmbers(), earned = re.base + re.daily; meta.embers += earned; saveMeta(); $('go-code').value = metaCode(); $('go-copy').textContent = 'COPY SAVE CODE'; $('forge-btn').textContent = 'SPEND ' + meta.embers + ' EMBERS AT THE FORGE';
     if (wave > bestWave) { bestWave = wave; try { localStorage.setItem('swordDragonBestWave', String(bestWave)); } catch (e) {} }
-    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
+    $('gameover-stats').textContent = `Wave ${wave} • ${kills} foes slain • ${gold} gold • best combo ${bestCombo}${frenzyCount ? ` • 🔥 ${frenzyCount} frenzies` : ''} • best wave ${bestWave} • 🔥 +${earned} embers` + (runOmen ? ` (${runOmen.name} ×${runOmen.mul})` : '') + (re.daily ? ` • 🌅 daily hunt +${re.daily}, ${meta.streak}-day streak` : '');
     $('gameover-modal').style.display = 'flex';
   }
 }
@@ -1616,6 +1628,14 @@ function stepSimulation(dt) {
 
   player.atkCooldown = Math.max(0, player.atkCooldown - dt); player.atkTimer = Math.max(0, player.atkTimer - dt);
   player.spinTime = Math.max(0, player.spinTime - dt);
+  if (frenzyCd > 0) frenzyCd -= dt;
+  if (frenzyT > 0) {
+    frenzyT -= dt; comboT = Math.max(comboT, 1.5); // the fire keeps the combo alive
+    if (particles.length < MAXP) particles.push({ x: player.x + rand(-14, 14), y: player.y - rand(0, 40), vx: rand(-20, 20), vy: rand(-90, -40), life: 0.6, maxLife: 0.6, color: Math.random() < 0.5 ? '#ff7a1a' : '#ffd43b', size: rand(3, 6), kind: 'ember', g: -30 });
+    frenzyTick -= dt;
+    if (frenzyTick <= 0) { frenzyTick = 0.3; forEachEnemy(o => { if (!o.flying && o.type !== 'dragon' && Math.hypot(o.x - player.x, o.y - player.y) < 88 + o.r) damageEnemy(o, Math.max(4, Math.round(atkDmg() * 0.3)), Math.atan2(o.y - player.y, o.x - player.x), 60, true); }); }
+    if (frenzyT <= 0) { frenzyT = 0; frenzyCd = 5; combo = Math.floor(combo / 2); addFloatText(player.x, player.y - 70, 'Frenzy fades', '#ffa94d', 16); }
+  }
   if (comboT > 0) { comboT -= dt; if (comboT <= 0) combo = 0; }
 
   // spawning / wave clear
@@ -1638,7 +1658,7 @@ function stepSimulation(dt) {
     player.dashTime -= dt; player.x += player.dashVx * dt; player.y += player.dashVy * dt;
     ghosts.push({ x: player.x, y: player.y, facing: player.facing, walkPhase: player.walkPhase, life: 0.26 });
   } else {
-    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0));
+    const spdm = player.speed * (1 + gM().spd + (hasBuff('tonic') ? 0.2 : 0) + (frenzyT > 0 ? 0.18 : 0));
     player.vx = player.vx * 0.8 + inp.ix * spdm * 0.2; player.vy = player.vy * 0.8 + inp.iy * spdm * 0.2;
     player.x += player.vx * dt; player.y += player.vy * dt;
   }
@@ -1657,7 +1677,7 @@ function stepSimulation(dt) {
   for (const p of props) { const d = Math.hypot(p.x - player.x, p.y - player.y) - p.r; if (d < nd) { nd = d; nearest = p; } }
   if (nearest && nd <= player.range && player.atkCooldown <= 0 && player.spinTime <= 0 && player.dashTime <= 0) {
     player.facing = Math.atan2(nearest.y - player.y, nearest.x - player.x);
-    player.atkCooldown = player.atkRate / (1 + gM().atkspd); player.atkTimer = player.atkDuration; player.atkDir *= -1;
+    player.atkCooldown = player.atkRate / (1 + gM().atkspd + (frenzyT > 0 ? 0.35 : 0)); player.atkTimer = player.atkDuration; player.atkDir *= -1;
     hitStop = 0.025; shake = Math.max(shake, 3.5); sfx('swing');
     player.swings = (player.swings || 0) + 1;
     slashes.push({ x: player.x, y: player.y - 20, ang: player.facing, dir: player.atkDir, life: 0.2, maxLife: 0.2, R: player.range * 0.95, color: bladeStyle().glow || '#ffffff', thrust: player.cone > 0 });
@@ -2045,7 +2065,7 @@ function render() {
     for (const v of village.villagers) dr.push({ y: v.y, f: () => drawVillager(v) });
   }
   for (const c of companions) { if (c.down) dr.push({ y: c.gy, f: () => drawGrave(c) }); else dr.push({ y: c.y, f: () => drawHumanoid(c, false) }); }
-  dr.push({ y: player.y, f: () => { drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
+  dr.push({ y: player.y, f: () => { if (frenzyT > 0) drawFrenzyAura(); drawHumanoid(player, true); if (player.shieldT > 0) drawPlayerShield(); } });
   for (const e of enemies) {
     if (e.type === 'dragon') { if (!e.flying) dr.push({ y: e.y, f: () => drawDragon(e) }); }
     else dr.push({ y: e.y, f: () => drawHumanoid(e, false) });
@@ -2140,6 +2160,10 @@ function render() {
   if (state !== 'title' && player.hp < player.maxHp * 0.3) {
     ctx.fillStyle = `rgba(200,0,0,${0.1 + 0.08 * Math.sin(time * 6)})`; ctx.fillRect(0, 0, W, H);
   }
+  if (frenzyT > 0) { // fiery vignette
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75), a = Math.min(1, frenzyT / 1.5) * (0.4 + 0.08 * Math.sin(time * 9));
+    g.addColorStop(0, 'rgba(255,90,10,0)'); g.addColorStop(1, `rgba(255,70,0,${a})`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
   if (flashA > 0) { ctx.globalAlpha = Math.min(0.8, flashA); ctx.fillStyle = flashC; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   if (bannerT > 0 && state !== 'title') {
     const a = Math.min(1, bannerT / 0.6, (3 - bannerT) / 0.4);
@@ -2231,6 +2255,12 @@ function drawProp(p) {
   }
 }
 const SHIELD_TIME = 8;
+function drawFrenzyAura() {
+  const x = player.x, y = player.y - 24, p = 0.75 + 0.25 * Math.sin(time * 14), fade = Math.min(1, frenzyT / 1.5);
+  drawGlow(x, y, 90 * p, '#ff7a1a', 0.5 * fade); drawGlow(x, y, 44, '#ffd43b', 0.35 * fade);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 * fade; ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(x, player.y + 4, 88 * (0.9 + 0.1 * p), 88 * 0.55 * (0.9 + 0.1 * p), 0, 0, TAU); ctx.stroke(); ctx.restore();
+}
 function drawPlayerShield() {
   const t = player.shieldT, blink = t < 2 && Math.floor(t * 8) % 2 === 0;
   if (blink) return;
@@ -2543,9 +2573,11 @@ function updateHUD() {
     setText('village-text', village.lost ? '🔥 THE VILLAGE HAS FALLEN' : `🏠 DEFEND THE VILLAGE  ${alive}/${village.houses.length}`);
     setStyle('village-bar', 'width', `${tot / mx * 100}%`);
   } else setStyle('village-hud', 'display', 'none');
-  if (combo >= 2) {
-    setStyle('combo', 'display', 'block'); setText('combo-text', `x${combo} COMBO`);
-    setText('combo-sub', `+${Math.round(Math.min(combo, 20) * 5)}% gold`);
+  setClass('combo', 'frenzy', frenzyT > 0);
+  if (combo >= 2 || frenzyT > 0) {
+    setStyle('combo', 'display', 'block');
+    if (frenzyT > 0) { setText('combo-text', `🔥 FRENZY x${combo}`); setText('combo-sub', `${frenzyT.toFixed(1)}s · +40% dmg · +35% speed`); }
+    else { setText('combo-text', `x${combo} COMBO`); setText('combo-sub', frenzyCd > 0 ? `+${Math.round(Math.min(combo, 20) * 5)}% gold` : (combo >= FRENZY_AT - 4 ? `FRENZY IN ${FRENZY_AT - combo}!` : `+${Math.round(Math.min(combo, 20) * 5)}% gold · frenzy at ${FRENZY_AT}`)); }
   } else setStyle('combo', 'display', 'none');
 }
 
@@ -2606,7 +2638,7 @@ function initPlayerExtras(p) {
   return p;
 }
 const gM = () => player.g || zeroG();
-function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might * 0.05) * (hasBuff('brew') ? 1.25 : 1)); }
+function atkDmg() { return Math.round(player.damage * (1 + gM().dmg + meta.might * 0.05) * (hasBuff('brew') ? 1.25 : 1) * (frenzyT > 0 ? 1.4 : 1)); }
 function critCh() { return Math.min(0.85, player.crit + gM().crit + (hasBuff('mark') ? 0.15 : 0)); }
 function vampAmt() { return player.vamp + gM().vamp; }
 function cdrMul() { return 1 - gM().cdr; }

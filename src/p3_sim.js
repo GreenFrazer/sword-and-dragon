@@ -411,7 +411,7 @@ function update(now) {
   if (state === 'play') {
     if (hitStop > 0) hitStop -= rdt; else stepSimulation(dt);
   }
-  updateAmbient(rdt);
+  updateAmbient(rdt); ambTick(rdt);
   if (state === 'title') tbDraw(rdt);
   else { updateCamera(rdt, false);
   render();

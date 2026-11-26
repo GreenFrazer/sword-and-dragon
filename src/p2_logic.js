@@ -420,9 +420,13 @@ const BUFFS = {
 const HIRES = {
   squire: { name: 'Hired Sellsword', cost: 90, per: 12 },
   ranger: { name: 'Hired Archer', cost: 80, per: 10 },
+  elf: { name: 'Hired Elf Archer', cost: 135, per: 16 },
   cleric: { name: 'Hired Healer', cost: 85, per: 10 }
 };
-const HIRE_WAVES = 3;
+const HIRE_WAVES = 3; // maximum contract length
+var hireSel = {}; // chosen contract length per hire type (1..HIRE_WAVES)
+const hireWavesFor = k => Math.max(1, Math.min(HIRE_WAVES, hireSel[k] || HIRE_WAVES));
+const hireCost = k => Math.round((HIRES[k].cost + wave * HIRES[k].per) * hireWavesFor(k) / HIRE_WAVES);
 function renderBuffHud() {
   const parts = [];
   for (const id in BUFFS) if (hasBuff(id)) parts.push(`<div class="buff-chip">${BUFFS[id].icon} ${BUFFS[id].name} · ${activeBuffs[id]}w</div>`);
@@ -445,9 +449,9 @@ function tickWaveTimers() {
 function renderShop() {
   const box = $('shop-box'); $('shop-gold').textContent = gold; box.innerHTML = '';
   const sections = [
-    ['HIRE A SWORD · ' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k];
-      return { label: `${t.icon} ${h.name}`, desc: `${t.desc} (${HIRE_WAVES} waves)`, cost: h.cost + wave * h.per, ok: () => companions.length < 3,
-        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: HIRE_WAVES }); } }; })],
+    ['HIRE HELP · CHOOSE 1–' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
+      return { hire: k, label: `${t.icon} ${h.name}`, desc: `${t.desc} (${n} wave${n > 1 ? 's' : ''})`, cost: hireCost(k), ok: () => companions.length < 3,
+        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; })],
     ['BREWS & CHARMS · 2 WAVES', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
       return { label: `${b.icon} ${b.name}`, desc: b.desc + (hasBuff(k) ? ` (refresh: ${activeBuffs[k]}w left)` : ` (${b.waves} waves)`), cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
@@ -464,7 +468,15 @@ function renderShop() {
       b.disabled = gold < it.cost || !it.ok();
       b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
       b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
-      row.appendChild(b);
+      if (!it.hire) { row.appendChild(b); return; }
+      const wrap = document.createElement('div'); wrap.className = 'shop-hire'; wrap.appendChild(b);
+      const seg = document.createElement('div'); seg.className = 'hire-seg';
+      for (let n = 1; n <= HIRE_WAVES; n++) {
+        const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
+        s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; renderShop(); };
+        seg.appendChild(s);
+      }
+      wrap.appendChild(seg); row.appendChild(wrap);
     });
   });
 }

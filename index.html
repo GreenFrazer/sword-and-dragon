@@ -72,6 +72,10 @@
   .shop-title { margin-top: 22px; margin-bottom: 8px; color: #e9c46a; font-weight: 800; font-size: 14px; letter-spacing: 1px; }
   .shop-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
   .shop-btn { background: #2b3326; color: #f8f9fa; border: 2px solid #8a7346; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; min-width: 170px; }
+  .shop-hire { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+  .hire-seg { display: flex; gap: 4px; }
+  .hire-n { flex: 1; background: #1d2219; color: #cbbf9a; border: 1px solid #6b5a3a; border-radius: 6px; padding: 8px 4px; font-size: 12px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+  .hire-n.on { background: #6b5a3a; color: #fff; border-color: #ffe066; }
   .shop-btn small { color: #ffd43b; font-weight: 600; }
   .shop-btn:hover:not(:disabled) { border-color: #ffe066; }
   .shop-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -1191,9 +1195,13 @@ const BUFFS = {
 const HIRES = {
   squire: { name: 'Hired Sellsword', cost: 90, per: 12 },
   ranger: { name: 'Hired Archer', cost: 80, per: 10 },
+  elf: { name: 'Hired Elf Archer', cost: 135, per: 16 },
   cleric: { name: 'Hired Healer', cost: 85, per: 10 }
 };
-const HIRE_WAVES = 3;
+const HIRE_WAVES = 3; // maximum contract length
+var hireSel = {}; // chosen contract length per hire type (1..HIRE_WAVES)
+const hireWavesFor = k => Math.max(1, Math.min(HIRE_WAVES, hireSel[k] || HIRE_WAVES));
+const hireCost = k => Math.round((HIRES[k].cost + wave * HIRES[k].per) * hireWavesFor(k) / HIRE_WAVES);
 function renderBuffHud() {
   const parts = [];
   for (const id in BUFFS) if (hasBuff(id)) parts.push(`<div class="buff-chip">${BUFFS[id].icon} ${BUFFS[id].name} · ${activeBuffs[id]}w</div>`);
@@ -1216,9 +1224,9 @@ function tickWaveTimers() {
 function renderShop() {
   const box = $('shop-box'); $('shop-gold').textContent = gold; box.innerHTML = '';
   const sections = [
-    ['HIRE A SWORD · ' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k];
-      return { label: `${t.icon} ${h.name}`, desc: `${t.desc} (${HIRE_WAVES} waves)`, cost: h.cost + wave * h.per, ok: () => companions.length < 3,
-        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: HIRE_WAVES }); } }; })],
+    ['HIRE HELP · CHOOSE 1–' + HIRE_WAVES + ' WAVES', Object.keys(HIRES).map(k => { const h = HIRES[k], t = CTYPES[k], n = hireWavesFor(k);
+      return { hire: k, label: `${t.icon} ${h.name}`, desc: `${t.desc} (${n} wave${n > 1 ? 's' : ''})`, cost: hireCost(k), ok: () => companions.length < 3,
+        fn: () => { recruitCompanion(k, { hired: true, name: h.name.replace('Hired ', ''), wavesLeft: n }); } }; })],
     ['BREWS & CHARMS · 2 WAVES', Object.keys(BUFFS).map(k => { const b = BUFFS[k];
       return { label: `${b.icon} ${b.name}`, desc: b.desc + (hasBuff(k) ? ` (refresh: ${activeBuffs[k]}w left)` : ` (${b.waves} waves)`), cost: b.cost + wave * b.per, ok: () => true,
         fn: () => { activeBuffs[k] = b.waves; renderBuffHud(); } }; })],
@@ -1235,7 +1243,15 @@ function renderShop() {
       b.disabled = gold < it.cost || !it.ok();
       b.innerHTML = `${it.label}<br><small>${it.desc} · ${it.cost}G</small>`;
       b.onclick = ev => { if (ev) ev.stopPropagation(); if (gold < it.cost || !it.ok()) return; gold -= it.cost; it.fn(); sfx('coin'); renderShop(); };
-      row.appendChild(b);
+      if (!it.hire) { row.appendChild(b); return; }
+      const wrap = document.createElement('div'); wrap.className = 'shop-hire'; wrap.appendChild(b);
+      const seg = document.createElement('div'); seg.className = 'hire-seg';
+      for (let n = 1; n <= HIRE_WAVES; n++) {
+        const s = document.createElement('button'); s.className = 'hire-n' + (n === hireWavesFor(it.hire) ? ' on' : ''); s.textContent = n + (n > 1 ? ' waves' : ' wave');
+        s.onclick = ev => { if (ev) ev.stopPropagation(); hireSel[it.hire] = n; renderShop(); };
+        seg.appendChild(s);
+      }
+      wrap.appendChild(seg); row.appendChild(wrap);
     });
   });
 }
@@ -1267,6 +1283,7 @@ let village = null, companions = [], pendingRecruit = false, villageResult = nul
 const CTYPES = {
   squire: { name: 'Squire', hp: 150, dmg: 17, speed: 178, r: 20, atk: 0.75, icon: '🛡️', desc: 'Tanky melee guardian. Draws enemy attention.' },
   ranger: { name: 'Ranger', hp: 85, dmg: 15, speed: 168, r: 17, atk: 0.95, icon: '🏹', desc: 'Fires arrows from range. Fragile — keep her alive.' },
+  elf: { name: 'Elf Archer', hp: 78, dmg: 14, speed: 186, r: 17, atk: 0.5, icon: '🧝', hireOnly: true, desc: 'Swift elven bowmistress. Looses fast, fast arrows from range.' },
   cleric: { name: 'Cleric', hp: 100, dmg: 9, speed: 162, r: 17, atk: 1.3, icon: '✨', desc: 'Heals you and your allies every few seconds.' }
 };
 const FORMATION = [[-70, 46], [72, 50], [0, -62]];
@@ -1275,11 +1292,15 @@ function squadLvl() { return player.upg.squad || 0; }
 function compMaxHp(c) { return Math.round(CTYPES[c.type].hp * (1 + 0.07 * (c.lvl - 1)) * (1 + 0.3 * squadLvl())); }
 function compDmg(c) { return Math.round(CTYPES[c.type].dmg * (1 + 0.06 * (c.lvl - 1)) * (1 + 0.25 * squadLvl()) * (player.evo && player.evo.legion ? 1.5 : 1)); }
 
+const NAMES_F = ['Mira', 'Elara', 'Brynn', 'Isolde', 'Tamsin', 'Wren', 'Freya', 'Sable', 'Rowan', 'Ysolde'];
+const NAMES_M = ['Aldric', 'Bram', 'Cedric', 'Dunstan', 'Edric', 'Garrick', 'Hale', 'Osric', 'Tobin', 'Wulf'];
 function recruitCompanion(type, opts) {
   const t = CTYPES[type];
-  const c = { ally: true, type, name: t.name, x: player.x + rand(-50, 50), y: player.y + 40, vx: 0, vy: 0, facing: 0, walkPhase: 0, r: t.r,
+  const fem = type === 'elf' ? true : Math.random() < 0.5, pool = fem ? NAMES_F : NAMES_M;
+  const role = (opts && opts.name) || t.name;
+  const c = { ally: true, type, fem, name: pool[Math.floor(Math.random() * pool.length)] + ' the ' + role, x: player.x + rand(-50, 50), y: player.y + 40, vx: 0, vy: 0, facing: 0, walkPhase: 0, r: t.r,
     lvl: wave, hp: 1, maxHp: 1, down: false, invuln: 0, hitFlash: 0, atkCd: 0.5, aim: 0, healCd: 2, rev: 0, windup: 0, hasShield: type === 'squire', stun: 0, slot: companions.length, gx: 0, gy: 0 };
-  if (opts) Object.assign(c, opts);
+  if (opts) Object.assign(c, opts, { name: c.name });
   c.maxHp = compMaxHp(c); c.hp = c.maxHp;
   companions.push(c);
   spawnBurst(c.x, c.y - 20, '#69db7c', 16, 'ember'); addRing(c.x, c.y, 60, '#69db7c', 0.4, 5);
@@ -1446,15 +1467,16 @@ function updateCompanion(c, dt) {
         }
       }
     } else if (Math.hypot(c.x - ax, c.y - ay) > 34) moveCompanion(c, ax, ay, speed * 1.2, dt);
-  } else if (c.type === 'ranger') {
+  } else if (c.type === 'ranger' || c.type === 'elf') {
     if (en && ed < 520) {
       const ang = Math.atan2(en.y - c.y, en.x - c.x);
+      const elf = c.type === 'elf';
       if (ed < 170) moveCompanion(c, c.x - Math.cos(ang) * 100, c.y - Math.sin(ang) * 100, speed, dt);
-      else if (ed > 330) moveCompanion(c, en.x, en.y, speed, dt);
+      else if (ed > (elf ? 360 : 330)) moveCompanion(c, en.x, en.y, speed, dt);
       c.facing = ang;
-      if (c.atkCd <= 0 && ed < 440) {
+      if (c.atkCd <= 0 && ed < (elf ? 480 : 440)) {
         c.atkCd = T.atk; c.aim = 0.2; sfx('shoot');
-        shootProjectile('arrow', c.x, c.y, ang, 560, compDmg(c), 1.3, 10);
+        shootProjectile('arrow', c.x, c.y, ang, elf ? 860 : 560, compDmg(c), elf ? 1 : 1.3, 10);
         const p = projectiles[projectiles.length - 1]; p.friendly = true; p.soft = true;
       }
     } else if (Math.hypot(c.x - ax, c.y - ay) > 34) moveCompanion(c, ax, ay, speed * 1.2, dt);
@@ -2203,8 +2225,8 @@ function drawPickup(pk) {
   }
 }
 
-const TYPE_COL = { grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', cleric: '#f1f3f5' };
-const EYE_COL = { grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', cleric: '#74c0fc' };
+const TYPE_COL = { grunt: '#c92a2a', shield: '#495057', brute: '#862e9c', archer: '#2f9e44', bomber: '#e67700', squire: '#4c6ef5', ranger: '#12b886', elf: '#2b8a3e', cleric: '#f1f3f5' };
+const EYE_COL = { grunt: '#ff2a2a', shield: '#ff2a2a', brute: '#ffd43b', archer: '#ffe066', bomber: '#ff922b', squire: '#4dabf7', ranger: '#4dabf7', elf: '#8ce99a', cleric: '#74c0fc' };
 
 function drawHumanoid(ent, isPlayer) {
   const type = ent.type, scale = type === 'brute' ? 1.22 : (type === 'bomber' ? 0.9 : 1);
@@ -2236,6 +2258,9 @@ function drawHumanoid(ent, isPlayer) {
   ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(-9, -33, 6, 18);
   ctx.fillStyle = '#5c3a21'; ctx.fillRect(-12, -18, 24, 5); ctx.fillStyle = '#ffd43b'; ctx.fillRect(-2, -18, 4, 5);
   if (type === 'shield' || type === 'brute') { ctx.fillStyle = flashing ? '#fff' : '#6c757d'; ctx.beginPath(); ctx.arc(-11, -34, 6, 0, TAU); ctx.arc(11, -34, 6, 0, TAU); ctx.fill(); }
+  // long hair behind the head (female companions)
+  const hairCol = flashing ? '#fff' : (type === 'elf' ? '#f1e6a6' : (type === 'cleric' ? '#c9a46a' : (type === 'squire' ? '#8a4b2a' : '#3b2a1a')));
+  if (ent.fem) { ctx.fillStyle = hairCol; ctx.beginPath(); rrect(-11, -52, 22, 30 + Math.sin(ent.walkPhase) * 1.5, 9); ctx.fill(); }
   // head
   ctx.fillStyle = flashing ? '#fff' : ((isPlayer || ent.ally) ? '#ffdbac' : '#94d82d');
   ctx.beginPath(); ctx.arc(0, -44, 10, 0, TAU); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
@@ -2244,9 +2269,14 @@ function drawHumanoid(ent, isPlayer) {
     ctx.fillStyle = '#3b2a1a'; ctx.beginPath(); ctx.arc(0, -48, 10, Math.PI, TAU); ctx.fill();
     ctx.fillStyle = '#222'; ctx.fillRect(-4 + sideFlip * 2, -45, 2.5, 3); ctx.fillRect(2 + sideFlip * 2, -45, 2.5, 3);
   } else {
-    if (type === 'archer' || type === 'ranger') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? '#0b7a5a' : '#1b6b30'); ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.95, TAU * 1.03); ctx.fill(); }
+    if (type === 'archer' || type === 'ranger' || type === 'elf') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? (type === 'elf' ? '#5c940d' : '#0b7a5a') : '#1b6b30'); ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.95, TAU * 1.03); ctx.fill(); }
     if (type === 'shield' || type === 'brute' || type === 'squire') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? '#ced4da' : '#868e96'); ctx.beginPath(); ctx.arc(0, -47, 10.5, Math.PI, TAU); ctx.fill(); ctx.fillRect(-1.5, -57, 3, 8); if (ent.ally) { ctx.fillStyle = '#e03131'; ctx.fillRect(-2, -62, 4, 7); } }
     if (type === 'cleric') { ctx.fillStyle = flashing ? '#fff' : '#f8f9fa'; ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.9, TAU * 1.05); ctx.fill(); ctx.fillStyle = '#ffd43b'; ctx.fillRect(-4, -57, 8, 3); }
+    if (ent.fem) { ctx.fillStyle = hairCol; ctx.beginPath(); ctx.arc(0, -46, 10.5, Math.PI * 1.02, TAU * 0.99); ctx.fill(); }
+    if (type === 'elf') { // pointed ears
+      ctx.fillStyle = flashing ? '#fff' : '#ffdbac'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 9, -48); ctx.lineTo(s * 19, -55); ctx.lineTo(s * 10, -42); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    }
     ctx.fillStyle = EYE_COL[type] || '#f00'; ctx.fillRect(-5, -45, 3, 3); ctx.fillRect(2, -45, 3, 3);
   }
   // arms
@@ -2266,7 +2296,7 @@ function drawHumanoid(ent, isPlayer) {
   const wa = aim + swing, wsx = 11 * sideFlip, wsy = -31, whx = wsx + Math.cos(wa) * 15, why = wsy + Math.sin(wa) * 11;
   ctx.strokeStyle = skin; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(wsx, wsy); ctx.lineTo(whx, why); ctx.stroke();
 
-  if (type === 'archer' || type === 'ranger') {
+  if (type === 'archer' || type === 'ranger' || type === 'elf') {
     ctx.save(); ctx.translate(whx, why); ctx.rotate(aim);
     ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 15, -1.2, 1.2); ctx.stroke();
     const pull = ent.aim > 0 ? 8 : 0;
@@ -2628,7 +2658,7 @@ function openUpgradeModal() {
     rb.style.display = 'block';
     rb.innerHTML = '<h3>RECRUIT A COMPANION</h3><div class="recruit-row"></div>';
     const row = rb.querySelector('.recruit-row');
-    Object.keys(CTYPES).forEach(k => {
+    Object.keys(CTYPES).filter(k => !CTYPES[k].hireOnly).forEach(k => {
       const t = CTYPES[k], b = document.createElement('button'); b.className = 'recruit-btn';
       b.innerHTML = `<b>${t.icon} ${t.name}</b>${t.desc}`;
       b.onclick = () => { recruitCompanion(k); pendingRecruit = false; rb.style.display = 'none'; };

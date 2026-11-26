@@ -177,7 +177,7 @@ function openUpgradeModal() {
     rb.style.display = 'block';
     rb.innerHTML = '<h3>RECRUIT A COMPANION</h3><div class="recruit-row"></div>';
     const row = rb.querySelector('.recruit-row');
-    Object.keys(CTYPES).forEach(k => {
+    Object.keys(CTYPES).filter(k => !CTYPES[k].hireOnly).forEach(k => {
       const t = CTYPES[k], b = document.createElement('button'); b.className = 'recruit-btn';
       b.innerHTML = `<b>${t.icon} ${t.name}</b>${t.desc}`;
       b.onclick = () => { recruitCompanion(k); pendingRecruit = false; rb.style.display = 'none'; };

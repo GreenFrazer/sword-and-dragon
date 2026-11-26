@@ -4,6 +4,7 @@ let village = null, companions = [], pendingRecruit = false, villageResult = nul
 const CTYPES = {
   squire: { name: 'Squire', hp: 150, dmg: 17, speed: 178, r: 20, atk: 0.75, icon: '🛡️', desc: 'Tanky melee guardian. Draws enemy attention.' },
   ranger: { name: 'Ranger', hp: 85, dmg: 15, speed: 168, r: 17, atk: 0.95, icon: '🏹', desc: 'Fires arrows from range. Fragile — keep her alive.' },
+  elf: { name: 'Elf Archer', hp: 78, dmg: 14, speed: 186, r: 17, atk: 0.5, icon: '🧝', hireOnly: true, desc: 'Swift elven bowmistress. Looses fast, fast arrows from range.' },
   cleric: { name: 'Cleric', hp: 100, dmg: 9, speed: 162, r: 17, atk: 1.3, icon: '✨', desc: 'Heals you and your allies every few seconds.' }
 };
 const FORMATION = [[-70, 46], [72, 50], [0, -62]];
@@ -12,11 +13,15 @@ function squadLvl() { return player.upg.squad || 0; }
 function compMaxHp(c) { return Math.round(CTYPES[c.type].hp * (1 + 0.07 * (c.lvl - 1)) * (1 + 0.3 * squadLvl())); }
 function compDmg(c) { return Math.round(CTYPES[c.type].dmg * (1 + 0.06 * (c.lvl - 1)) * (1 + 0.25 * squadLvl()) * (player.evo && player.evo.legion ? 1.5 : 1)); }
 
+const NAMES_F = ['Mira', 'Elara', 'Brynn', 'Isolde', 'Tamsin', 'Wren', 'Freya', 'Sable', 'Rowan', 'Ysolde'];
+const NAMES_M = ['Aldric', 'Bram', 'Cedric', 'Dunstan', 'Edric', 'Garrick', 'Hale', 'Osric', 'Tobin', 'Wulf'];
 function recruitCompanion(type, opts) {
   const t = CTYPES[type];
-  const c = { ally: true, type, name: t.name, x: player.x + rand(-50, 50), y: player.y + 40, vx: 0, vy: 0, facing: 0, walkPhase: 0, r: t.r,
+  const fem = type === 'elf' ? true : Math.random() < 0.5, pool = fem ? NAMES_F : NAMES_M;
+  const role = (opts && opts.name) || t.name;
+  const c = { ally: true, type, fem, name: pool[Math.floor(Math.random() * pool.length)] + ' the ' + role, x: player.x + rand(-50, 50), y: player.y + 40, vx: 0, vy: 0, facing: 0, walkPhase: 0, r: t.r,
     lvl: wave, hp: 1, maxHp: 1, down: false, invuln: 0, hitFlash: 0, atkCd: 0.5, aim: 0, healCd: 2, rev: 0, windup: 0, hasShield: type === 'squire', stun: 0, slot: companions.length, gx: 0, gy: 0 };
-  if (opts) Object.assign(c, opts);
+  if (opts) Object.assign(c, opts, { name: c.name });
   c.maxHp = compMaxHp(c); c.hp = c.maxHp;
   companions.push(c);
   spawnBurst(c.x, c.y - 20, '#69db7c', 16, 'ember'); addRing(c.x, c.y, 60, '#69db7c', 0.4, 5);
@@ -183,15 +188,16 @@ function updateCompanion(c, dt) {
         }
       }
     } else if (Math.hypot(c.x - ax, c.y - ay) > 34) moveCompanion(c, ax, ay, speed * 1.2, dt);
-  } else if (c.type === 'ranger') {
+  } else if (c.type === 'ranger' || c.type === 'elf') {
     if (en && ed < 520) {
       const ang = Math.atan2(en.y - c.y, en.x - c.x);
+      const elf = c.type === 'elf';
       if (ed < 170) moveCompanion(c, c.x - Math.cos(ang) * 100, c.y - Math.sin(ang) * 100, speed, dt);
-      else if (ed > 330) moveCompanion(c, en.x, en.y, speed, dt);
+      else if (ed > (elf ? 360 : 330)) moveCompanion(c, en.x, en.y, speed, dt);
       c.facing = ang;
-      if (c.atkCd <= 0 && ed < 440) {
+      if (c.atkCd <= 0 && ed < (elf ? 480 : 440)) {
         c.atkCd = T.atk; c.aim = 0.2; sfx('shoot');
-        shootProjectile('arrow', c.x, c.y, ang, 560, compDmg(c), 1.3, 10);
+        shootProjectile('arrow', c.x, c.y, ang, elf ? 860 : 560, compDmg(c), elf ? 1 : 1.3, 10);
         const p = projectiles[projectiles.length - 1]; p.friendly = true; p.soft = true;
       }
     } else if (Math.hypot(c.x - ax, c.y - ay) > 34) moveCompanion(c, ax, ay, speed * 1.2, dt);

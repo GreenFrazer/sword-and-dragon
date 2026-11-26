@@ -335,12 +335,13 @@ function drawHumanoid(ent, isPlayer) {
   const flashing = ent.hitFlash > 0 || (type === 'bomber' && ent.fuse > 0 && Math.floor(time * 18) % 2 === 0);
   if ((isPlayer || ent.ally) && ent.invuln > 0 && Math.floor(ent.invuln * 20) % 2 === 0) ctx.globalAlpha *= 0.55;
   const stride = Math.sin(ent.walkPhase) * 8;
+  const fem = isPlayer ? meta.hero === 'f' : ent.fem;
   const aim = ent.facing, sideFlip = Math.cos(aim) >= 0 ? 1 : -1;
 
   // cape (player)
   if (isPlayer) {
     const sway = Math.sin(time * 6 + ent.walkPhase) * 3, back = -sideFlip;
-    ctx.fillStyle = flashing ? '#fff' : '#a61e1e';
+    ctx.fillStyle = flashing ? '#fff' : (fem ? '#5f3dc4' : '#a61e1e');
     ctx.beginPath(); ctx.moveTo(-10, -35); ctx.lineTo(10, -35);
     ctx.quadraticCurveTo(12 + back * (6 + Math.min(14, Math.hypot(ent.vx || 0, ent.vy || 0) * 0.06)) + sway, -20, 8 + back * 12 + sway * 1.5, -6);
     ctx.lineTo(-8 + back * 12 + sway * 1.5, -6); ctx.quadraticCurveTo(-12 + back * 6 + sway, -20, -10, -35); ctx.fill();
@@ -352,21 +353,20 @@ function drawHumanoid(ent, isPlayer) {
   ctx.beginPath(); ctx.moveTo(6, -14); ctx.lineTo(7, -2 - stride); ctx.stroke();
   ctx.fillStyle = flashing ? '#fff' : '#4a3219'; ctx.fillRect(-11, -3 + stride, 8, 5); ctx.fillRect(3, -3 - stride, 8, 5);
   // torso
-  ctx.fillStyle = flashing ? '#fff' : (isPlayer ? '#1c7ed6' : TYPE_COL[type] || '#c92a2a');
+  ctx.fillStyle = flashing ? '#fff' : (isPlayer ? (fem ? '#d6336c' : '#1c7ed6') : TYPE_COL[type] || '#c92a2a');
   ctx.beginPath(); rrect(-12, -36, 24, 24, 6); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(-9, -33, 6, 18);
   ctx.fillStyle = '#5c3a21'; ctx.fillRect(-12, -18, 24, 5); ctx.fillStyle = '#ffd43b'; ctx.fillRect(-2, -18, 4, 5);
   if (type === 'shield' || type === 'brute') { ctx.fillStyle = flashing ? '#fff' : '#6c757d'; ctx.beginPath(); ctx.arc(-11, -34, 6, 0, TAU); ctx.arc(11, -34, 6, 0, TAU); ctx.fill(); }
   // long hair behind the head (female heroes and companions)
-  const fem = isPlayer ? meta.hero === 'f' : ent.fem;
-  const hairCol = flashing ? '#fff' : (type === 'elf' ? '#f1e6a6' : (type === 'cleric' ? '#c9a46a' : (type === 'squire' ? '#8a4b2a' : '#3b2a1a')));
+  const hairCol = flashing ? '#fff' : (isPlayer ? '#e6b45e' : type === 'elf' ? '#f1e6a6' : (type === 'cleric' ? '#c9a46a' : (type === 'squire' ? '#8a4b2a' : '#3b2a1a')));
   if (fem) { ctx.fillStyle = hairCol; ctx.beginPath(); rrect(-11, -52, 22, 30 + Math.sin(ent.walkPhase) * 1.5, 9); ctx.fill(); }
   // head
   ctx.fillStyle = flashing ? '#fff' : ((isPlayer || ent.ally) ? '#ffdbac' : '#94d82d');
   ctx.beginPath(); ctx.arc(0, -44, 10, 0, TAU); ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
   if (isPlayer) {
     ctx.fillStyle = '#fcc419'; ctx.fillRect(-10, -49, 20, 4);
-    ctx.fillStyle = '#3b2a1a'; ctx.beginPath(); ctx.arc(0, -48, 10, Math.PI, TAU); ctx.fill();
+    ctx.fillStyle = fem ? hairCol : '#3b2a1a'; ctx.beginPath(); ctx.arc(0, -48, 10, Math.PI, TAU); ctx.fill();
     ctx.fillStyle = '#222'; ctx.fillRect(-4 + sideFlip * 2, -45, 2.5, 3); ctx.fillRect(2 + sideFlip * 2, -45, 2.5, 3);
   } else {
     if (type === 'archer' || type === 'ranger' || type === 'elf') { ctx.fillStyle = flashing ? '#fff' : (ent.ally ? (type === 'elf' ? '#5c940d' : '#0b7a5a') : '#1b6b30'); ctx.beginPath(); ctx.arc(0, -46, 11.5, Math.PI * 0.95, TAU * 1.03); ctx.fill(); }
